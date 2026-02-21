@@ -61,7 +61,6 @@ function Header() {
             </svg>
           </a>
           <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
-          <a href="/timeline" style={{ color: "inherit", textDecoration: "none" }}>Tidslinje</a>
           <a href="/colors" style={{ color: "inherit", textDecoration: "none" }}>Färger</a>
           <a href="/about" style={{ color: "inherit", textDecoration: "none" }}>Om</a>
         </div>

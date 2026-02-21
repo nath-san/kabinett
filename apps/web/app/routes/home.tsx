@@ -96,14 +96,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             }}>
               Börja utforska
             </a>
-            <a href="/timeline" style={{
+            <a href="/colors" style={{
               padding: "0.75rem 1.5rem",
               backgroundColor: "rgba(255,255,255,0.15)", color: "#fff",
               border: "1px solid rgba(255,255,255,0.25)",
               borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
               textDecoration: "none", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             }}>
-              Tidslinje
+              Utforska färger
             </a>
           </div>
           {hero && (
