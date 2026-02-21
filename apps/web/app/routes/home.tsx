@@ -3,7 +3,7 @@ import { getDb } from "../lib/db.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Kabinett — Discover Swedish Art" },
+    { title: "Kabinett — Upptäck svensk konst" },
     { name: "description", content: "Utforska Nationalmuseums samling på ett nytt sätt." },
   ];
 }
@@ -12,29 +12,28 @@ export async function loader() {
   const db = getDb();
   const total = (db.prepare("SELECT COUNT(*) as count FROM artworks").get() as any).count;
 
-  // Hero: a striking painting
-  const hero = db.prepare(
+  // Hero: pick a painting with good colors
+  const heroCandidates = db.prepare(
     `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
      FROM artworks
      WHERE category LIKE '%Målningar%'
        AND color_r IS NOT NULL
        AND (color_r + color_g + color_b) BETWEEN 150 AND 500
-     ORDER BY RANDOM() LIMIT 1`
-  ).get() as any;
+       AND LENGTH(iiif_url) > 90
+     ORDER BY RANDOM() LIMIT 5`
+  ).all() as any[];
+  const hero = heroCandidates[0] || null;
 
-  // Featured paintings
   const featured = db.prepare(
     `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-     FROM artworks
-     WHERE category LIKE '%Målningar%'
+     FROM artworks WHERE category LIKE '%Målningar%' AND LENGTH(iiif_url) > 90
      ORDER BY RANDOM() LIMIT 8`
   ).all() as any[];
 
-  // A few colorful works for the color teaser
   const colorful = db.prepare(
     `SELECT id, iiif_url, dominant_color
      FROM artworks
-     WHERE color_r IS NOT NULL
+     WHERE color_r IS NOT NULL AND LENGTH(iiif_url) > 90
        AND NOT (ABS(color_r - color_g) < 20 AND ABS(color_g - color_b) < 20)
      ORDER BY RANDOM() LIMIT 12`
   ).all() as any[];
@@ -48,46 +47,70 @@ function parseArtist(json: string | null): string {
   catch { return "Okänd konstnär"; }
 }
 
+function iiif(url: string, size: number): string {
+  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+}
+
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { total, hero, featured, colorful } = loaderData;
 
   return (
-    <div className="min-h-screen">
+    <div style={{ minHeight: "100vh" }}>
       {/* Full-bleed hero */}
-      <section className="relative h-[85vh] min-h-[500px] flex items-end">
+      <section style={{
+        position: "relative",
+        height: "85vh",
+        minHeight: "500px",
+        display: "flex",
+        alignItems: "flex-end",
+        backgroundColor: hero?.dominant_color || "#3D3831",
+      }}>
         {hero && (
-          <>
-            <img
-              src={hero.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg"}
-              alt={hero.title_sv || ""}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/20 to-transparent" />
-          </>
+          <img
+            src={iiif(hero.iiif_url, 800)}
+            alt={hero.title_sv || ""}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
         )}
-        <div className="relative z-10 px-(--spacing-page) pb-12 md:pb-16 max-w-2xl">
-          <h1 className="font-serif text-4xl md:text-6xl font-bold text-white leading-tight">
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to top, rgba(26,24,21,0.8) 0%, rgba(26,24,21,0.2) 40%, transparent 70%)",
+        }} />
+        <div style={{ position: "relative", zIndex: 10, padding: "0 1rem 3rem", maxWidth: "36rem" }}>
+          <h1 className="font-serif" style={{
+            fontSize: "2.5rem", fontWeight: 700, color: "#fff", lineHeight: 1.15,
+          }}>
             Upptäck svensk konst
           </h1>
-          <p className="mt-4 text-base md:text-lg text-white/70">
+          <p style={{ marginTop: "1rem", fontSize: "1rem", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
             {total.toLocaleString("sv-SE")} verk från Nationalmuseums samling.
             Utforska efter färg, tid eller nyfikenhet.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="/explore"
-              className="px-6 py-3 bg-white text-charcoal rounded-full text-sm font-medium
-                         hover:bg-cream transition-colors">
+          <div style={{ marginTop: "1.5rem", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+            <a href="/explore" style={{
+              padding: "0.75rem 1.5rem",
+              backgroundColor: "#fff", color: "#3D3831",
+              borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
+              textDecoration: "none",
+            }}>
               Börja utforska
             </a>
-            <a href="/colors"
-              className="px-6 py-3 bg-white/15 text-white border border-white/25 rounded-full text-sm font-medium
-                         hover:bg-white/25 transition-colors backdrop-blur-sm">
-              Utforska färger
+            <a href="/timeline" style={{
+              padding: "0.75rem 1.5rem",
+              backgroundColor: "rgba(255,255,255,0.15)", color: "#fff",
+              border: "1px solid rgba(255,255,255,0.25)",
+              borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
+              textDecoration: "none", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+            }}>
+              Tidslinje
             </a>
           </div>
           {hero && (
-            <a href={`/artwork/${hero.id}`}
-              className="inline-block mt-6 text-xs text-white/50 hover:text-white/80 transition-colors">
+            <a href={"/artwork/" + hero.id} style={{
+              display: "inline-block", marginTop: "1.5rem",
+              fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", textDecoration: "none",
+            }}>
               {hero.title_sv} — {parseArtist(hero.artists)}
             </a>
           )}
@@ -95,34 +118,35 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Featured */}
-      <section className="px-(--spacing-page) py-16 md:py-20">
-        <div className="flex items-end justify-between mb-8">
+      <section style={{ padding: "3rem 1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem" }}>
           <div>
-            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-charcoal">
+            <h2 className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 600, color: "#3D3831" }}>
               Ur samlingen
             </h2>
-            <p className="text-sm text-warm-gray mt-1">Slumpmässigt urval av målningar</p>
+            <p style={{ fontSize: "0.875rem", color: "#8C8478", marginTop: "0.25rem" }}>Slumpmässigt urval</p>
           </div>
-          <a href="/explore" className="text-sm text-warm-gray hover:text-charcoal transition-colors">
+          <a href="/explore" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
             Visa alla →
           </a>
         </div>
-        <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+        <div style={{ columnCount: 2, columnGap: "0.75rem" }}>
           {featured.map((work: any) => (
-            <a key={work.id} href={`/artwork/${work.id}`}
-              className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
-              <div className="overflow-hidden"
-                style={{ backgroundColor: work.dominant_color || "#D4CDC3", aspectRatio: "3/4" }}>
-                <img
-                  src={work.iiif_url.replace("http://", "https://") + "full/400,/0/default.jpg"}
-                  alt={work.title_sv || ""} width={400} height={533}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            <a key={work.id} href={"/artwork/" + work.id}
+              style={{
+                breakInside: "avoid", display: "block", borderRadius: "0.75rem",
+                overflow: "hidden", backgroundColor: "#F0EBE3", marginBottom: "0.75rem",
+                textDecoration: "none",
+              }}>
+              <div style={{ backgroundColor: work.dominant_color || "#D4CDC3", aspectRatio: "3/4", overflow: "hidden" }}>
+                <img src={iiif(work.iiif_url, 400)} alt={work.title_sv || ""} width={400} height={533}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
-              <div className="p-3">
-                <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
+              <div style={{ padding: "0.75rem" }}>
+                <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#3D3831", lineHeight: 1.3 }}>
                   {work.title_sv || "Utan titel"}</p>
-                <p className="text-xs text-warm-gray mt-1">{parseArtist(work.artists)}</p>
-                {work.dating_text && <p className="text-xs text-stone mt-0.5">{work.dating_text}</p>}
+                <p style={{ fontSize: "0.75rem", color: "#8C8478", marginTop: "0.25rem" }}>{parseArtist(work.artists)}</p>
               </div>
             </a>
           ))}
@@ -130,40 +154,47 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Color teaser */}
-      <section className="px-(--spacing-page) py-16 md:py-20 bg-charcoal">
-        <div className="max-w-2xl mb-8">
-          <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white">
-            Utforska genom färg
-          </h2>
-          <p className="text-sm text-white/50 mt-2">
-            Varje verk har en dominant färg. Vilken färg lockar dig?
-          </p>
-        </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-4">
+      <section style={{ padding: "3rem 1rem", backgroundColor: "#3D3831" }}>
+        <h2 className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 600, color: "#fff" }}>
+          Utforska genom färg
+        </h2>
+        <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.4)", marginTop: "0.5rem" }}>
+          Varje verk har en dominant färg. Vilken lockar dig?
+        </p>
+        <div style={{
+          display: "flex", gap: "0.5rem", overflowX: "auto",
+          paddingTop: "1rem", paddingBottom: "0.5rem",
+        }} className="no-scrollbar">
           {colorful.map((c: any) => (
-            <a key={c.id} href={`/artwork/${c.id}`}
-              className="shrink-0 w-28 h-36 md:w-36 md:h-44 rounded-xl overflow-hidden group">
-              <img
-                src={c.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
-                alt="" width={200} height={250}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <a key={c.id} href={"/artwork/" + c.id} style={{
+              flexShrink: 0, width: "7rem", height: "9rem",
+              borderRadius: "0.75rem", overflow: "hidden",
+            }}>
+              <img src={iiif(c.iiif_url, 200)} alt="" width={200} height={250}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </a>
           ))}
         </div>
-        <a href="/colors"
-          className="inline-block mt-6 px-6 py-3 bg-white/10 text-white border border-white/20 rounded-full text-sm font-medium
-                     hover:bg-white/20 transition-colors">
+        <a href="/colors" style={{
+          display: "inline-block", marginTop: "1rem",
+          padding: "0.75rem 1.5rem",
+          backgroundColor: "rgba(255,255,255,0.1)", color: "#fff",
+          border: "1px solid rgba(255,255,255,0.2)",
+          borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
+          textDecoration: "none",
+        }}>
           Utforska färger →
         </a>
       </section>
 
       {/* Footer */}
-      <footer className="px-(--spacing-page) py-12 text-center">
-        <p className="text-xs text-stone">
-          Data från <a href="https://api.nationalmuseum.se" target="_blank" rel="noopener" className="underline hover:text-warm-gray">Nationalmuseums öppna API</a>.
+      <footer style={{ padding: "2.5rem 1rem", textAlign: "center", backgroundColor: "#FAF7F2" }}>
+        <p style={{ fontSize: "0.75rem", color: "#D4CDC3" }}>
+          Data från <a href="https://api.nationalmuseum.se" target="_blank" rel="noopener"
+            style={{ textDecoration: "underline", color: "inherit" }}>Nationalmuseums öppna API</a>.
           Metadata CC0, bilder Public Domain.
         </p>
-        <p className="text-xs text-stone/60 mt-2">
+        <p style={{ fontSize: "0.7rem", color: "rgba(212,205,195,0.6)", marginTop: "0.5rem" }}>
           Kabinett är inte affilierat med Nationalmuseum.
         </p>
       </footer>
