@@ -129,7 +129,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
               <div style={{ backgroundColor: w.color, aspectRatio: "3/4", overflow: "hidden" }}>
                 <img src={w.imageUrl} alt={w.title} width={400} height={533}
                   onError={(e: any) => { e.target.style.display = "none"; }}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ padding: "0.625rem" }}>
                 <p style={{

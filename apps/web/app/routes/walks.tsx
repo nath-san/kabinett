@@ -223,7 +223,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   <img src={a.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg"}
                     alt={a.title_sv || ""} width={800} height={600}
                     onError={(e: any) => { e.target.style.display = "none"; }}
-                    style={{ width: "100%", display: "block" }} />
+                    loading="lazy" style={{ width: "100%", display: "block" }} />
                 </div>
                 <div style={{ padding: "1rem" }}>
                   <p style={{ fontSize: "0.7rem", color: "#D4CDC3", marginBottom: "0.25rem" }}>{i + 1} / {artworks.length}</p>

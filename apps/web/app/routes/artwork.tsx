@@ -189,10 +189,32 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             }} />
             <span style={{ fontSize: "0.75rem", color: "#D4CDC3", fontFamily: "monospace" }}>{artwork.color}</span>
           </div>
-          <a href={artwork.nmUrl} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
-            Nationalmuseum →
-          </a>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <button
+              onClick={() => {
+                const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+                const text = `${artwork.title} av ${artist}`;
+                const url = window.location.href;
+                if (navigator.share) {
+                  navigator.share({ title: artwork.title, text, url });
+                } else {
+                  navigator.clipboard.writeText(url);
+                  alert("Länk kopierad!");
+                }
+              }}
+              style={{
+                padding: "0.5rem 1rem", borderRadius: "999px",
+                border: "1px solid #F0EBE3", backgroundColor: "#fff",
+                fontSize: "0.8rem", color: "#3D3831", cursor: "pointer",
+                fontWeight: 500,
+              }}>
+              Dela
+            </button>
+            <a href={artwork.nmUrl} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: "0.8rem", color: "#8C8478", textDecoration: "none" }}>
+              Nationalmuseum →
+            </a>
+          </div>
         </div>
       </div>
 

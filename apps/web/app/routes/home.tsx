@@ -141,7 +141,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <div style={{ backgroundColor: work.dominant_color || "#D4CDC3", aspectRatio: "3/4", overflow: "hidden" }}>
                 <img src={iiif(work.iiif_url, 400)} alt={work.title_sv || ""} width={400} height={533}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ padding: "0.75rem" }}>
                 <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#3D3831", lineHeight: 1.3 }}>
@@ -171,7 +171,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               borderRadius: "0.75rem", overflow: "hidden",
             }}>
               <img src={iiif(c.iiif_url, 200)} alt="" width={200} height={250}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </a>
           ))}
         </div>

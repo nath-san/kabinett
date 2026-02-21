@@ -73,9 +73,14 @@ body {
   box-shadow: 0 12px 40px -8px rgba(0,0,0,0.12);
 }
 
-/* Smooth images */
-img {
-  transition: opacity 0.4s ease;
+/* Image fade-in on load */
+img[loading="lazy"] {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+img[loading="lazy"].loaded {
+  opacity: 1;
 }
 
 /* Hide scrollbar for filter chips */

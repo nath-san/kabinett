@@ -25,7 +25,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#FAF7F2" />
+        <meta name="theme-color" content="#3D3831" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
         <Meta />
         <Links />
       </head>
@@ -34,6 +39,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <main>{children}</main>
         <ScrollRestoration />
         <Scripts />
+        <script dangerouslySetInnerHTML={{ __html: `
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('img[loading="lazy"]').forEach(function(img){
+    if(img.complete){img.classList.add('loaded')}
+    else{img.addEventListener('load',function(){img.classList.add('loaded')})}
+  });
+  new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      m.addedNodes.forEach(function(n){
+        if(n.querySelectorAll){
+          n.querySelectorAll('img[loading="lazy"]').forEach(function(img){
+            if(img.complete){img.classList.add('loaded')}
+            else{img.addEventListener('load',function(){img.classList.add('loaded')})}
+          });
+        }
+      });
+    });
+  }).observe(document.body,{childList:true,subtree:true});
+});
+        `}} />
       </body>
     </html>
   );
