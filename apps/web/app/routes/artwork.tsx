@@ -2,10 +2,23 @@ import type { Route } from "./+types/artwork";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 
 export function meta({ data }: Route.MetaArgs) {
-  const title = data?.artwork?.title || "Konstverk";
+  if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
+  const { artwork } = data;
+  const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur Nationalmuseums samling.`;
   return [
-    { title: `${title} — Kabinett` },
-    { name: "description", content: `${title} ur Nationalmuseums samling.` },
+    { title: `${artwork.title} — Kabinett` },
+    { name: "description", content: desc },
+    // OG tags
+    { property: "og:title", content: artwork.title },
+    { property: "og:description", content: `${artist}${artwork.datingText ? ` · ${artwork.datingText}` : ""}` },
+    { property: "og:image", content: artwork.imageUrl },
+    { property: "og:type", content: "article" },
+    // Twitter card
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: artwork.title },
+    { name: "twitter:description", content: `${artist} — Nationalmuseum` },
+    { name: "twitter:image", content: artwork.imageUrl },
   ];
 }
 
@@ -22,6 +35,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     artists = JSON.parse(row.artists || "[]");
   } catch {}
 
+  const iiifBase = row.iiif_url.replace("http://", "https://");
   const artwork = {
     id: row.id,
     title: row.title_sv || row.title_en || "Utan titel",
@@ -32,136 +46,229 @@ export async function loader({ params }: Route.LoaderArgs) {
     datingText: row.dating_text,
     yearStart: row.year_start,
     acquisitionYear: row.acquisition_year,
-    imageUrl: row.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg",
-    thumbUrl: row.iiif_url.replace("http://", "https://") + "full/400,/0/default.jpg",
+    imageUrl: iiifBase + "full/800,/0/default.jpg",
+    thumbUrl: iiifBase + "full/400,/0/default.jpg",
     color: row.dominant_color || "#D4CDC3",
-    iiifBase: row.iiif_url.replace("http://", "https://"),
+    colorR: row.color_r,
+    colorG: row.color_g,
+    colorB: row.color_b,
+    iiifBase,
+    nmUrl: `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${row.id}`,
   };
 
-  // Get similar works by color
+  // Similar by color
   const similar = row.color_r != null
-    ? (db
-        .prepare(
-          `SELECT id, title_sv, iiif_url, dominant_color
-           FROM artworks
-           WHERE id != ? AND color_r IS NOT NULL
-           ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
-           LIMIT 6`
-        )
-        .all(row.id, row.color_r, row.color_g, row.color_b) as any[])
+    ? (db.prepare(
+        `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
+         FROM artworks
+         WHERE id != ? AND color_r IS NOT NULL
+         ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
+         LIMIT 8`
+      ).all(row.id, row.color_r, row.color_g, row.color_b) as any[])
     : [];
 
-  return { artwork, similar };
+  // Same artist
+  const artistName = artists[0]?.name;
+  const sameArtist = artistName
+    ? (db.prepare(
+        `SELECT id, title_sv, iiif_url, dominant_color, dating_text
+         FROM artworks
+         WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
+         ORDER BY RANDOM() LIMIT 6`
+      ).all(row.id, `%${artistName}%`) as any[])
+    : [];
+
+  return { artwork, similar, sameArtist, artistName };
+}
+
+function parseArtist(json: string | null): string {
+  if (!json) return "Okänd konstnär";
+  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
+  catch { return "Okänd konstnär"; }
 }
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {
-  const { artwork, similar } = loaderData;
+  const { artwork, similar, sameArtist, artistName } = loaderData;
 
   return (
-    <div className="min-h-screen pt-14 bg-cream">
-      {/* Hero image */}
-      <div
-        className="w-full flex justify-center px-(--spacing-page) pt-4"
-        style={{ backgroundColor: artwork.color }}
-      >
+    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
+      {/* Hero image with color bg */}
+      <div style={{
+        backgroundColor: artwork.color,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "1.5rem 1rem",
+        minHeight: "50vh",
+      }}>
         <img
           src={artwork.imageUrl}
           alt={artwork.title}
-          className="max-h-[70vh] w-auto max-w-full object-contain"
+          style={{
+            maxHeight: "70vh",
+            maxWidth: "100%",
+            objectFit: "contain",
+            borderRadius: "0.25rem",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
+          }}
         />
       </div>
 
-      {/* Info */}
-      <div className="px-(--spacing-page) py-8 max-w-2xl mx-auto">
-        <h1 className="font-serif text-2xl md:text-3xl font-bold text-charcoal leading-snug">
+      {/* Info card — overlapping the image slightly */}
+      <div style={{
+        margin: "-2rem 1rem 0",
+        padding: "1.5rem",
+        backgroundColor: "#fff",
+        borderRadius: "1rem",
+        position: "relative",
+        zIndex: 10,
+        boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
+        maxWidth: "40rem",
+        marginLeft: "auto",
+        marginRight: "auto",
+      }}>
+        <h1 className="font-serif" style={{
+          fontSize: "1.5rem",
+          fontWeight: 700,
+          color: "#3D3831",
+          lineHeight: 1.3,
+        }}>
           {artwork.title}
         </h1>
 
         {artwork.artists.length > 0 && (
-          <p className="mt-2 text-lg text-warm-gray">
+          <p style={{ marginTop: "0.5rem", fontSize: "1rem", color: "#8C8478" }}>
             {artwork.artists.map((a: any) => a.name).join(", ")}
+            {artwork.artists[0]?.nationality && (
+              <span style={{ fontSize: "0.875rem", color: "#D4CDC3" }}>
+                {" "}· {artwork.artists[0].nationality}
+              </span>
+            )}
           </p>
         )}
 
-        <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-          {artwork.datingText && (
-            <Detail label="Datering" value={artwork.datingText} />
-          )}
-          {artwork.category && (
-            <Detail label="Kategori" value={artwork.category} />
-          )}
-          {artwork.techniqueMaterial && (
-            <Detail label="Teknik/Material" value={artwork.techniqueMaterial} />
-          )}
-          {artwork.acquisitionYear && (
-            <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />
-          )}
+        {/* Details grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "1rem",
+          marginTop: "1.25rem",
+          paddingTop: "1.25rem",
+          borderTop: "1px solid #F0EBE3",
+        }}>
+          {artwork.datingText && <Detail label="Datering" value={artwork.datingText} />}
+          {artwork.category && <Detail label="Kategori" value={artwork.category} />}
+          {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
+          {artwork.acquisitionYear && <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />}
         </div>
 
-        {/* Color swatch */}
-        <div className="mt-6 flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border border-stone/30"
-            style={{ backgroundColor: artwork.color }}
-          />
-          <span className="text-xs text-warm-gray font-mono">{artwork.color}</span>
+        {/* Color + link row */}
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "1.25rem",
+          paddingTop: "1.25rem",
+          borderTop: "1px solid #F0EBE3",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div style={{
+              width: "1.5rem",
+              height: "1.5rem",
+              borderRadius: "50%",
+              backgroundColor: artwork.color,
+              border: "1px solid rgba(212,205,195,0.4)",
+            }} />
+            <span style={{ fontSize: "0.75rem", color: "#D4CDC3", fontFamily: "monospace" }}>{artwork.color}</span>
+          </div>
+          <a href={artwork.nmUrl} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
+            Nationalmuseum →
+          </a>
         </div>
-
-        {/* External link */}
-        <a
-          href={`http://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${artwork.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block mt-6 text-sm text-warm-gray underline hover:text-charcoal transition-colors"
-        >
-          Visa på Nationalmuseum →
-        </a>
       </div>
 
-      {/* Similar works */}
-      {similar.length > 0 && (
-        <div className="px-(--spacing-page) pb-16 max-w-4xl mx-auto">
-          <h2 className="font-serif text-xl font-semibold text-charcoal mb-4">
-            Liknande färger
+      {/* Same artist section */}
+      {sameArtist.length > 0 && (
+        <section style={{ padding: "2.5rem 1rem 0", maxWidth: "50rem", margin: "0 auto" }}>
+          <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3831" }}>
+            Mer av {artistName}
           </h2>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-            {similar.map((s: any) => (
-              <a
-                key={s.id}
-                href={`/artwork/${s.id}`}
-                className="rounded-lg overflow-hidden bg-linen"
-              >
-                <div
-                  style={{
-                    backgroundColor: s.dominant_color || "#D4CDC3",
-                    aspectRatio: "1",
-                  }}
-                  className="overflow-hidden"
-                >
-                  <img
-                    src={
-                      s.iiif_url.replace("http://", "https://") +
-                      "full/200,/0/default.jpg"
-                    }
-                    alt={s.title_sv || ""}
-                    width={200}
-                    height={200}
-                    className="w-full h-full object-cover"
-                  />
+          <div style={{
+            display: "flex",
+            gap: "0.75rem",
+            overflowX: "auto",
+            paddingTop: "1rem",
+            paddingBottom: "0.5rem",
+          }} className="no-scrollbar">
+            {sameArtist.map((s: any) => (
+              <a key={s.id} href={"/artwork/" + s.id} style={{
+                flexShrink: 0,
+                width: "8rem",
+                borderRadius: "0.75rem",
+                overflow: "hidden",
+                backgroundColor: "#F0EBE3",
+                textDecoration: "none",
+              }}>
+                <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: s.dominant_color || "#D4CDC3" }}>
+                  <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
+                    alt={s.title_sv || ""} width={200} height={267}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div style={{ padding: "0.5rem" }}>
+                  <p style={{ fontSize: "0.75rem", color: "#3D3831", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                    {s.title_sv || "Utan titel"}
+                  </p>
                 </div>
               </a>
             ))}
           </div>
-        </div>
+        </section>
+      )}
+
+      {/* Similar colors */}
+      {similar.length > 0 && (
+        <section style={{ padding: "2.5rem 1rem 0", maxWidth: "50rem", margin: "0 auto" }}>
+          <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3831" }}>
+            Liknande färger
+          </h2>
+          <div style={{
+            display: "flex",
+            gap: "0.75rem",
+            overflowX: "auto",
+            paddingTop: "1rem",
+            paddingBottom: "0.5rem",
+          }} className="no-scrollbar">
+            {similar.map((s: any) => (
+              <a key={s.id} href={"/artwork/" + s.id} style={{
+                flexShrink: 0,
+                width: "8rem",
+                borderRadius: "0.75rem",
+                overflow: "hidden",
+                backgroundColor: "#F0EBE3",
+                textDecoration: "none",
+              }}>
+                <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: s.dominant_color || "#D4CDC3" }}>
+                  <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
+                    alt={s.title_sv || ""} width={200} height={267}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div style={{ padding: "0.5rem" }}>
+                  <p style={{ fontSize: "0.75rem", color: "#3D3831", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                    {s.title_sv || "Utan titel"}
+                  </p>
+                  <p style={{ fontSize: "0.65rem", color: "#8C8478", marginTop: "0.125rem" }}>{parseArtist(s.artists)}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Back */}
-      <div className="px-(--spacing-page) pb-12 text-center">
-        <a
-          href="/explore"
-          className="text-sm text-warm-gray hover:text-charcoal transition-colors"
-        >
-          ← Tillbaka till utforska
+      <div style={{ padding: "2.5rem 1rem 3rem", textAlign: "center" }}>
+        <a href="/explore" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
+          ← Tillbaka
         </a>
       </div>
     </div>
@@ -171,8 +278,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-warm-gray text-xs uppercase tracking-wide">{label}</p>
-      <p className="text-charcoal mt-0.5">{value}</p>
+      <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
+      <p style={{ fontSize: "0.875rem", color: "#3D3831", marginTop: "0.125rem" }}>{value}</p>
     </div>
   );
 }
