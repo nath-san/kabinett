@@ -114,9 +114,10 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
       <div className="px-(--spacing-page) pb-24">
         <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
           {artworks.map((a) => (
-            <div
+            <a
               key={a.id}
-              className="break-inside-avoid rounded-xl overflow-hidden bg-linen"
+              href={`/artwork/${a.id}`}
+              className="block break-inside-avoid rounded-xl overflow-hidden bg-linen group"
             >
               <div style={{ backgroundColor: a.color, aspectRatio: "3/4" }} className="overflow-hidden">
                 <img
@@ -124,7 +125,7 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
                   alt={a.title}
                   width={400}
                   height={533}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
               </div>
               <div className="p-3">
@@ -134,7 +135,7 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
                 <p className="text-xs text-warm-gray mt-1">{a.artist}</p>
                 {a.year && <p className="text-xs text-stone mt-0.5">{a.year}</p>}
               </div>
-            </div>
+            </a>
           ))}
         </div>
 
