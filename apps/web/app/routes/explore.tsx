@@ -9,15 +9,15 @@ export function meta({}: Route.MetaArgs) {
 }
 
 const CATEGORIES = [
-  { label: "Alla", value: "", emoji: "" },
-  { label: "Målningar", value: "Målningar", emoji: "🖼" },
-  { label: "Skulptur", value: "Skulptur", emoji: "🗿" },
-  { label: "Teckningar", value: "Frihandsteckningar", emoji: "✏️" },
-  { label: "Grafik", value: "Grafik", emoji: "🖨" },
-  { label: "Miniatyrer", value: "Miniatyr", emoji: "🔍" },
-  { label: "Keramik", value: "Keramik", emoji: "🏺" },
-  { label: "Fotografier", value: "Fotografier", emoji: "📷" },
-  { label: "Textil", value: "Textil", emoji: "🧵" },
+  { label: "Alla", value: "" },
+  { label: "Målningar", value: "Målningar" },
+  { label: "Skulptur", value: "Skulptur" },
+  { label: "Teckningar", value: "Frihandsteckningar" },
+  { label: "Grafik", value: "Grafik" },
+  { label: "Miniatyrer", value: "Miniatyr" },
+  { label: "Keramik", value: "Keramik" },
+  { label: "Fotografier", value: "Fotografier" },
+  { label: "Textil", value: "Textil" },
 ];
 
 const PERIODS = [
@@ -199,7 +199,6 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
           <div style={{ display: "flex", gap: "0.375rem", overflowX: "auto", paddingBottom: "0.25rem" }} className="no-scrollbar">
             {CATEGORIES.map(f => (
               <a key={f.value} href={buildUrl(f.value, period, color, sort)} style={chip(category === f.value)}>
-                {f.emoji && <span style={{ fontSize: "0.85rem" }}>{f.emoji}</span>}
                 {f.label}
               </a>
             ))}
@@ -249,7 +248,7 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
             {SORTS.map(s => (
               <a key={s.value} href={buildUrl(category, period, color, s.value)}
                 style={chip(sort === s.value)}>
-                {s.value === "random" && "✦ "}{s.label}
+                {s.label}
               </a>
             ))}
           </div>
