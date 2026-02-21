@@ -1,8 +1,10 @@
 import Database from "better-sqlite3";
 import { resolve } from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = import.meta.dirname ?? resolve(fileURLToPath(import.meta.url), "..");
 const DB_PATH = resolve(
-  import.meta.dirname,
+  __dirname,
   "../../../../packages/data/kabinett.db"
 );
 

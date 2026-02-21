@@ -29,9 +29,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"Inter", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
         <Header />
-        <main className="animate-fadeIn">{children}</main>
+        <main>{children}</main>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -43,58 +43,28 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-cream/80 backdrop-blur-md border-b border-stone/20">
-      <nav className="flex items-center justify-between px-(--spacing-page) h-14">
-        <a href="/" className="font-serif text-xl font-semibold tracking-tight text-charcoal">
+    <header style={{
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+      backgroundColor: "rgba(250,247,242,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+      borderBottom: "1px solid rgba(212,205,195,0.3)",
+    }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1rem", height: "3.5rem" }}>
+        <a href="/" style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: "1.25rem", fontWeight: 600, color: "#3D3831", textDecoration: "none" }}>
           Kabinett
         </a>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-6 text-sm text-warm-gray">
-          <a href="/search" className="hover:text-charcoal transition-colors" aria-label="Sök">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        {/* Nav links — always visible, compact on mobile */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
+          <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
+            <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
           </a>
-          <a href="/explore" className="hover:text-charcoal transition-colors">Utforska</a>
-          <a href="/colors" className="hover:text-charcoal transition-colors">Färger</a>
-          <a href="/about" className="hover:text-charcoal transition-colors">Om</a>
+          <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
+          <a href="/colors" style={{ color: "inherit", textDecoration: "none" }}>Färger</a>
+          <a href="/about" style={{ color: "inherit", textDecoration: "none" }}>Om</a>
         </div>
-
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden p-2 -mr-2 text-charcoal"
-          aria-label="Meny"
-        >
-          {menuOpen ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-        </button>
       </nav>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-cream/95 backdrop-blur-lg border-b border-stone/20 animate-slideDown">
-          <div className="flex flex-col px-(--spacing-page) py-4 gap-4">
-            <a href="/search" className="flex items-center gap-3 text-charcoal text-base font-medium" onClick={() => setMenuOpen(false)}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-              Sök
-            </a>
-            <a href="/explore" className="text-charcoal text-base font-medium" onClick={() => setMenuOpen(false)}>Utforska</a>
-            <a href="/colors" className="text-charcoal text-base font-medium" onClick={() => setMenuOpen(false)}>Färger</a>
-            <a href="/about" className="text-charcoal text-base font-medium" onClick={() => setMenuOpen(false)}>Om</a>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
@@ -106,14 +76,19 @@ export default function App() {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "Något gick fel.";
+  let stack = "";
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : "Fel";
     details = error.status === 404 ? "Den här sidan finns inte." : error.statusText || details;
+  } else if (error instanceof Error) {
+    details = error.message;
+    stack = error.stack || "";
   }
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-(--spacing-page)">
-      <h1 className="font-serif text-6xl font-bold text-charcoal">{message}</h1>
-      <p className="mt-4 text-warm-gray">{details}</p>
+    <div style={{ padding: "4rem 1rem", textAlign: "center", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+      <h1 style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: "3rem", fontWeight: "bold", color: "#3D3831" }}>{message}</h1>
+      <p style={{ marginTop: "1rem", color: "#8C8478" }}>{details}</p>
+      {stack && <pre style={{ marginTop: "1rem", fontSize: "0.65rem", color: "#999", textAlign: "left", maxWidth: "90vw", overflow: "auto", whiteSpace: "pre-wrap" }}>{stack}</pre>}
     </div>
   );
 }
