@@ -32,7 +32,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     datingText: row.dating_text,
     yearStart: row.year_start,
     acquisitionYear: row.acquisition_year,
-    imageUrl: row.iiif_url.replace("http://", "https://") + "full/1200,/0/default.jpg",
+    imageUrl: row.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg",
     thumbUrl: row.iiif_url.replace("http://", "https://") + "full/400,/0/default.jpg",
     color: row.dominant_color || "#D4CDC3",
     iiifBase: row.iiif_url.replace("http://", "https://"),
