@@ -16,25 +16,35 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!query) return { query, results: [], total: 0 };
 
   const db = getDb();
-  const like = `%${query}%`;
 
-  const results = db
-    .prepare(
+  // Use FTS5 for fast, relevance-ranked search
+  // Fall back to LIKE if FTS table doesn't exist yet
+  let results: any[];
+  let total: number;
+
+  try {
+    const ftsQuery = query.split(/\s+/).map(w => `"${w}"*`).join(" ");
+    results = db
+      .prepare(
+        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
+         FROM artworks_fts f
+         JOIN artworks a ON a.id = f.rowid
+         WHERE artworks_fts MATCH ?
+         ORDER BY rank
+         LIMIT 60`
+      )
+      .all(ftsQuery);
+    total = (db.prepare(
+      `SELECT COUNT(*) as count FROM artworks_fts WHERE artworks_fts MATCH ?`
+    ).get(ftsQuery) as any).count;
+  } catch {
+    const like = `%${query}%`;
+    results = db.prepare(
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
-       FROM artworks
-       WHERE title_sv LIKE ? OR title_en LIKE ? OR artists LIKE ?
-          OR technique_material LIKE ? OR category LIKE ?
-       LIMIT 60`
-    )
-    .all(like, like, like, like, like) as any[];
-
-  const total = (
-    db.prepare(
-      `SELECT COUNT(*) as count FROM artworks
-       WHERE title_sv LIKE ? OR title_en LIKE ? OR artists LIKE ?
-          OR technique_material LIKE ? OR category LIKE ?`
-    ).get(like, like, like, like, like) as any
-  ).count;
+       FROM artworks WHERE title_sv LIKE ? OR artists LIKE ? LIMIT 60`
+    ).all(like, like);
+    total = results.length;
+  }
 
   return { query, results, total };
 }
@@ -50,6 +60,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   const [input, setInput] = useState(query);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const tapping = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -86,7 +97,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               type="search" name="q" value={input}
               onChange={e => setInput(e.target.value)}
               onFocus={() => suggestions.length > 0 && setOpen(true)}
-              onBlur={() => setTimeout(() => setOpen(false), 200)}
+              onBlur={() => { if (!tapping.current) setOpen(false); }}
               placeholder="Konstnär, titel, teknik..."
               autoFocus autoComplete="off"
               className="flex-1 px-4 py-3 rounded-xl bg-linen text-charcoal placeholder:text-stone
@@ -104,7 +115,9 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           <div className="mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden">
             {suggestions.map((s: any, i: number) => (
               <button key={i} type="button"
-                onPointerDown={(e) => { e.preventDefault(); go(s.value); }}
+                onTouchStart={() => { tapping.current = true; }}
+                onTouchEnd={() => { tapping.current = false; go(s.value); }}
+                onMouseDown={(e) => { e.preventDefault(); go(s.value); }}
                 className={`w-full text-left px-4 py-3 text-sm flex justify-between
                   hover:bg-cream ${i > 0 ? "border-t border-stone/5" : ""}`}>
                 <span className="text-charcoal truncate">{s.value}</span>

@@ -81,6 +81,12 @@ function initDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_artworks_category ON artworks(category);
     CREATE INDEX IF NOT EXISTS idx_artworks_year ON artworks(year_start);
     CREATE INDEX IF NOT EXISTS idx_artworks_color ON artworks(color_r, color_g, color_b);
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS artworks_fts USING fts5(
+      title_sv, title_en, artists, technique_material, category,
+      content='artworks', content_rowid='id',
+      tokenize='unicode61 remove_diacritics 2'
+    );
   `);
 
   return db;

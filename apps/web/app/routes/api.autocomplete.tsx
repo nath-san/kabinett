@@ -8,38 +8,57 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (q.length < 2) return Response.json([]);
 
   const db = getDb();
-  const like = `%${q}%`;
 
-  // Get matching titles
-  const titles = db
-    .prepare(
-      `SELECT DISTINCT title_sv as value, 'title' as type
-       FROM artworks WHERE title_sv LIKE ? LIMIT 5`
-    )
-    .all(like) as any[];
+  try {
+    const ftsQuery = q.split(/\s+/).map(w => `"${w}"*`).join(" ");
 
-  // Get matching artists
-  const artists = db
-    .prepare(
-      `SELECT DISTINCT json_extract(value, '$.name') as value, 'artist' as type
-       FROM artworks, json_each(artworks.artists)
-       WHERE json_extract(value, '$.name') LIKE ?
-         AND json_extract(value, '$.name') IS NOT NULL
-       LIMIT 5`
-    )
-    .all(like) as any[];
+    // Get matching artworks with context
+    const rows = db
+      .prepare(
+        `SELECT a.title_sv as title, a.artists, a.category
+         FROM artworks_fts f
+         JOIN artworks a ON a.id = f.rowid
+         WHERE artworks_fts MATCH ?
+         ORDER BY rank
+         LIMIT 20`
+      )
+      .all(ftsQuery) as any[];
 
-  // Get matching categories
-  const categories = db
-    .prepare(
-      `SELECT DISTINCT category as value, 'category' as type
-       FROM artworks WHERE category LIKE ? LIMIT 3`
-    )
-    .all(like) as any[];
+    // Extract unique artists and categories
+    const seen = new Set<string>();
+    const results: Array<{ value: string; type: string }> = [];
 
-  const results = [...artists, ...titles.slice(0, 3), ...categories]
-    .filter((r) => r.value)
-    .slice(0, 8);
+    for (const row of rows) {
+      // Artists
+      try {
+        const artists = JSON.parse(row.artists || "[]");
+        const name = artists[0]?.name;
+        if (name && name.toLowerCase().includes(q.toLowerCase()) && !seen.has(`a:${name}`)) {
+          seen.add(`a:${name}`);
+          results.push({ value: name, type: "artist" });
+        }
+      } catch {}
 
-  return Response.json(results);
+      // Titles
+      if (row.title && !seen.has(`t:${row.title}`) && results.filter(r => r.type === "title").length < 4) {
+        seen.add(`t:${row.title}`);
+        results.push({ value: row.title, type: "title" });
+      }
+    }
+
+    // Categories
+    const cats = db.prepare(
+      `SELECT DISTINCT category as value FROM artworks WHERE category LIKE ? LIMIT 2`
+    ).all(`%${q}%`) as any[];
+    for (const c of cats) {
+      if (c.value && !seen.has(`c:${c.value}`)) {
+        seen.add(`c:${c.value}`);
+        results.push({ value: c.value.split(" (")[0], type: "category" });
+      }
+    }
+
+    return Response.json(results.slice(0, 8));
+  } catch {
+    return Response.json([]);
+  }
 }
