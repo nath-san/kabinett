@@ -8,177 +8,155 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+const PALETTES = [
+  { label: "Röda toner", slug: "red", gradient: "from-red-900 via-red-500 to-rose-300",
+    sql: "color_r > color_g * 1.4 AND color_r > color_b * 1.4 AND color_r > 80" },
+  { label: "Blå toner", slug: "blue", gradient: "from-blue-900 via-blue-500 to-sky-300",
+    sql: "color_b > color_r * 1.3 AND color_b > color_g * 1.2 AND color_b > 80" },
+  { label: "Gröna toner", slug: "green", gradient: "from-emerald-900 via-green-500 to-lime-300",
+    sql: "color_g > color_r * 1.2 AND color_g > color_b * 1.2 AND color_g > 80" },
+  { label: "Guld & gult", slug: "gold", gradient: "from-yellow-800 via-amber-400 to-yellow-200",
+    sql: "color_r > 150 AND color_g > 120 AND color_b < color_r * 0.6" },
+  { label: "Mörka verk", slug: "dark", gradient: "from-gray-950 via-gray-800 to-gray-600",
+    sql: "(color_r + color_g + color_b) < 120" },
+  { label: "Ljusa verk", slug: "light", gradient: "from-amber-50 via-stone-100 to-white",
+    sql: "(color_r + color_g + color_b) > 600" },
+  { label: "Varma toner", slug: "warm", gradient: "from-orange-900 via-orange-400 to-amber-200",
+    sql: "color_r > color_b * 1.5 AND color_g > color_b AND (color_r + color_g) > 200" },
+  { label: "Kalla toner", slug: "cool", gradient: "from-slate-800 via-cyan-500 to-teal-200",
+    sql: "color_b > color_r AND color_g > color_r * 0.8 AND (color_g + color_b) > 200" },
+];
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const selectedHue = url.searchParams.get("hue");
+  const selected = url.searchParams.get("palette") || "";
 
   const db = getDb();
 
-  // Get a spread of colors across the spectrum
-  // Group artworks by hue buckets
-  const all = db
-    .prepare(
-      `SELECT id, title_sv, iiif_url, dominant_color, color_r, color_g, color_b
-       FROM artworks
-       WHERE color_r IS NOT NULL
-       ORDER BY
-         CASE
-           WHEN color_r >= color_g AND color_r >= color_b THEN 0
-           WHEN color_g >= color_r AND color_g >= color_b THEN 1
-           ELSE 2
-         END,
-         color_r, color_g, color_b
-       LIMIT 300`
-    )
-    .all() as any[];
+  // Get a sample image for each palette as preview
+  const palettePreviews = PALETTES.map(p => {
+    const sample = db.prepare(
+      `SELECT id, iiif_url, dominant_color FROM artworks
+       WHERE color_r IS NOT NULL AND ${p.sql}
+       ORDER BY RANDOM() LIMIT 4`
+    ).all() as any[];
+    return { ...p, samples: sample };
+  });
 
-  // If a hue is selected, get artworks matching that hue range
-  let filtered: any[] = [];
-  if (selectedHue) {
-    const hueRanges: Record<string, [number, number, number, number, number, number]> = {
-      red:    [150, 0, 0, 255, 100, 100],
-      orange: [180, 100, 0, 255, 180, 100],
-      yellow: [180, 180, 0, 255, 255, 100],
-      green:  [0, 100, 0, 150, 255, 150],
-      blue:   [0, 0, 100, 150, 150, 255],
-      purple: [100, 0, 100, 255, 100, 255],
-      brown:  [80, 40, 0, 180, 130, 80],
-      gray:   [80, 80, 80, 180, 180, 180],
-      light:  [200, 200, 200, 255, 255, 255],
-      dark:   [0, 0, 0, 80, 80, 80],
-    };
-
-    const range = hueRanges[selectedHue];
-    if (range) {
-      filtered = db
-        .prepare(
-          `SELECT id, title_sv, iiif_url, dominant_color
-           FROM artworks
-           WHERE color_r BETWEEN ? AND ?
-             AND color_g BETWEEN ? AND ?
-             AND color_b BETWEEN ? AND ?
-           ORDER BY RANDOM()
-           LIMIT 40`
-        )
-        .all(range[0], range[3], range[1], range[4], range[2], range[5]) as any[];
+  // If a palette is selected, get artworks
+  let artworks: any[] = [];
+  let paletteLabel = "";
+  if (selected) {
+    const palette = PALETTES.find(p => p.slug === selected);
+    if (palette) {
+      paletteLabel = palette.label;
+      artworks = db.prepare(
+        `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
+         FROM artworks
+         WHERE color_r IS NOT NULL AND ${palette.sql}
+         ORDER BY RANDOM()
+         LIMIT 40`
+      ).all() as any[];
     }
   }
 
-  return { spectrum: all, filtered, selectedHue };
+  return { palettePreviews, artworks, selected, paletteLabel };
 }
 
-const HUE_BUTTONS = [
-  { label: "Rött", value: "red", color: "#C4553A" },
-  { label: "Orange", value: "orange", color: "#D4893A" },
-  { label: "Gult", value: "yellow", color: "#D4C43A" },
-  { label: "Grönt", value: "green", color: "#4A8C5C" },
-  { label: "Blått", value: "blue", color: "#3A6BC4" },
-  { label: "Lila", value: "purple", color: "#8C4AA0" },
-  { label: "Brunt", value: "brown", color: "#8C6844" },
-  { label: "Grått", value: "gray", color: "#9C9C9C" },
-  { label: "Ljust", value: "light", color: "#E8E4DE" },
-  { label: "Mörkt", value: "dark", color: "#2C2824" },
-];
+function parseArtist(json: string | null): string {
+  if (!json) return "Okänd konstnär";
+  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
+  catch { return "Okänd konstnär"; }
+}
 
 export default function Colors({ loaderData }: Route.ComponentProps) {
-  const { spectrum, filtered, selectedHue } = loaderData;
+  const { palettePreviews, artworks, selected, paletteLabel } = loaderData;
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
-      <div className="px-(--spacing-page) pt-8 pb-2">
+      <div className="px-(--spacing-page) pt-8 pb-4">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Färger</h1>
         <p className="text-warm-gray text-sm mt-1">
           Utforska samlingen genom färg.
         </p>
       </div>
 
-      {/* Color spectrum mosaic */}
-      <div className="px-(--spacing-page) py-4">
-        <div className="flex flex-wrap gap-0.5">
-          {spectrum.map((s: any) => (
+      {/* Palette cards */}
+      <div className="px-(--spacing-page) pb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {palettePreviews.map((p) => (
             <a
-              key={s.id}
-              href={`/artwork/${s.id}`}
-              className="block hover:scale-150 hover:z-10 transition-transform duration-200"
-              title={s.title_sv}
+              key={p.slug}
+              href={`/colors?palette=${p.slug}#results`}
+              className={`relative rounded-2xl overflow-hidden group ${
+                selected === p.slug ? "ring-2 ring-charcoal ring-offset-2 ring-offset-cream" : ""
+              }`}
             >
-              <div
-                className="w-6 h-6 md:w-8 md:h-8 rounded-sm"
-                style={{ backgroundColor: s.dominant_color || "#ccc" }}
-              />
+              {/* Image mosaic background */}
+              <div className="grid grid-cols-2 aspect-[4/3]">
+                {p.samples.length > 0 ? p.samples.map((s: any, i: number) => (
+                  <div key={i} className="overflow-hidden" style={{ backgroundColor: s.dominant_color || "#888" }}>
+                    <img
+                      src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
+                      alt="" width={200} height={150}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                  </div>
+                )) : (
+                  <div className={`col-span-2 row-span-2 bg-gradient-to-br ${p.gradient}`} />
+                )}
+              </div>
+              {/* Label overlay */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
+                <p className="text-white text-sm font-medium">{p.label}</p>
+              </div>
             </a>
           ))}
         </div>
       </div>
 
-      {/* Hue picker */}
-      <div
-        className="px-(--spacing-page) py-4 flex gap-2 overflow-x-auto"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {HUE_BUTTONS.map((h) => (
-          <a
-            key={h.value}
-            href={`/colors?hue=${h.value}`}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-              selectedHue === h.value
-                ? "ring-2 ring-charcoal ring-offset-2 ring-offset-cream"
-                : "hover:ring-1 hover:ring-stone"
-            }`}
-            style={{ backgroundColor: h.color + "20" }}
-          >
-            <div
-              className="w-4 h-4 rounded-full"
-              style={{ backgroundColor: h.color }}
-            />
-            {h.label}
-          </a>
-        ))}
-      </div>
+      {/* Selected palette results */}
+      {selected && artworks.length > 0 && (
+        <div id="results" className="px-(--spacing-page) pb-24">
+          <h2 className="font-serif text-xl font-semibold text-charcoal mb-1">
+            {paletteLabel}
+          </h2>
+          <p className="text-sm text-warm-gray mb-6">{artworks.length} verk</p>
 
-      {/* Filtered results */}
-      {filtered.length > 0 && (
-        <div className="px-(--spacing-page) pb-24">
-          <p className="text-sm text-warm-gray mb-4">{filtered.length} verk</p>
           <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
-            {filtered.map((a: any) => (
+            {artworks.map((a: any) => (
               <a
                 key={a.id}
                 href={`/artwork/${a.id}`}
-                className="block break-inside-avoid rounded-xl overflow-hidden bg-linen"
+                className="block break-inside-avoid rounded-xl overflow-hidden bg-linen group"
               >
                 <div
-                  style={{
-                    backgroundColor: a.dominant_color || "#D4CDC3",
-                    aspectRatio: "3/4",
-                  }}
+                  style={{ backgroundColor: a.dominant_color || "#D4CDC3", aspectRatio: "3/4" }}
                   className="overflow-hidden"
                 >
                   <img
-                    src={
-                      a.iiif_url.replace("http://", "https://") +
-                      "full/400,/0/default.jpg"
-                    }
-                    alt={a.title_sv || ""}
-                    width={400}
-                    height={533}
-                    className="w-full h-full object-cover"
+                    src={a.iiif_url.replace("http://", "https://") + "full/400,/0/default.jpg"}
+                    alt={a.title_sv || ""} width={400} height={533}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                 </div>
                 <div className="p-3">
                   <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
                     {a.title_sv || "Utan titel"}
                   </p>
+                  <p className="text-xs text-warm-gray mt-1">{parseArtist(a.artists)}</p>
+                  {a.dating_text && <p className="text-xs text-stone mt-0.5">{a.dating_text}</p>}
                 </div>
               </a>
             ))}
           </div>
-        </div>
-      )}
 
-      {!selectedHue && (
-        <div className="px-(--spacing-page) pb-24">
-          <p className="text-warm-gray text-sm">Välj en färg ovan för att utforska.</p>
+          <div className="flex justify-center pt-8">
+            <a href={`/colors?palette=${selected}#results`}
+              className="px-5 py-2.5 bg-charcoal text-cream rounded-full text-sm font-medium hover:bg-ink transition-colors">
+              ✦ Visa andra
+            </a>
+          </div>
         </div>
       )}
     </div>
