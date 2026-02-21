@@ -12,5 +12,6 @@ export default [
   route("artwork/:id", "routes/artwork.tsx"),
   route("artist/:name", "routes/artist.tsx"),
   route("colors", "routes/colors.tsx"),
+  route("walks", "routes/walks.tsx"),
   route("about", "routes/about.tsx"),
 ] satisfies RouteConfig;
