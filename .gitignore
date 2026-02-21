@@ -4,3 +4,5 @@ build/
 *.db
 .env
 .DS_Store
+*.db*
+*.png
