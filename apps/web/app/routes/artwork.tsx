@@ -137,8 +137,16 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </h1>
 
         {artwork.artists.length > 0 && (
-          <p style={{ marginTop: "0.5rem", fontSize: "1rem", color: "#8C8478" }}>
-            {artwork.artists.map((a: any) => a.name).join(", ")}
+          <p style={{ marginTop: "0.5rem", fontSize: "1rem" }}>
+            {artwork.artists.map((a: any, i: number) => (
+              <span key={i}>
+                {i > 0 && ", "}
+                <a href={"/artist/" + encodeURIComponent(a.name)}
+                  style={{ color: "#8C8478", textDecoration: "none", borderBottom: "1px solid #D4CDC3" }}>
+                  {a.name}
+                </a>
+              </span>
+            ))}
             {artwork.artists[0]?.nationality && (
               <span style={{ fontSize: "0.875rem", color: "#D4CDC3" }}>
                 {" "}· {artwork.artists[0].nationality}

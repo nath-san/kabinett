@@ -277,31 +277,90 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
       {/* Results */}
       <div style={{ padding: "1.25rem 1rem 4rem" }}>
         {artworks.length > 0 ? (
-          <div style={{ columnCount: 2, columnGap: "0.75rem" }}>
-            {artworks.map((a: any) => (
-              <a key={a.id} href={"/artwork/" + a.id}
-                style={{
-                  breakInside: "avoid", display: "block", borderRadius: "0.75rem",
-                  overflow: "hidden", backgroundColor: "#F0EBE3", marginBottom: "0.75rem",
-                  textDecoration: "none",
-                }}>
-                <div style={{ backgroundColor: a.color, aspectRatio: "3/4", overflow: "hidden" }}>
-                  <img src={a.imageUrl} alt={a.title} width={400} height={533}
-                    onError={(e: any) => { e.target.style.display = "none"; }}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                </div>
-                <div style={{ padding: "0.625rem" }}>
-                  <p style={{
-                    fontSize: "0.8rem", fontWeight: 500, color: "#3D3831", lineHeight: 1.3,
-                    overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          <>
+            <div id="grid" style={{ columnCount: 2, columnGap: "0.75rem" }}>
+              {artworks.map((a: any) => (
+                <a key={a.id} href={"/artwork/" + a.id} data-id={a.id}
+                  style={{
+                    breakInside: "avoid", display: "block", borderRadius: "0.75rem",
+                    overflow: "hidden", backgroundColor: "#F0EBE3", marginBottom: "0.75rem",
+                    textDecoration: "none",
                   }}>
-                    {a.title}</p>
-                  <p style={{ fontSize: "0.7rem", color: "#8C8478", marginTop: "0.25rem" }}>{a.artist}</p>
-                  {a.year && <p style={{ fontSize: "0.65rem", color: "#D4CDC3", marginTop: "0.125rem" }}>{a.year}</p>}
-                </div>
-              </a>
-            ))}
-          </div>
+                  <div style={{ backgroundColor: a.color, aspectRatio: "3/4", overflow: "hidden" }}>
+                    <img src={a.imageUrl} alt={a.title} width={400} height={533}
+                      onError={(e: any) => { e.target.style.display = "none"; }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                  <div style={{ padding: "0.625rem" }}>
+                    <p style={{
+                      fontSize: "0.8rem", fontWeight: 500, color: "#3D3831", lineHeight: 1.3,
+                      overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    }}>
+                      {a.title}</p>
+                    <p style={{ fontSize: "0.7rem", color: "#8C8478", marginTop: "0.25rem" }}>{a.artist}</p>
+                    {a.year && <p style={{ fontSize: "0.65rem", color: "#D4CDC3", marginTop: "0.125rem" }}>{a.year}</p>}
+                  </div>
+                </a>
+              ))}
+            </div>
+            <div id="load-more" style={{ textAlign: "center", padding: "1.5rem 0" }}>
+              <div id="load-spinner" style={{ display: "none", color: "#D4CDC3", fontSize: "0.8rem" }}>Laddar fler...</div>
+            </div>
+            {/* Inline script for infinite scroll — no React hydration needed */}
+            <script dangerouslySetInnerHTML={{ __html: `
+(function(){
+  var grid = document.getElementById('grid');
+  var spinner = document.getElementById('load-spinner');
+  if (!grid || !spinner) return;
+  var loading = false;
+  var done = false;
+  var offset = ${PAGE_SIZE};
+  var params = new URLSearchParams(window.location.search);
+  function getIds() {
+    return Array.from(grid.querySelectorAll('a[data-id]')).map(function(a){return a.dataset.id}).join(',');
+  }
+  function cardHtml(a) {
+    return '<a href="/artwork/'+a.id+'" data-id="'+a.id+'" style="break-inside:avoid;display:block;border-radius:0.75rem;overflow:hidden;background:#F0EBE3;margin-bottom:0.75rem;text-decoration:none">'
+      +'<div style="background:'+(a.color||'#D4CDC3')+';aspect-ratio:3/4;overflow:hidden">'
+      +'<img src="'+a.imageUrl+'" alt="" width="400" height="533" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.style.display=\\'none\\'" />'
+      +'</div>'
+      +'<div style="padding:0.625rem">'
+      +'<p style="font-size:0.8rem;font-weight:500;color:#3D3831;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+a.title+'</p>'
+      +'<p style="font-size:0.7rem;color:#8C8478;margin-top:0.25rem">'+a.artist+'</p>'
+      +(a.year?'<p style="font-size:0.65rem;color:#D4CDC3;margin-top:0.125rem">'+a.year+'</p>':'')
+      +'</div></a>';
+  }
+  function loadMore() {
+    if (loading || done) return;
+    loading = true;
+    spinner.style.display = 'block';
+    var p = new URLSearchParams();
+    if (params.get('cat')) p.set('cat', params.get('cat'));
+    if (params.get('period')) p.set('period', params.get('period'));
+    if (params.get('color')) p.set('color', params.get('color'));
+    if (params.get('sort')) p.set('sort', params.get('sort'));
+    p.set('offset', offset);
+    p.set('limit', '20');
+    p.set('exclude', getIds());
+    fetch('/api/explore-more?'+p.toString())
+      .then(function(r){return r.json()})
+      .then(function(data){
+        if (data.length === 0) { done = true; spinner.style.display = 'none'; return; }
+        var html = data.map(cardHtml).join('');
+        grid.insertAdjacentHTML('beforeend', html);
+        offset += data.length;
+        loading = false;
+        spinner.style.display = 'none';
+      })
+      .catch(function(){ loading = false; spinner.style.display = 'none'; });
+  }
+  var observer = new IntersectionObserver(function(entries){
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '400px' });
+  observer.observe(spinner);
+})();
+            `}} />
+          </>
         ) : (
           <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
             <p style={{ fontSize: "1.25rem", color: "#D4CDC3" }}>Inga träffar</p>
