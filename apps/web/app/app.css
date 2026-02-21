@@ -2,7 +2,6 @@
 
 /* Kabinett Design System */
 @theme {
-  /* Museum-warm palette */
   --color-cream: #FAF7F2;
   --color-linen: #F0EBE3;
   --color-stone: #D4CDC3;
@@ -12,15 +11,18 @@
   --color-accent: #C4553A;
   --color-accent-light: #E8987F;
 
-  /* Typography */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
 
-  /* Spacing */
   --spacing-page: clamp(1rem, 5vw, 4rem);
+
+  --animate-fadeIn: fadeIn 0.6s ease-out;
+  --animate-slideDown: slideDown 0.25s ease-out;
+  --animate-slideUp: slideUp 0.4s ease-out;
+  --animate-scaleIn: scaleIn 0.5s ease-out;
 }
 
-/* Base styles */
+/* Base */
 body {
   background-color: var(--color-cream);
   color: var(--color-ink);
@@ -28,12 +30,58 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Smooth image loading */
-img {
-  opacity: 1;
-  transition: opacity 0.3s ease;
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-img[loading] {
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Scroll-triggered fade in */
+.reveal {
   opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Card hover */
+.art-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.art-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.12);
+}
+
+/* Smooth images */
+img {
+  transition: opacity 0.4s ease;
+}
+
+/* Hide scrollbar for filter chips */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

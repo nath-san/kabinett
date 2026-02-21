@@ -162,7 +162,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
               {results.map((r: any) => (
                 <a key={r.id} href={`/artwork/${r.id}`}
-                  className="block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
+                  className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
                   <div style={{ backgroundColor: r.dominant_color || "#D4CDC3", aspectRatio: "3/4" }}
                     className="overflow-hidden">
                     <img src={r.iiif_url.replace("http://","https://") + "full/400,/0/default.jpg"}

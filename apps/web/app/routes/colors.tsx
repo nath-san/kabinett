@@ -128,7 +128,7 @@ export default function Colors({ loaderData }: Route.ComponentProps) {
               <a
                 key={a.id}
                 href={`/artwork/${a.id}`}
-                className="block break-inside-avoid rounded-xl overflow-hidden bg-linen group"
+                className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group"
               >
                 <div
                   style={{ backgroundColor: a.dominant_color || "#D4CDC3", aspectRatio: "3/4" }}
