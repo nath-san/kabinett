@@ -47,7 +47,12 @@ function Header() {
         <a href="/" className="font-serif text-xl font-semibold tracking-tight text-charcoal">
           Kabinett
         </a>
-        <div className="flex items-center gap-6 text-sm text-warm-gray">
+        <div className="flex items-center gap-5 text-sm text-warm-gray">
+          <a href="/search" className="hover:text-charcoal transition-colors" aria-label="Sök">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+          </a>
           <a href="/explore" className="hover:text-charcoal transition-colors">
             Utforska
           </a>
