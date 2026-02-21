@@ -5,6 +5,7 @@ export default [
   route("explore", "routes/explore.tsx"),
   route("search", "routes/search.tsx"),
   route("api/autocomplete", "routes/api.autocomplete.tsx"),
+  route("api/color-search", "routes/api.color-search.tsx"),
   route("artwork/:id", "routes/artwork.tsx"),
   route("colors", "routes/colors.tsx"),
   route("about", "routes/about.tsx"),
