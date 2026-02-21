@@ -1,0 +1,17 @@
+{
+  "name": "kabinett",
+  "private": true,
+  "description": "Kabinett \u2014 Discover Swedish art",
+  "scripts": {
+    "dev": "pnpm --filter @kabinett/web dev",
+    "sync": "pnpm --filter @kabinett/data sync",
+    "build": "pnpm --filter @kabinett/web build"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp"
+    ]
+  }
+}

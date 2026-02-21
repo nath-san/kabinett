@@ -1,0 +1,18 @@
+{
+  "name": "@kabinett/data",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "tsx scripts/sync.ts",
+    "sync:test": "tsx scripts/sync.ts --test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "sharp": "^0.33.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
