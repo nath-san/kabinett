@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useRef, useCallback } from "react";
 import type { Route } from "./+types/search";
 import { getDb } from "../lib/db.server";
 
@@ -16,24 +16,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!query) return { query, results: [], total: 0 };
 
   const db = getDb();
-
-  // Use FTS5 for fast, relevance-ranked search
-  // Fall back to LIKE if FTS table doesn't exist yet
   let results: any[];
   let total: number;
-
   try {
     const ftsQuery = query.split(/\s+/).map(w => `"${w}"*`).join(" ");
-    results = db
-      .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
-         FROM artworks_fts f
-         JOIN artworks a ON a.id = f.rowid
-         WHERE artworks_fts MATCH ?
-         ORDER BY rank
-         LIMIT 60`
-      )
-      .all(ftsQuery);
+    results = db.prepare(
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
+       FROM artworks_fts f JOIN artworks a ON a.id = f.rowid
+       WHERE artworks_fts MATCH ? ORDER BY rank LIMIT 60`
+    ).all(ftsQuery);
     total = (db.prepare(
       `SELECT COUNT(*) as count FROM artworks_fts WHERE artworks_fts MATCH ?`
     ).get(ftsQuery) as any).count;
@@ -45,7 +36,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     ).all(like, like);
     total = results.length;
   }
-
   return { query, results, total };
 }
 
@@ -55,80 +45,101 @@ function parseArtist(json: string | null): string {
   catch { return "Okänd konstnär"; }
 }
 
-export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, results, total } = loaderData;
-  const [input, setInput] = useState(query);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [open, setOpen] = useState(false);
-  const tapping = useRef(false);
+const TYPE_LABELS: Record<string, string> = {
+  artist: "Konstnär", title: "Verk", category: "Kategori",
+};
+
+function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    if (input.length < 2) { setSuggestions([]); setOpen(false); return; }
+  const fetchSuggestions = useCallback((val: string) => {
     clearTimeout(timer.current);
+    const dropdown = dropdownRef.current;
+    if (!dropdown) return;
+
+    if (val.length < 2) {
+      dropdown.innerHTML = "";
+      dropdown.style.display = "none";
+      return;
+    }
+
     timer.current = setTimeout(async () => {
       try {
-        const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(input)}`);
+        const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
         const data = await r.json();
-        setSuggestions(data);
-        setOpen(data.length > 0);
-      } catch { /* ignore */ }
+        if (data.length === 0) {
+          dropdown.style.display = "none";
+          dropdown.innerHTML = "";
+          return;
+        }
+        dropdown.style.display = "block";
+        dropdown.innerHTML = data.map((s: any, i: number) =>
+          `<div class="ac-item px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}">
+            <span class="text-charcoal truncate">${s.value}</span>
+            <span class="text-xs text-stone ml-2 shrink-0">${TYPE_LABELS[s.type] || ""}</span>
+          </div>`
+        ).join("");
+      } catch {
+        dropdown.style.display = "none";
+      }
     }, 200);
-    return () => clearTimeout(timer.current);
-  }, [input]);
+  }, []);
 
-  const go = (val: string) => {
-    setOpen(false);
-    window.location.href = `/search?q=${encodeURIComponent(val)}`;
-  };
+  const handleDropdownClick = useCallback((e: React.PointerEvent) => {
+    const item = (e.target as HTMLElement).closest(".ac-item") as HTMLElement;
+    if (!item) return;
+    e.preventDefault();
+    const val = item.dataset.value || "";
+    const dropdown = dropdownRef.current;
+    if (dropdown) { dropdown.style.display = "none"; dropdown.innerHTML = ""; }
+    if (formRef.current) {
+      const inp = formRef.current.querySelector("input[name=q]") as HTMLInputElement;
+      if (inp) inp.value = val;
+      formRef.current.submit();
+    }
+  }, []);
 
-  const typeLabels: Record<string, string> = {
-    artist: "Konstnär", title: "Verk", category: "Kategori",
-  };
+  return (
+    <>
+      <form ref={formRef} action="/search" method="get" className="mt-4">
+        <div className="flex gap-2">
+          <input
+            type="search" name="q"
+            defaultValue={defaultValue}
+            onInput={(e) => fetchSuggestions((e.target as HTMLInputElement).value)}
+            placeholder="Konstnär, titel, teknik..."
+            autoComplete="off"
+            className="flex-1 px-4 py-3 rounded-xl bg-linen text-charcoal placeholder:text-stone
+                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none"
+          />
+          <button type="submit"
+            className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0">
+            Sök
+          </button>
+        </div>
+      </form>
+      <div
+        ref={dropdownRef}
+        onPointerDown={handleDropdownClick}
+        style={{ display: "none" }}
+        className="mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
+      />
+    </>
+  );
+}
+
+export default function Search({ loaderData }: Route.ComponentProps) {
+  const { query, results, total } = loaderData;
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
+        <AutocompleteSearch defaultValue={query} />
 
-        <form action="/search" method="get" className="mt-4">
-          <div className="flex gap-2">
-            <input
-              type="search" name="q" value={input}
-              onChange={e => setInput(e.target.value)}
-              onFocus={() => suggestions.length > 0 && setOpen(true)}
-              onBlur={() => { if (!tapping.current) setOpen(false); }}
-              placeholder="Konstnär, titel, teknik..."
-              autoFocus autoComplete="off"
-              className="flex-1 px-4 py-3 rounded-xl bg-linen text-charcoal placeholder:text-stone
-                         text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none"
-            />
-            <button type="submit"
-              className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0">
-              Sök
-            </button>
-          </div>
-        </form>
-
-        {/* Autocomplete */}
-        {open && (
-          <div className="mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden">
-            {suggestions.map((s: any, i: number) => (
-              <button key={i} type="button"
-                onTouchStart={() => { tapping.current = true; }}
-                onTouchEnd={() => { tapping.current = false; go(s.value); }}
-                onMouseDown={(e) => { e.preventDefault(); go(s.value); }}
-                className={`w-full text-left px-4 py-3 text-sm flex justify-between
-                  hover:bg-cream ${i > 0 ? "border-t border-stone/5" : ""}`}>
-                <span className="text-charcoal truncate">{s.value}</span>
-                <span className="text-xs text-stone ml-2 shrink-0">{typeLabels[s.type] || ""}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Quick suggestions - only when no query */}
-        {!query && !open && (
+        {!query && (
           <div className="mt-6">
             <p className="text-xs text-warm-gray mb-3">Prova:</p>
             <div className="flex flex-wrap gap-2">
@@ -142,7 +153,6 @@ export default function Search({ loaderData }: Route.ComponentProps) {
         )}
       </div>
 
-      {/* Results */}
       {query && (
         <div className="px-(--spacing-page) pb-24">
           <p className="text-sm text-warm-gray mb-6">
