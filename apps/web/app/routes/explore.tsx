@@ -1,5 +1,5 @@
 import type { Route } from "./+types/explore";
-import { getDb, type ArtworkRow } from "../lib/db.server";
+import { getDb } from "../lib/db.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -9,34 +9,44 @@ export function meta({}: Route.MetaArgs) {
 }
 
 const CATEGORIES = [
-  { label: "Alla", value: "" },
-  { label: "Målningar", value: "Målningar" },
-  { label: "Skulptur", value: "Skulptur" },
-  { label: "Grafik", value: "Grafik" },
-  { label: "Teckningar", value: "Frihandsteckningar" },
-  { label: "Miniatyrer", value: "Miniatyr" },
-  { label: "Keramik", value: "Keramik" },
-  { label: "Textil", value: "Textil" },
-  { label: "Fotografier", value: "Fotografier" },
+  { label: "Alla", value: "", emoji: "" },
+  { label: "Målningar", value: "Målningar", emoji: "🖼" },
+  { label: "Skulptur", value: "Skulptur", emoji: "🗿" },
+  { label: "Teckningar", value: "Frihandsteckningar", emoji: "✏️" },
+  { label: "Grafik", value: "Grafik", emoji: "🖨" },
+  { label: "Miniatyrer", value: "Miniatyr", emoji: "🔍" },
+  { label: "Keramik", value: "Keramik", emoji: "🏺" },
+  { label: "Fotografier", value: "Fotografier", emoji: "📷" },
+  { label: "Textil", value: "Textil", emoji: "🧵" },
 ];
 
 const PERIODS = [
-  { label: "Alla tider", value: "" },
-  { label: "1400–1500", from: 1400, to: 1599 },
-  { label: "1600-tal", from: 1600, to: 1699 },
-  { label: "1700-tal", from: 1700, to: 1799 },
-  { label: "1800-tal", from: 1800, to: 1899 },
-  { label: "1900-tal", from: 1900, to: 1970 },
+  { label: "Alla", value: "", from: 0, to: 0 },
+  { label: "1400–1500", value: "1400", from: 1400, to: 1599 },
+  { label: "1600-tal", value: "1600", from: 1600, to: 1699 },
+  { label: "1700-tal", value: "1700", from: 1700, to: 1799 },
+  { label: "Tidigt 1800", value: "1800a", from: 1800, to: 1849 },
+  { label: "Sent 1800", value: "1800b", from: 1850, to: 1899 },
+  { label: "1900-tal", value: "1900", from: 1900, to: 1970 },
 ];
 
 const COLORS = [
-  { label: "Alla färger", r: 0, g: 0, b: 0, value: "" },
-  { label: "Röd", r: 160, g: 50, b: 40, value: "red" },
-  { label: "Blå", r: 40, g: 60, b: 140, value: "blue" },
-  { label: "Grön", r: 50, g: 120, b: 50, value: "green" },
-  { label: "Guld", r: 180, g: 150, b: 60, value: "gold" },
-  { label: "Mörk", r: 30, g: 28, b: 25, value: "dark" },
-  { label: "Ljus", r: 220, g: 215, b: 200, value: "light" },
+  { label: "Alla", value: "", hex: "", r: 0, g: 0, b: 0 },
+  { label: "Röd", value: "red", hex: "#A03028", r: 160, g: 48, b: 40 },
+  { label: "Orange", value: "orange", hex: "#C07030", r: 192, g: 112, b: 48 },
+  { label: "Guld", value: "gold", hex: "#B89830", r: 184, g: 152, b: 48 },
+  { label: "Grön", value: "green", hex: "#3A7838", r: 58, g: 120, b: 56 },
+  { label: "Blå", value: "blue", hex: "#28508C", r: 40, g: 80, b: 140 },
+  { label: "Lila", value: "purple", hex: "#684080", r: 104, g: 64, b: 128 },
+  { label: "Rosa", value: "pink", hex: "#C07888", r: 192, g: 120, b: 136 },
+  { label: "Mörk", value: "dark", hex: "#1E1C18", r: 30, g: 28, b: 24 },
+  { label: "Ljus", value: "light", hex: "#E0D8C8", r: 224, g: 216, b: 200 },
+];
+
+const SORTS = [
+  { label: "Slumpa", value: "random" },
+  { label: "Äldst först", value: "oldest" },
+  { label: "Nyast först", value: "newest" },
 ];
 
 const PAGE_SIZE = 40;
@@ -44,9 +54,9 @@ const PAGE_SIZE = 40;
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const category = url.searchParams.get("cat") || "";
-  const period = url.searchParams.get("period") || "";
+  const periodVal = url.searchParams.get("period") || "";
   const color = url.searchParams.get("color") || "";
-  const shuffle = url.searchParams.get("shuffle") || "";
+  const sort = url.searchParams.get("sort") || "random";
 
   const db = getDb();
 
@@ -58,25 +68,32 @@ export async function loader({ request }: Route.LoaderArgs) {
     params.push(`%${category}%`);
   }
 
-  const periodObj = PERIODS.find(p => p.label === period);
+  const periodObj = PERIODS.find(p => p.value === periodVal);
   if (periodObj && periodObj.from) {
     conditions.push("year_start >= ? AND year_start <= ?");
     params.push(periodObj.from, periodObj.to);
   }
 
-  let orderBy = "RANDOM()";
   const colorObj = COLORS.find(c => c.value === color);
+  let orderBy = "RANDOM()";
   if (colorObj && colorObj.value) {
     conditions.push("color_r IS NOT NULL");
-    orderBy = `ABS(color_r - ${colorObj.r}) + ABS(color_g - ${colorObj.g}) + ABS(color_b - ${colorObj.b})`;
+    if (sort === "random") {
+      // Sort by color proximity with some randomness
+      orderBy = `ABS(color_r - ${colorObj.r}) + ABS(color_g - ${colorObj.g}) + ABS(color_b - ${colorObj.b})`;
+    }
   }
+
+  if (sort === "oldest") orderBy = "year_start ASC NULLS LAST";
+  if (sort === "newest") orderBy = "year_start DESC NULLS LAST";
+  if (sort === "random" && !colorObj?.value) orderBy = "RANDOM()";
 
   const where = conditions.join(" AND ");
   const total = (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${where}`).get(...params) as any).c;
 
   params.push(PAGE_SIZE);
   const rows = db.prepare(
-    `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, category
+    `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
      FROM artworks WHERE ${where} ORDER BY ${orderBy} LIMIT ?`
   ).all(...params) as any[];
 
@@ -89,7 +106,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     color: r.dominant_color || "#D4CDC3",
   }));
 
-  return { artworks, total, category, period, color };
+  return { artworks, total, category, period: periodVal, color, sort };
 }
 
 function parseArtist(json: string | null): string {
@@ -98,53 +115,91 @@ function parseArtist(json: string | null): string {
   catch { return "Okänd konstnär"; }
 }
 
-function buildUrl(cat: string, period: string, color: string): string {
+function buildUrl(cat: string, period: string, color: string, sort: string): string {
   const p = new URLSearchParams();
   if (cat) p.set("cat", cat);
   if (period) p.set("period", period);
   if (color) p.set("color", color);
-  p.set("shuffle", String(Math.random()).slice(2, 8));
+  if (sort && sort !== "random") p.set("sort", sort);
+  if (sort === "random") p.set("s", String(Math.random()).slice(2, 6));
   const qs = p.toString();
   return "/explore" + (qs ? "?" + qs : "");
 }
 
-export default function Explore({ loaderData }: Route.ComponentProps) {
-  const { artworks, total, category, period, color } = loaderData;
+// Chip styles
+const chip = (active: boolean) => ({
+  padding: "0.5rem 0.875rem",
+  borderRadius: "999px",
+  fontSize: "0.8rem",
+  fontWeight: 500 as const,
+  whiteSpace: "nowrap" as const,
+  textDecoration: "none" as const,
+  display: "inline-flex" as const,
+  alignItems: "center" as const,
+  gap: "0.375rem",
+  backgroundColor: active ? "#3D3831" : "#fff",
+  color: active ? "#FAF7F2" : "#3D3831",
+  boxShadow: active ? "none" : "inset 0 0 0 1px rgba(212,205,195,0.5)",
+  transition: "all 0.15s ease",
+});
 
+const sectionLabel = {
+  fontSize: "0.7rem",
+  color: "#8C8478",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.06em",
+  fontWeight: 500 as const,
+  marginBottom: "0.5rem",
+};
+
+export default function Explore({ loaderData }: Route.ComponentProps) {
+  const { artworks, total, category, period, color, sort } = loaderData;
   const activeFilters = [category, period, color].filter(Boolean).length;
+
+  // Surprise combos
+  const surprises = [
+    { cat: "Målningar", period: "1800b", color: "blue", label: "Blåa 1800-talsmålningar" },
+    { cat: "Skulptur", period: "", color: "dark", label: "Mörka skulpturer" },
+    { cat: "Målningar", period: "1700", color: "gold", label: "Gyllene 1700-tal" },
+    { cat: "Målningar", period: "1800b", color: "green", label: "Gröna landskap" },
+    { cat: "Fotografier", period: "1900", color: "", label: "Fotografier 1900-tal" },
+  ];
+  const surprise = surprises[Math.floor(Date.now() / 60000) % surprises.length];
 
   return (
     <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
       {/* Header */}
-      <div style={{ padding: "2rem 1rem 0" }}>
-        <h1 className="font-serif" style={{ fontSize: "1.75rem", fontWeight: 700, color: "#3D3831" }}>
-          Utforska
-        </h1>
-        <p style={{ fontSize: "0.875rem", color: "#8C8478", marginTop: "0.25rem" }}>
-          {total.toLocaleString("sv-SE")} verk
-          {activeFilters > 0 && " matchar"}
-        </p>
+      <div style={{ padding: "2rem 1rem 1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h1 className="font-serif" style={{ fontSize: "1.75rem", fontWeight: 700, color: "#3D3831" }}>
+              Utforska
+            </h1>
+            <p style={{ fontSize: "0.8rem", color: "#8C8478", marginTop: "0.25rem" }}>
+              {total.toLocaleString("sv-SE")} verk
+            </p>
+          </div>
+          {activeFilters > 0 && (
+            <a href="/explore" style={{
+              fontSize: "0.75rem", color: "#8C8478", textDecoration: "none",
+              padding: "0.375rem 0.75rem", borderRadius: "999px",
+              backgroundColor: "#F0EBE3",
+            }}>
+              Rensa alla
+            </a>
+          )}
+        </div>
       </div>
 
-      {/* Filter sections */}
-      <div style={{ padding: "1rem 1rem 0" }}>
+      {/* Filters */}
+      <div style={{ padding: "0 1rem" }}>
         {/* Category */}
-        <div style={{ marginBottom: "0.75rem" }}>
-          <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>Kategori</p>
+        <div style={{ marginBottom: "1rem" }}>
+          <p style={sectionLabel}>Kategori</p>
           <div style={{ display: "flex", gap: "0.375rem", overflowX: "auto", paddingBottom: "0.25rem" }} className="no-scrollbar">
             {CATEGORIES.map(f => (
-              <a key={f.value} href={buildUrl(f.value, period, color)}
-                style={{
-                  padding: "0.5rem 0.875rem",
-                  borderRadius: "999px",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  textDecoration: "none",
-                  backgroundColor: category === f.value ? "#3D3831" : "#fff",
-                  color: category === f.value ? "#FAF7F2" : "#8C8478",
-                  boxShadow: category === f.value ? "none" : "0 1px 2px rgba(0,0,0,0.04)",
-                }}>
+              <a key={f.value} href={buildUrl(f.value, period, color, sort)} style={chip(category === f.value)}>
+                {f.emoji && <span style={{ fontSize: "0.85rem" }}>{f.emoji}</span>}
                 {f.label}
               </a>
             ))}
@@ -152,22 +207,11 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Period */}
-        <div style={{ marginBottom: "0.75rem" }}>
-          <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>Tidsperiod</p>
+        <div style={{ marginBottom: "1rem" }}>
+          <p style={sectionLabel}>Tidsperiod</p>
           <div style={{ display: "flex", gap: "0.375rem", overflowX: "auto", paddingBottom: "0.25rem" }} className="no-scrollbar">
             {PERIODS.map(f => (
-              <a key={f.label} href={buildUrl(category, f.label === "Alla tider" ? "" : f.label, color)}
-                style={{
-                  padding: "0.5rem 0.875rem",
-                  borderRadius: "999px",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  textDecoration: "none",
-                  backgroundColor: period === f.label ? "#3D3831" : "#fff",
-                  color: period === f.label ? "#FAF7F2" : "#8C8478",
-                  boxShadow: period === f.label ? "none" : "0 1px 2px rgba(0,0,0,0.04)",
-                }}>
+              <a key={f.value} href={buildUrl(category, f.value, color, sort)} style={chip(period === f.value)}>
                 {f.label}
               </a>
             ))}
@@ -175,30 +219,21 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Color */}
-        <div style={{ marginBottom: "0.75rem" }}>
-          <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>Färg</p>
+        <div style={{ marginBottom: "1rem" }}>
+          <p style={sectionLabel}>Färg</p>
           <div style={{ display: "flex", gap: "0.375rem", overflowX: "auto", paddingBottom: "0.25rem" }} className="no-scrollbar">
             {COLORS.map(f => (
-              <a key={f.value} href={buildUrl(category, period, f.value)}
+              <a key={f.value} href={buildUrl(category, period, f.value, sort)}
                 style={{
-                  padding: "0.5rem 0.875rem",
-                  borderRadius: "999px",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.375rem",
-                  backgroundColor: color === f.value ? "#3D3831" : "#fff",
-                  color: color === f.value ? "#FAF7F2" : "#8C8478",
-                  boxShadow: color === f.value ? "none" : "0 1px 2px rgba(0,0,0,0.04)",
+                  ...chip(color === f.value),
+                  ...(f.value === "light" && color !== f.value ? { boxShadow: "inset 0 0 0 1px #D4CDC3" } : {}),
                 }}>
-                {f.value && (
+                {f.hex && (
                   <span style={{
-                    width: "0.625rem", height: "0.625rem", borderRadius: "50%",
-                    backgroundColor: `rgb(${f.r},${f.g},${f.b})`,
-                    border: f.value === "light" ? "1px solid #D4CDC3" : "none",
+                    width: "0.75rem", height: "0.75rem", borderRadius: "50%",
+                    backgroundColor: f.hex,
+                    border: f.value === "light" ? "1px solid #C4BDB0" : "none",
+                    flexShrink: 0,
                   }} />
                 )}
                 {f.label}
@@ -206,40 +241,42 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
             ))}
           </div>
         </div>
+
+        {/* Sort */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <p style={sectionLabel}>Sortering</p>
+          <div style={{ display: "flex", gap: "0.375rem" }}>
+            {SORTS.map(s => (
+              <a key={s.value} href={buildUrl(category, period, color, s.value)}
+                style={chip(sort === s.value)}>
+                {s.value === "random" && "✦ "}{s.label}
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Shuffle button */}
-      <div style={{ padding: "0.5rem 1rem 1rem", display: "flex", gap: "0.5rem" }}>
-        <a href={buildUrl(category, period, color)}
-          style={{
-            padding: "0.625rem 1.25rem",
-            borderRadius: "999px",
-            backgroundColor: "#3D3831",
-            color: "#FAF7F2",
-            fontSize: "0.8rem",
-            fontWeight: 500,
-            textDecoration: "none",
-          }}>
-          ✦ Slumpa nya
-        </a>
-        {activeFilters > 0 && (
-          <a href="/explore"
+      {/* Quick suggestion */}
+      {activeFilters === 0 && (
+        <div style={{ padding: "0.5rem 1rem 0" }}>
+          <a href={buildUrl(surprise.cat, surprise.period, surprise.color, "random")}
             style={{
-              padding: "0.625rem 1.25rem",
-              borderRadius: "999px",
+              display: "inline-block",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.75rem",
               backgroundColor: "#F0EBE3",
-              color: "#8C8478",
               fontSize: "0.8rem",
-              fontWeight: 500,
+              color: "#3D3831",
               textDecoration: "none",
+              fontStyle: "italic",
             }}>
-            Rensa filter
+            Prova: {surprise.label} →
           </a>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Results */}
-      <div style={{ padding: "0 1rem 4rem" }}>
+      <div style={{ padding: "1.25rem 1rem 4rem" }}>
         {artworks.length > 0 ? (
           <div style={{ columnCount: 2, columnGap: "0.75rem" }}>
             {artworks.map((a: any) => (
@@ -267,9 +304,18 @@ export default function Explore({ loaderData }: Route.ComponentProps) {
             ))}
           </div>
         ) : (
-          <p style={{ textAlign: "center", color: "#8C8478", padding: "3rem 0" }}>
-            Inga verk matchar dina filter. Prova en annan kombination.
-          </p>
+          <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
+            <p style={{ fontSize: "1.25rem", color: "#D4CDC3" }}>Inga träffar</p>
+            <p style={{ fontSize: "0.875rem", color: "#8C8478", marginTop: "0.5rem" }}>Prova en annan kombination.</p>
+            <a href="/explore" style={{
+              display: "inline-block", marginTop: "1rem",
+              padding: "0.625rem 1.25rem", borderRadius: "999px",
+              backgroundColor: "#3D3831", color: "#FAF7F2",
+              fontSize: "0.8rem", fontWeight: 500, textDecoration: "none",
+            }}>
+              Rensa filter
+            </a>
+          </div>
         )}
       </div>
     </div>
