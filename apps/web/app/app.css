@@ -30,27 +30,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.bottom-nav {
+  display: none !important;
+}
+
 @media (max-width: 767px) {
   .top-nav-links {
-    display: none;
+    display: none !important;
   }
 
   .top-nav {
-    justify-content: center;
+    justify-content: center !important;
   }
 
   .bottom-nav {
-    display: flex;
+    display: flex !important;
   }
 
   .app-main {
     padding-bottom: 7.5rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .bottom-nav {
-    display: none;
   }
 }
 
