@@ -87,7 +87,6 @@ function Header() {
           </a>
           <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
           <a href="/walks" style={{ color: "inherit", textDecoration: "none" }}>Vandringar</a>
-          <a href="/colors" style={{ color: "inherit", textDecoration: "none" }}>Färger</a>
         </div>
       </nav>
     </header>

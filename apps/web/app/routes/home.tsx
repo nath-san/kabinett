@@ -96,14 +96,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             }}>
               Börja utforska
             </a>
-            <a href="/colors" style={{
+            <a href="/walks" style={{
               padding: "0.75rem 1.5rem",
               backgroundColor: "rgba(255,255,255,0.15)", color: "#fff",
               border: "1px solid rgba(255,255,255,0.25)",
               borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
               textDecoration: "none", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
             }}>
-              Utforska färger
+              Vandringar
             </a>
           </div>
           {hero && (
@@ -175,7 +175,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </a>
           ))}
         </div>
-        <a href="/colors" style={{
+        <a href="/explore?color=blue" style={{
           display: "inline-block", marginTop: "1rem",
           padding: "0.75rem 1.5rem",
           backgroundColor: "rgba(255,255,255,0.1)", color: "#fff",
@@ -183,7 +183,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
           textDecoration: "none",
         }}>
-          Utforska färger →
+          Utforska efter färg →
         </a>
       </section>
 
