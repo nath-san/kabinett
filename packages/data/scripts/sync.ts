@@ -37,10 +37,15 @@ interface ApiObject {
     start_date: number | null;
     end_date: number | null;
   }>;
-  artists: Array<{
+  artists?: Array<{
     name: string | null;
     nationality: string | null;
     role: { sv: string | null; en: string | null };
+  }>;
+  actors?: Array<{
+    actor_full_name: string | null;
+    actor_nationality: string | null;
+    actor_role: string | null;
   }>;
   dimensions: Array<{
     type: string;
@@ -176,7 +181,11 @@ async function main() {
         title_en: item.title?.en || null,
         category: item.category?.sv || null,
         technique_material: item.technique_material?.sv || null,
-        artists: JSON.stringify(item.artists || []),
+        artists: JSON.stringify(
+          (item.actors || [])
+            .filter((a: any) => a.actor_full_name && a.actor_full_name !== "Ingen uppgift")
+            .map((a: any) => ({ name: a.actor_full_name, nationality: a.actor_nationality || null }))
+        ),
         dating_text: dating?.date?.sv || null,
         year_start: dating?.start_date || null,
         year_end: dating?.end_date || null,
