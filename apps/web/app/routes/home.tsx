@@ -103,7 +103,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           background: rgba(255,255,255,0.08);
           border: 1px solid rgba(255,255,255,0.15);
           animation: scrollPulse 1.8s ease-in-out infinite;
-          pointer-events: none;
+          cursor: pointer;
         }
         .scroll-indicator span {
           display: block;
@@ -183,13 +183,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </a>
           )}
         </div>
-        <div className="scroll-indicator" aria-hidden="true">
+        <button className="scroll-indicator" aria-label="Scrolla ner" onClick={() => {
+          document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
+        }}>
           <span />
-        </div>
+        </button>
       </section>
 
       {/* Featured */}
-      <section style={{ padding: "3rem 1rem" }}>
+      <section id="featured" style={{ padding: "3rem 1rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem" }}>
           <div>
             <h2 className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 600, color: "#3D3831" }}>
