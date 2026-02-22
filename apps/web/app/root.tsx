@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
 } from "react-router";
 import { useState } from "react";
 
@@ -15,7 +16,7 @@ export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap",
   },
 ];
 
@@ -34,9 +35,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"Inter", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
+      <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"DM Sans", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
         <Header />
-        <main>{children}</main>
+        <main className="app-main">{children}</main>
+        <BottomNav />
         <ScrollRestoration />
         <Scripts />
         <script dangerouslySetInnerHTML={{ __html: `
@@ -73,13 +75,13 @@ function Header() {
       backgroundColor: "rgba(250,247,242,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
       borderBottom: "1px solid rgba(212,205,195,0.3)",
     }}>
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1rem", height: "3.5rem" }}>
-        <a href="/" style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: "1.25rem", fontWeight: 600, color: "#3D3831", textDecoration: "none" }}>
+      <nav className="top-nav" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1rem", height: "3.5rem" }}>
+        <a href="/" style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "1.25rem", fontWeight: 600, color: "#3D3831", textDecoration: "none" }}>
           Kabinett
         </a>
 
         {/* Nav links — always visible, compact on mobile */}
-        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
+        <div className="top-nav-links" style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
           <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
             <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -90,6 +92,69 @@ function Header() {
         </div>
       </nav>
     </header>
+  );
+}
+
+function BottomNav() {
+  const location = useLocation();
+  const navItems = [
+    { href: "/search", label: "Sök", icon: (
+      <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+      </svg>
+    ) },
+    { href: "/explore", label: "Utforska" },
+    { href: "/discover", label: "Upptäck" },
+    { href: "/walks", label: "Vandringar" },
+  ];
+
+  const isActive = (href: string) => location.pathname === href || location.pathname.startsWith(`${href}/`);
+
+  return (
+    <nav
+      className="bottom-nav"
+      aria-label="Primär navigation"
+      style={{
+        position: "fixed",
+        left: "50%",
+        bottom: "60px",
+        transform: "translateX(-50%)",
+        alignItems: "center",
+        gap: "1.25rem",
+        padding: "0.85rem 1.25rem",
+        borderRadius: "999px",
+        backgroundColor: "rgba(250,247,242,0.85)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        border: "1px solid rgba(212,205,195,0.55)",
+        boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
+        zIndex: 60,
+      }}
+    >
+      {navItems.map((item) => {
+        const active = isActive(item.href);
+        return (
+          <a
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              fontSize: "0.9rem",
+              fontWeight: active ? 600 : 500,
+              color: active ? "#3D3831" : "#8C8478",
+              textDecoration: "none",
+              padding: "0.25rem 0.35rem",
+            }}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </a>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -110,7 +175,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
   return (
     <div style={{ padding: "4rem 1rem", textAlign: "center", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-      <h1 style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: "3rem", fontWeight: "bold", color: "#3D3831" }}>{message}</h1>
+      <h1 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "3rem", fontWeight: "bold", color: "#3D3831" }}>{message}</h1>
       <p style={{ marginTop: "1rem", color: "#8C8478" }}>{details}</p>
       {stack && <pre style={{ marginTop: "1rem", fontSize: "0.65rem", color: "#999", textAlign: "left", maxWidth: "90vw", overflow: "auto", whiteSpace: "pre-wrap" }}>{stack}</pre>}
     </div>
