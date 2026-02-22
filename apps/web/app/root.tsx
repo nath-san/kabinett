@@ -7,7 +7,7 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded',function(){
 }
 
 function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   return (
     <header style={{
@@ -75,28 +75,42 @@ function Header() {
       backgroundColor: "rgba(250,247,242,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
       borderBottom: "1px solid rgba(212,205,195,0.3)",
     }}>
-      <nav className="top-nav" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1rem", height: "3.5rem" }}>
+      <nav style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "center" : "space-between", padding: "0 1rem", height: "3.5rem" }}>
         <a href="/" style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "1.25rem", fontWeight: 600, color: "#3D3831", textDecoration: "none" }}>
           Kabinett
         </a>
 
-        {/* Nav links — always visible, compact on mobile */}
-        <div className="top-nav-links" style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
-          <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
-            <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-            </svg>
-          </a>
-          <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
-          <a href="/walks" style={{ color: "inherit", textDecoration: "none" }}>Vandringar</a>
-        </div>
+        {!isMobile && (
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
+            <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
+              <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+              </svg>
+            </a>
+            <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
+            <a href="/walks" style={{ color: "inherit", textDecoration: "none" }}>Vandringar</a>
+          </div>
+        )}
       </nav>
     </header>
   );
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 function BottomNav() {
   const location = useLocation();
+  const isMobile = useIsMobile();
   const navItems = [
     { href: "/search", label: "Sök", icon: (
       <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -110,15 +124,17 @@ function BottomNav() {
 
   const isActive = (href: string) => location.pathname === href || location.pathname.startsWith(`${href}/`);
 
+  if (!isMobile) return null;
+
   return (
     <nav
-      className="bottom-nav"
       aria-label="Primär navigation"
       style={{
         position: "fixed",
         left: "50%",
-        bottom: "60px",
+        bottom: 24,
         transform: "translateX(-50%)",
+        display: "flex",
         alignItems: "center",
         gap: "1.25rem",
         padding: "0.85rem 1.25rem",
