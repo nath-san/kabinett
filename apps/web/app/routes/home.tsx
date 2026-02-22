@@ -89,34 +89,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <p style={{ marginTop: "0.75rem", fontSize: "0.95rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
             Bläddra efter färg, epok eller slump. Upptäck mästerverk du aldrig visste fanns.
           </p>
-          <div style={{ marginTop: "1.5rem", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-            <a href="/explore" style={{
-              padding: "0.75rem 1.5rem",
-              backgroundColor: "#fff", color: "#3D3831",
-              borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
-              textDecoration: "none",
-            }}>
-              Börja utforska
-            </a>
-            <a href="/discover" style={{
-              padding: "0.75rem 1.5rem",
-              backgroundColor: "rgba(255,255,255,0.15)", color: "#fff",
-              border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
-              textDecoration: "none", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-            }}>
-              Upptäck
-            </a>
-            <a href="/walks" style={{
-              padding: "0.75rem 1.5rem",
-              backgroundColor: "rgba(255,255,255,0.15)", color: "#fff",
-              border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
-              textDecoration: "none", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-            }}>
-              Vandringar
-            </a>
-          </div>
+          {/* CTA buttons removed — bottom nav handles navigation */}
           {hero && (
             <a href={"/artwork/" + hero.id} style={{
               display: "inline-block", marginTop: "1.5rem",
