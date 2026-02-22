@@ -198,31 +198,54 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   var startY = 0;
   var stack = document.getElementById('card-stack');
 
-  function show(idx) {
-    cards.forEach(function(c,i){
-      c.style.display = i === idx ? 'flex' : 'none';
-    });
+  var animating = false;
+
+  function show(idx, direction) {
+    if (animating) return;
+    animating = true;
+    var old = cards[current];
+    var next = cards[idx];
+    var dir = direction || 'left';
+    // Setup next card off-screen
+    next.style.display = 'flex';
+    next.style.opacity = '0';
+    next.style.transform = dir === 'left' ? 'translateX(40px)' : 'translateX(-40px)';
+    next.style.transition = 'none';
+    // Force reflow
+    void next.offsetWidth;
+    // Animate old out
+    old.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+    old.style.opacity = '0';
+    old.style.transform = dir === 'left' ? 'translateX(-40px)' : 'translateX(40px)';
+    // Animate new in
+    next.style.transition = 'opacity 0.35s ease 0.1s, transform 0.35s ease 0.1s';
+    next.style.opacity = '1';
+    next.style.transform = 'translateX(0)';
+    setTimeout(function(){
+      old.style.display = 'none';
+      old.style.transform = '';
+      old.style.opacity = '';
+      old.style.transition = '';
+      animating = false;
+    }, 400);
     dots.forEach(function(d,i){
       d.style.backgroundColor = i === idx ? '#fff' : 'rgba(255,255,255,0.3)';
     });
-    var id = cards[idx].dataset.id;
-    btnInfo.href = '/artwork/' + id;
+    btnInfo.href = '/artwork/' + cards[idx].dataset.id;
+    current = idx;
   }
 
   function next() {
     if (current < total - 1) {
-      current++;
-      show(current);
+      show(current + 1, 'left');
     } else {
-      // Reload for new batch
       window.location.reload();
     }
   }
 
   function prev() {
     if (current > 0) {
-      current--;
-      show(current);
+      show(current - 1, 'right');
     }
   }
 

@@ -78,14 +78,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           background: "linear-gradient(to top, rgba(26,24,21,0.8) 0%, rgba(26,24,21,0.2) 40%, transparent 70%)",
         }} />
         <div style={{ position: "relative", zIndex: 10, padding: "0 1rem 3rem", maxWidth: "36rem" }}>
+          <p style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>
+            Nationalmuseums samling
+          </p>
           <h1 className="font-serif" style={{
-            fontSize: "2.5rem", fontWeight: 700, color: "#fff", lineHeight: 1.15,
+            fontSize: "2.75rem", fontWeight: 700, color: "#fff", lineHeight: 1.1, marginTop: "0.5rem",
           }}>
-            Upptäck svensk konst
+            {total.toLocaleString("sv-SE")} konstverk.{"\n"}Utforska fritt.
           </h1>
-          <p style={{ marginTop: "1rem", fontSize: "1rem", color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
-            {total.toLocaleString("sv-SE")} verk från Nationalmuseums samling.
-            Utforska efter färg, tid eller nyfikenhet.
+          <p style={{ marginTop: "0.75rem", fontSize: "0.95rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+            Bläddra efter färg, epok eller slump. Upptäck mästerverk du aldrig visste fanns.
           </p>
           <div style={{ marginTop: "1.5rem", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
             <a href="/explore" style={{
