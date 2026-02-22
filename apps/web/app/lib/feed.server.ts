@@ -39,19 +39,19 @@ const CATEGORY_FILTERS = new Set(["Målningar", "Skulptur", "Porträtt", "Landsk
 
 const MOOD_QUERIES: Record<string, { clip: string; fts: string }> = {
   Djur: {
-    clip: "Djur",
+    clip: "animals, horses, dogs, cats, birds in paintings",
     fts: "djur OR hund OR katt OR fågel OR häst",
   },
   Havet: {
-    clip: "Havet",
+    clip: "seascape, ocean, coast, ships, water, maritime painting",
     fts: "hav OR sjö OR vatten OR kust OR strand OR flod",
   },
   Blommor: {
-    clip: "Blommor",
+    clip: "flowers, floral still life, roses, botanical painting",
     fts: "blom* OR ros OR tulpan OR växt",
   },
   Natt: {
-    clip: "Natt",
+    clip: "night scene, moonlight, dark atmosphere, nocturnal painting",
     fts: "natt OR måne OR kväll OR skymning",
   },
 };
