@@ -12,6 +12,14 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
 
+export function headers() {
+  return {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  };
+}
+
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
