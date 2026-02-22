@@ -89,33 +89,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         @keyframes heroFadeUp {
           to { opacity: 1; transform: translateY(0); }
         }
-        .scroll-indicator {
-          position: absolute;
-          left: 50%;
-          bottom: 1.5rem;
-          transform: translateX(-50%);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 2.5rem;
-          height: 2.5rem;
-          border-radius: 999px;
-          background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.15);
-          animation: scrollPulse 1.8s ease-in-out infinite;
-          cursor: pointer;
-        }
-        .scroll-indicator span {
-          display: block;
-          width: 0.6rem;
-          height: 0.6rem;
-          border-right: 2px solid rgba(255,255,255,0.6);
-          border-bottom: 2px solid rgba(255,255,255,0.6);
-          transform: rotate(45deg);
-        }
-        @keyframes scrollPulse {
-          0%, 100% { transform: translate(-50%, 0); opacity: 0.55; }
-          50% { transform: translate(-50%, 6px); opacity: 0.9; }
         }
       `}</style>
       {/* Full-bleed hero */}
@@ -183,11 +156,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </a>
           )}
         </div>
-        <button className="scroll-indicator" aria-label="Scrolla ner" onClick={() => {
-          document.getElementById("featured")?.scrollIntoView({ behavior: "smooth" });
-        }}>
-          <span />
-        </button>
       </section>
 
       {/* Featured */}
