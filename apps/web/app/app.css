@@ -51,6 +51,16 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.heart-pulse {
+  animation: heartPulse 0.35s ease-out;
+}
+
 /* Scroll-triggered fade in */
 .reveal {
   opacity: 0;

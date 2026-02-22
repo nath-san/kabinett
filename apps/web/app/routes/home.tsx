@@ -1,6 +1,7 @@
 import type { Route } from "./+types/home";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fetchFeed } from "../lib/feed.server";
+import { useFavorites } from "../lib/favorites";
 
 type FeedItem = {
   id: number;
@@ -76,6 +77,10 @@ function iiif(url: string, size: number): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FeedItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
@@ -101,12 +106,58 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Dark mode — use first artwork's color instead of pure black
-  const firstColor = feed[0]?.type === "art" ? feed[0].item.dominant_color || "#1A1815" : "#1A1815";
+  const showingSearch = query.trim().length > 0;
+  const firstColor = useMemo(() => {
+    if (showingSearch) {
+      return searchResults[0]?.dominant_color || "#1A1815";
+    }
+    const firstArt = feed.find((entry) => entry.type === "art") as ArtCard | undefined;
+    return firstArt?.item.dominant_color || "#1A1815";
+  }, [feed, searchResults, showingSearch]);
   useEffect(() => {
     document.body.style.backgroundColor = firstColor;
     document.body.style.color = "#F5F0E8";
     return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=20`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        const mapped: FeedItem[] = (data || []).map((item: any) => ({
+          id: item.id,
+          title_sv: item.title || item.title_sv || "Utan titel",
+          artists: JSON.stringify([{ name: item.artist || "Okänd konstnär" }]),
+          dating_text: item.year || "",
+          iiif_url: "",
+          dominant_color: item.color || "#1A1815",
+          category: null,
+          technique_material: null,
+          imageUrl: item.heroUrl || item.imageUrl,
+        }));
+        setSearchResults(mapped);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
   async function loadMore() {
     if (loading || !hasMore) return;
@@ -173,18 +224,104 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       minHeight: "100vh",
       overflowX: "hidden",
     }}>
-      {feed.map((entry, i) =>
-        entry.type === "art" ? (
-          <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
-        ) : (
-          <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
-        )
-      )}
-      <div ref={sentinelRef} style={{ height: "1px" }} />
-      {loading && (
-        <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
-          Laddar mer konst...
+      <div
+        style={{
+          position: "fixed",
+          top: "3.75rem",
+          left: 0,
+          right: 0,
+          zIndex: 55,
+          padding: "0 1rem",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.6rem",
+            padding: "0.65rem 0.9rem",
+            borderRadius: "999px",
+            background: "rgba(12,11,10,0.55)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
+            pointerEvents: "auto",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.6)" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Vad ser du?"
+            aria-label="Vad ser du?"
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              color: "#F5F0E8",
+              fontSize: "0.9rem",
+              outline: "none",
+            }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Rensa sök"
+              style={{
+                border: "none",
+                background: "rgba(245,240,232,0.12)",
+                color: "#F5F0E8",
+                width: "1.6rem",
+                height: "1.6rem",
+                borderRadius: "999px",
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
+      </div>
+
+      {showingSearch ? (
+        <div>
+          {searchLoading && searchResults.length === 0 && (
+            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
+              Letar i samlingen...
+            </div>
+          )}
+          {!searchLoading && searchResults.length === 0 && (
+            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.35)", fontSize: "0.85rem" }}>
+              Inga träffar än. Prova ett nytt ord.
+            </div>
+          )}
+          {searchResults.map((item, i) => (
+            <ArtworkCard key={`search-${item.id}-${i}`} item={item} index={i} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {feed.map((entry, i) =>
+            entry.type === "art" ? (
+              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
+            ) : (
+              <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
+            )
+          )}
+          <div ref={sentinelRef} style={{ height: "1px" }} />
+          {loading && (
+            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
+              Laddar mer konst...
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -192,6 +329,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: FeedItem; index: number }) {
   const eager = index < 3;
+  const { isFavorite, toggle } = useFavorites();
+  const saved = isFavorite(item.id);
+  const [pulsing, setPulsing] = useState(false);
   return (
     <a
       href={`/artwork/${item.id}`}
@@ -250,6 +390,42 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           </p>
         )}
       </div>
+      <button
+        type="button"
+        aria-label={saved ? "Ta bort favorit" : "Spara som favorit"}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!saved) {
+            setPulsing(true);
+            window.setTimeout(() => setPulsing(false), 350);
+          }
+          toggle(item.id);
+        }}
+        style={{
+          position: "absolute",
+          right: "1.25rem",
+          bottom: "1.25rem",
+          width: "2.2rem",
+          height: "2.2rem",
+          borderRadius: "999px",
+          border: "1px solid rgba(255,255,255,0.2)",
+          background: saved ? "rgba(196,85,58,0.95)" : "rgba(0,0,0,0.4)",
+          color: "#fff",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          transition: "transform 0.15s ease, background 0.2s ease",
+        }}
+        className={pulsing ? "heart-pulse" : undefined}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+          <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
+        </svg>
+      </button>
     </a>
   );
 });

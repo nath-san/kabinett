@@ -18,4 +18,12 @@ export default [
   route("api/feed", "routes/api.feed.tsx"),
   route("api/clip-search", "routes/api.clip-search.tsx"),
   route("mood-search", "routes/mood-search.tsx"),
+  route("favorites", "routes/favorites.tsx"),
+  route("color-match", "routes/color-match.tsx"),
+  route("api/artworks", "routes/api.artworks.tsx"),
+  route("compare", "routes/compare.tsx"),
+  route("quiz", "routes/quiz.tsx"),
+  route("api/compare-random", "routes/api.compare-random.tsx"),
+  route("api/compare-search", "routes/api.compare-search.tsx"),
+  route("api/quiz-match", "routes/api.quiz-match.tsx"),
 ] satisfies RouteConfig;

@@ -120,7 +120,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ]);
 
   if (cache.length === 0) {
-    return Response.json([]);
+    const db = getDb();
+    try {
+      const ftsQuery = q.split(/\s+/).map((w) => `"${w}"*`).join(" ");
+      const rows = db.prepare(
+        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
+         FROM artworks_fts f JOIN artworks a ON a.id = f.rowid
+         WHERE artworks_fts MATCH ? ORDER BY rank LIMIT ?`
+      ).all(ftsQuery, limit) as any[];
+
+      const results = rows.map((row) => {
+        const iiif = row.iiif_url.replace("http://", "https://");
+        return {
+          id: row.id,
+          title: row.title_sv || row.title_en || "Utan titel",
+          artist: parseArtist(row.artists),
+          imageUrl: iiif + "full/400,/0/default.jpg",
+          heroUrl: iiif + "full/800,/0/default.jpg",
+          year: row.dating_text || "",
+          color: row.dominant_color || "#D4CDC3",
+          similarity: 0,
+        };
+      });
+
+      return Response.json(results);
+    } catch {
+      return Response.json([]);
+    }
   }
 
   const textInputs = tokenizer(q, { padding: true, truncation: true });

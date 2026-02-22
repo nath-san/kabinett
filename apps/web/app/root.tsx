@@ -10,6 +10,7 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { useFavorites } from "./lib/favorites";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -67,6 +68,7 @@ document.addEventListener('DOMContentLoaded',function(){
 function Header() {
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const { count } = useFavorites();
 
   return (
     <header
@@ -103,20 +105,58 @@ function Header() {
         >
           Kabinett
         </a>
-        <a
-          href="/search"
-          style={{
-            color: isHome ? "#F5F0E8" : "#3D3831",
-            textDecoration: "none",
-            display: "flex",
-          }}
-          aria-label="Sök"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+          <a
+            href="/favorites"
+            style={{
+              color: isHome ? "#F5F0E8" : "#3D3831",
+              textDecoration: "none",
+              display: "flex",
+              position: "relative",
+            }}
+            aria-label="Favoriter"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
+            </svg>
+            {count > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-0.3rem",
+                  right: "-0.45rem",
+                  minWidth: "1rem",
+                  height: "1rem",
+                  padding: "0 0.2rem",
+                  borderRadius: "999px",
+                  background: "#C4553A",
+                  color: "#fff",
+                  fontSize: "0.6rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 600,
+                }}
+              >
+                {count}
+              </span>
+            )}
+          </a>
+          <a
+            href="/search"
+            style={{
+              color: isHome ? "#F5F0E8" : "#3D3831",
+              textDecoration: "none",
+              display: "flex",
+            }}
+            aria-label="Sök"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </a>
+        </div>
       </nav>
     </header>
   );
