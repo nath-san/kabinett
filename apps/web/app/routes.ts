@@ -15,4 +15,7 @@ export default [
   route("colors", "routes/colors.tsx"),
   route("walks", "routes/walks.tsx"),
   route("about", "routes/about.tsx"),
+  route("api/feed", "routes/api.feed.tsx"),
+  route("api/clip-search", "routes/api.clip-search.tsx"),
+  route("mood-search", "routes/mood-search.tsx"),
 ] satisfies RouteConfig;

@@ -1,51 +1,74 @@
 import type { Route } from "./+types/home";
-import { useEffect } from "react";
-import { getDb } from "../lib/db.server";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { fetchFeed } from "../lib/feed.server";
 
-export function meta({}: Route.MetaArgs) {
+type FeedItem = {
+  id: number;
+  title_sv: string | null;
+  artists: string | null;
+  dating_text: string | null;
+  iiif_url: string;
+  dominant_color: string | null;
+  category: string | null;
+  technique_material: string | null;
+  imageUrl: string;
+};
+
+type ThemeSection = {
+  type: "theme";
+  title: string;
+  subtitle: string;
+  filter: string;
+  color: string;
+  items: FeedItem[];
+};
+
+type ArtCard = { type: "art"; item: FeedItem };
+type FeedEntry = ArtCard | ThemeSection;
+
+const THEMES = [
+  { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D" },
+  { title: "Havslandskap", subtitle: "Vatten, kust och hav", filter: "Havet", color: "#1A2A3A" },
+  { title: "I rött", subtitle: "Passion och drama", filter: "Rött", color: "#3A1A1A" },
+  { title: "Blommor", subtitle: "Natur i närbild", filter: "Blommor", color: "#2A2D1A" },
+  { title: "1800-talet", subtitle: "Romantik och realism", filter: "1800-tal", color: "#2A2520" },
+  { title: "Nattscener", subtitle: "Mörker och mystik", filter: "Natt", color: "#0F0F1A" },
+  { title: "I blått", subtitle: "Melankoli och hav", filter: "Blått", color: "#1A1A2E" },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", filter: "Porträtt", color: "#2E2620" },
+  { title: "1700-talet", subtitle: "Rokoko och upplysning", filter: "1700-tal", color: "#28261E" },
+  { title: "Skulptur", subtitle: "Form i tre dimensioner", filter: "Skulptur", color: "#222222" },
+];
+
+export function meta() {
   return [
     { title: "Kabinett — Upptäck svensk konst" },
-    { name: "description", content: "Utforska Nationalmuseums samling på ett nytt sätt." },
+    { name: "description", content: "Scrolla genom Nationalmuseums samling." },
   ];
 }
 
-export async function loader() {
-  const db = getDb();
-  const total = (db.prepare("SELECT COUNT(*) as count FROM artworks").get() as any).count;
+export function headers() {
+  return { "Cache-Control": "public, max-age=60" };
+}
 
-  // Hero: pick a painting with good colors
-  const heroCandidates = db.prepare(
-    `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-     FROM artworks
-     WHERE category LIKE '%Målningar%'
-       AND color_r IS NOT NULL
-       AND (color_r + color_g + color_b) BETWEEN 150 AND 500
-       AND LENGTH(iiif_url) > 90
-     ORDER BY RANDOM() LIMIT 5`
-  ).all() as any[];
-  const hero = heroCandidates[0] || null;
+export async function loader({ request }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla", origin: url.origin });
 
-  const featured = db.prepare(
-    `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-     FROM artworks WHERE category LIKE '%Målningar%' AND LENGTH(iiif_url) > 90
-     ORDER BY RANDOM() LIMIT 8`
-  ).all() as any[];
+  // Load first theme section
+  const firstTheme = THEMES[0];
+  const themeItems = await fetchFeed({ cursor: null, limit: 6, filter: firstTheme.filter, origin: url.origin });
 
-  const colorful = db.prepare(
-    `SELECT id, iiif_url, dominant_color
-     FROM artworks
-     WHERE color_r IS NOT NULL AND LENGTH(iiif_url) > 90
-       AND NOT (ABS(color_r - color_g) < 20 AND ABS(color_g - color_b) < 20)
-     ORDER BY RANDOM() LIMIT 12`
-  ).all() as any[];
-
-  return { total, hero, featured, colorful };
+  return {
+    initialItems: initial.items,
+    initialCursor: initial.nextCursor,
+    initialHasMore: initial.hasMore,
+    firstTheme: { ...firstTheme, items: themeItems.items },
+  };
 }
 
 function parseArtist(json: string | null): string {
   if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
-  catch { return "Okänd konstnär"; }
+  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
 }
 
 function iiif(url: string, size: number): string {
@@ -53,210 +76,261 @@ function iiif(url: string, size: number): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { total, hero, featured, colorful } = loaderData;
-  useEffect(() => {
-    const targets = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
-    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReducedMotion) {
-      targets.forEach((el) => el.classList.add("visible"));
-      return;
+  const [feed, setFeed] = useState<FeedEntry[]>(() => {
+    const entries: FeedEntry[] = [];
+    const initial = loaderData.initialItems;
+    // First 5 artworks, then first theme, then rest
+    for (let i = 0; i < Math.min(5, initial.length); i++) {
+      entries.push({ type: "art", item: initial[i] });
     }
+    if (loaderData.firstTheme.items.length > 0) {
+      entries.push({ type: "theme", ...loaderData.firstTheme });
+    }
+    for (let i = 5; i < initial.length; i++) {
+      entries.push({ type: "art", item: initial[i] });
+    }
+    return entries;
+  });
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-            observer.unobserve(entry.target);
+  const [cursor, setCursor] = useState<number | null>(loaderData.initialCursor ?? null);
+  const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
+  const [loading, setLoading] = useState(false);
+  const [themeIndex, setThemeIndex] = useState(1); // already loaded index 0
+  const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Dark mode — use first artwork's color instead of pure black
+  const firstColor = feed[0]?.type === "art" ? feed[0].item.dominant_color || "#1A1815" : "#1A1815";
+  useEffect(() => {
+    document.body.style.backgroundColor = firstColor;
+    document.body.style.color = "#F5F0E8";
+    return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
+  }, [firstColor]);
+
+  async function loadMore() {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      // Fetch next batch of artworks
+      const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursor ?? ""}`);
+      const data = await res.json();
+      const nextItems: FeedItem[] = (data.items || []).filter((item: FeedItem) => !loadedIds.has(item.id));
+
+      const newEntries: FeedEntry[] = [];
+      for (const item of nextItems) {
+        newEntries.push({ type: "art", item });
+      }
+
+      // Every load, try to insert a theme section
+      if (themeIndex < THEMES.length) {
+        const theme = THEMES[themeIndex];
+        try {
+          const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=6`);
+          const themeData = await themeRes.json();
+          if (themeData.items?.length > 0) {
+            // Insert theme after ~5 artworks
+            const insertAt = Math.min(5, newEntries.length);
+            newEntries.splice(insertAt, 0, {
+              type: "theme",
+              ...theme,
+              items: themeData.items,
+            });
           }
-        });
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
-    );
-    targets.forEach((el) => observer.observe(el));
+        } catch { /* skip theme on error */ }
+        setThemeIndex((prev) => prev + 1);
+      }
 
+      setFeed((prev) => [...prev, ...newEntries]);
+      setLoadedIds((prev) => {
+        const next = new Set(prev);
+        nextItems.forEach((item) => next.add(item.id));
+        return next;
+      });
+      setCursor(data.nextCursor ?? null);
+      setHasMore(Boolean(data.hasMore));
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const target = sentinelRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) void loadMore(); },
+      { rootMargin: "600px" }
+    );
+    observer.observe(target);
     return () => observer.disconnect();
-  }, []);
+  }, [hasMore, loading, cursor, themeIndex]);
 
   return (
-    <div style={{ minHeight: "100vh" }}>
-      <style>{`
-        .hero-fade-up {
-          opacity: 0;
-          transform: translateY(10px);
-          animation: heroFadeUp 800ms ease forwards;
-        }
-        @keyframes heroFadeUp {
-          to { opacity: 1; transform: translateY(0); }
-        }
-        }
-      `}</style>
-      {/* Full-bleed hero */}
-      <section style={{
+    <div style={{
+      minHeight: "100vh",
+      overflowX: "hidden",
+    }}>
+      {feed.map((entry, i) =>
+        entry.type === "art" ? (
+          <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
+        ) : (
+          <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
+        )
+      )}
+      <div ref={sentinelRef} style={{ height: "1px" }} />
+      {loading && (
+        <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
+          Laddar mer konst...
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: FeedItem; index: number }) {
+  const eager = index < 3;
+  return (
+    <a
+      href={`/artwork/${item.id}`}
+      style={{
+        display: "block",
         position: "relative",
-        height: "85vh",
-        minHeight: "500px",
-        display: "flex",
-        alignItems: "flex-end",
-        backgroundColor: hero?.dominant_color || "#3D3831",
-      }}>
-        {hero && (
-          <img
-            src={iiif(hero.iiif_url, 800)}
-            alt={hero.title_sv || ""}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        )}
-        <div style={{
+        width: "100%",
+        height: "100vh",
+        backgroundColor: item.dominant_color || "#1A1815",
+        textDecoration: "none",
+        color: "inherit",
+        overflow: "hidden",
+        contain: "layout paint",
+      }}
+    >
+      <img
+        src={item.imageUrl}
+        alt={item.title_sv || ""}
+        loading={eager ? "eager" : "lazy"}
+        decoding={eager ? "sync" : "async"}
+        fetchPriority={eager ? "high" : undefined}
+        onLoad={eager ? undefined : (e) => { (e.target as HTMLImageElement).style.opacity = "1"; }}
+        onError={(e) => {
+          const card = (e.target as HTMLImageElement).closest("a");
+          if (card) (card as HTMLElement).style.display = "none";
+        }}
+        style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(to top, rgba(26,24,21,0.8) 0%, rgba(26,24,21,0.2) 40%, transparent 70%)",
-        }} />
-        <div style={{ position: "relative", zIndex: 10, padding: "0 1rem 3rem", maxWidth: "36rem" }}>
-          <p className="hero-fade-up" style={{
-            fontSize: "0.75rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.45)",
-            fontWeight: 500,
-            animationDelay: "0ms",
-          }}>
-            Nationalmuseums samling
-          </p>
-          <h1 className="font-serif hero-fade-up" style={{
-            fontSize: "2.75rem",
-            fontWeight: 700,
-            color: "#fff",
-            lineHeight: 1.1,
-            marginTop: "0.5rem",
-            animationDelay: "120ms",
-          }}>
-            {total.toLocaleString("sv-SE")} konstverk.{"\n"}Utforska fritt.
-          </h1>
-          <p className="hero-fade-up" style={{
-            marginTop: "0.75rem",
-            fontSize: "0.95rem",
-            color: "rgba(255,255,255,0.55)",
-            lineHeight: 1.5,
-            animationDelay: "220ms",
-          }}>
-            Bläddra efter färg, epok eller slump. Upptäck mästerverk du aldrig visste fanns.
-          </p>
-          {/* CTA buttons removed — bottom nav handles navigation */}
-          {hero && (
-            <a href={"/artwork/" + hero.id} className="hero-fade-up" style={{
-              display: "inline-block",
-              marginTop: "1.5rem",
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.4)",
-              textDecoration: "none",
-              animationDelay: "320ms",
-            }}>
-              {hero.title_sv} — {parseArtist(hero.artists)}
-            </a>
-          )}
-        </div>
-      </section>
-
-      {/* Featured */}
-      <section id="featured" style={{ padding: "3rem 1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem" }}>
-          <div>
-            <h2 className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 600, color: "#3D3831" }}>
-              Ur samlingen
-            </h2>
-            <p style={{ fontSize: "0.875rem", color: "#8C8478", marginTop: "0.25rem" }}>Slumpmässigt urval</p>
-          </div>
-          <a href="/explore" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
-            Visa alla →
-          </a>
-        </div>
-        <div style={{ columnCount: 2, columnGap: "0.75rem" }}>
-          {featured.map((work: any, index: number) => (
-            <a key={work.id} href={"/artwork/" + work.id}
-              className="reveal"
-              style={{
-                breakInside: "avoid", display: "block", borderRadius: "0.75rem",
-                overflow: "hidden", backgroundColor: "#F0EBE3", marginBottom: "0.75rem",
-                textDecoration: "none",
-                transitionDelay: `${index * 100}ms`,
-              }}>
-              <div style={{ backgroundColor: work.dominant_color || "#D4CDC3", aspectRatio: "3/4", overflow: "hidden" }}>
-                <img src={iiif(work.iiif_url, 400)} alt={work.title_sv || ""} width={400} height={533}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-              <div style={{ padding: "0.75rem" }}>
-                <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "#3D3831", lineHeight: 1.3 }}>
-                  {work.title_sv || "Utan titel"}</p>
-                <p style={{ fontSize: "0.75rem", color: "#8C8478", marginTop: "0.25rem" }}>{parseArtist(work.artists)}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Color teaser */}
-      <section style={{ padding: "3rem 1rem", backgroundColor: "#3D3831" }}>
-        <h2 className="font-serif" style={{ fontSize: "1.5rem", fontWeight: 600, color: "#fff" }}>
-          Utforska genom färg
-        </h2>
-        <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.4)", marginTop: "0.5rem" }}>
-          Varje verk har en dominant färg. Vilken lockar dig?
-        </p>
-        <div style={{ position: "relative" }}>
-          <div style={{
-            display: "flex", gap: "0.5rem", overflowX: "auto",
-            paddingTop: "1rem", paddingBottom: "0.5rem",
-          }} className="no-scrollbar">
-            {colorful.map((c: any) => (
-              <a key={c.id} href={"/artwork/" + c.id} style={{
-                flexShrink: 0, width: "9rem", height: "12rem",
-                borderRadius: "0.75rem", overflow: "hidden",
-              }}>
-                <img src={iiif(c.iiif_url, 200)} alt="" width={200} height={250}
-                  loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </a>
-            ))}
-          </div>
-          <div aria-hidden="true" style={{
-            position: "absolute",
-            inset: "0 auto 0 0",
-            width: "2.5rem",
-            pointerEvents: "none",
-            background: "linear-gradient(90deg, rgba(61,56,49,0.9), rgba(61,56,49,0))",
-          }} />
-          <div aria-hidden="true" style={{
-            position: "absolute",
-            inset: "0 0 0 auto",
-            width: "2.5rem",
-            pointerEvents: "none",
-            background: "linear-gradient(270deg, rgba(61,56,49,0.9), rgba(61,56,49,0))",
-          }} />
-        </div>
-        <a href="/explore?color=blue" style={{
-          display: "inline-block", marginTop: "1rem",
-          padding: "0.75rem 1.5rem",
-          backgroundColor: "rgba(255,255,255,0.1)", color: "#fff",
-          border: "1px solid rgba(255,255,255,0.2)",
-          borderRadius: "999px", fontSize: "0.875rem", fontWeight: 500,
-          textDecoration: "none",
+          width: "100%", height: "100%",
+          objectFit: "cover",
+          ...(eager ? {} : { opacity: 0, transition: "opacity 0.4s ease" }),
+        }}
+      />
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 35%, transparent 60%)",
+        pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0,
+        padding: "1.5rem",
+      }}>
+        <p style={{
+          fontFamily: '"Instrument Serif", Georgia, serif',
+          fontSize: "1.5rem", fontWeight: 600, color: "#fff",
+          lineHeight: 1.2, marginBottom: "0.35rem",
         }}>
-          Utforska efter färg →
-        </a>
-      </section>
+          {item.title_sv || "Utan titel"}
+        </p>
+        <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>
+          {parseArtist(item.artists)}
+        </p>
+        {item.dating_text && (
+          <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", marginTop: "0.2rem" }}>
+            {item.dating_text}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+});
 
-      {/* Footer */}
-      <footer style={{ padding: "2.5rem 1rem", textAlign: "center", backgroundColor: "#FAF7F2" }}>
-        <p style={{ fontSize: "0.75rem", color: "#D4CDC3" }}>
-          Data från <a href="https://api.nationalmuseum.se" target="_blank" rel="noopener"
-            style={{ textDecoration: "underline", color: "inherit" }}>Nationalmuseums öppna API</a>.
-          Metadata CC0, bilder Public Domain.
-        </p>
-        <p style={{ fontSize: "0.7rem", color: "rgba(212,205,195,0.6)", marginTop: "0.5rem" }}>
-          Kabinett är inte affilierat med Nationalmuseum.
-        </p>
-      </footer>
+function ThemeCard({ section }: { section: ThemeSection }) {
+  return (
+    <div style={{
+      backgroundColor: section.color,
+      padding: "3rem 1rem 2rem",
+      scrollSnapAlign: "start",
+    }}>
+      {/* Theme header */}
+      <p style={{
+        fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.2em",
+        color: "rgba(255,255,255,0.4)", fontWeight: 500,
+      }}>
+        Tema
+      </p>
+      <h2 style={{
+        fontFamily: '"Instrument Serif", Georgia, serif',
+        fontSize: "2rem", fontWeight: 600, color: "#fff",
+        marginTop: "0.5rem", lineHeight: 1.1,
+      }}>
+        {section.title}
+      </h2>
+      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", marginTop: "0.35rem" }}>
+        {section.subtitle}
+      </p>
+
+      {/* Horizontal scroll of themed artworks */}
+      <div style={{
+        display: "flex", gap: "0.75rem",
+        overflowX: "auto", paddingTop: "1.5rem", paddingBottom: "0.5rem",
+        scrollSnapType: "x mandatory",
+      }} className="no-scrollbar">
+        {section.items.map((item: FeedItem) => (
+          <a
+            key={item.id}
+            href={`/artwork/${item.id}`}
+            style={{
+              flexShrink: 0, width: "70vw", maxWidth: "280px",
+              borderRadius: "0.75rem", overflow: "hidden",
+              backgroundColor: item.dominant_color || "#1A1815",
+              textDecoration: "none", color: "inherit",
+              scrollSnapAlign: "start",
+            }}
+          >
+            <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: item.dominant_color || "#1A1815" }}>
+              <img
+                src={iiif(item.iiif_url, 400)}
+                alt={item.title_sv || ""}
+                loading="lazy"
+                onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = "1"; }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0, transition: "opacity 0.4s ease" }}
+              />
+            </div>
+            <div style={{ padding: "0.6rem 0.75rem" }}>
+              <p style={{
+                fontSize: "0.8rem", fontWeight: 500, color: "#fff",
+                lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
+                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+              }}>
+                {item.title_sv || "Utan titel"}
+              </p>
+              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginTop: "0.15rem" }}>
+                {parseArtist(item.artists)}
+              </p>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      {/* "Visa fler" link */}
+      <a href={`/explore?filter=${encodeURIComponent(section.filter)}`} style={{
+        display: "inline-block", marginTop: "1rem",
+        fontSize: "0.8rem", color: "rgba(255,255,255,0.5)",
+        textDecoration: "none",
+      }}>
+        Visa fler →
+      </a>
     </div>
   );
 }
