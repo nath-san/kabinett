@@ -1,4 +1,5 @@
 import type { Route } from "./+types/home";
+import { useEffect, useRef } from "react";
 import { getDb } from "../lib/db.server";
 
 export function meta({}: Route.MetaArgs) {
@@ -53,9 +54,91 @@ function iiif(url: string, size: number): string {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { total, hero, featured, colorful } = loaderData;
+  const heroImageRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const targets = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReducedMotion) {
+      targets.forEach((el) => el.classList.add("visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
+    );
+    targets.forEach((el) => observer.observe(el));
+
+    const image = heroImageRef.current;
+    if (!image) return () => observer.disconnect();
+
+    let rafId = 0;
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        image.style.transform = `translateY(${window.scrollY * 0.5}px)`;
+      });
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   return (
     <div style={{ minHeight: "100vh" }}>
+      <style>{`
+        .hero-fade-up {
+          opacity: 0;
+          transform: translateY(10px);
+          animation: heroFadeUp 800ms ease forwards;
+        }
+        @keyframes heroFadeUp {
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .scroll-indicator {
+          position: absolute;
+          left: 50%;
+          bottom: 1.5rem;
+          transform: translateX(-50%);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 2.5rem;
+          height: 2.5rem;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.15);
+          animation: scrollPulse 1.8s ease-in-out infinite;
+          pointer-events: none;
+        }
+        .scroll-indicator span {
+          display: block;
+          width: 0.6rem;
+          height: 0.6rem;
+          border-right: 2px solid rgba(255,255,255,0.6);
+          border-bottom: 2px solid rgba(255,255,255,0.6);
+          transform: rotate(45deg);
+        }
+        @keyframes scrollPulse {
+          0%, 100% { transform: translate(-50%, 0); opacity: 0.55; }
+          50% { transform: translate(-50%, 6px); opacity: 0.9; }
+        }
+      `}</style>
       {/* Full-bleed hero */}
       <section style={{
         position: "relative",
@@ -67,10 +150,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       }}>
         {hero && (
           <img
+            ref={heroImageRef}
             src={iiif(hero.iiif_url, 800)}
             alt={hero.title_sv || ""}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              willChange: "transform",
+            }}
           />
         )}
         <div style={{
@@ -78,26 +169,51 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           background: "linear-gradient(to top, rgba(26,24,21,0.8) 0%, rgba(26,24,21,0.2) 40%, transparent 70%)",
         }} />
         <div style={{ position: "relative", zIndex: 10, padding: "0 1rem 3rem", maxWidth: "36rem" }}>
-          <p style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>
+          <p className="hero-fade-up" style={{
+            fontSize: "0.75rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.15em",
+            color: "rgba(255,255,255,0.45)",
+            fontWeight: 500,
+            animationDelay: "0ms",
+          }}>
             Nationalmuseums samling
           </p>
-          <h1 className="font-serif" style={{
-            fontSize: "2.75rem", fontWeight: 700, color: "#fff", lineHeight: 1.1, marginTop: "0.5rem",
+          <h1 className="font-serif hero-fade-up" style={{
+            fontSize: "2.75rem",
+            fontWeight: 700,
+            color: "#fff",
+            lineHeight: 1.1,
+            marginTop: "0.5rem",
+            animationDelay: "120ms",
           }}>
             {total.toLocaleString("sv-SE")} konstverk.{"\n"}Utforska fritt.
           </h1>
-          <p style={{ marginTop: "0.75rem", fontSize: "0.95rem", color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+          <p className="hero-fade-up" style={{
+            marginTop: "0.75rem",
+            fontSize: "0.95rem",
+            color: "rgba(255,255,255,0.55)",
+            lineHeight: 1.5,
+            animationDelay: "220ms",
+          }}>
             Bläddra efter färg, epok eller slump. Upptäck mästerverk du aldrig visste fanns.
           </p>
           {/* CTA buttons removed — bottom nav handles navigation */}
           {hero && (
-            <a href={"/artwork/" + hero.id} style={{
-              display: "inline-block", marginTop: "1.5rem",
-              fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", textDecoration: "none",
+            <a href={"/artwork/" + hero.id} className="hero-fade-up" style={{
+              display: "inline-block",
+              marginTop: "1.5rem",
+              fontSize: "0.75rem",
+              color: "rgba(255,255,255,0.4)",
+              textDecoration: "none",
+              animationDelay: "320ms",
             }}>
               {hero.title_sv} — {parseArtist(hero.artists)}
             </a>
           )}
+        </div>
+        <div className="scroll-indicator" aria-hidden="true">
+          <span />
         </div>
       </section>
 
@@ -115,12 +231,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </a>
         </div>
         <div style={{ columnCount: 2, columnGap: "0.75rem" }}>
-          {featured.map((work: any) => (
+          {featured.map((work: any, index: number) => (
             <a key={work.id} href={"/artwork/" + work.id}
+              className="reveal"
               style={{
                 breakInside: "avoid", display: "block", borderRadius: "0.75rem",
                 overflow: "hidden", backgroundColor: "#F0EBE3", marginBottom: "0.75rem",
                 textDecoration: "none",
+                transitionDelay: `${index * 100}ms`,
               }}>
               <div style={{ backgroundColor: work.dominant_color || "#D4CDC3", aspectRatio: "3/4", overflow: "hidden" }}>
                 <img src={iiif(work.iiif_url, 400)} alt={work.title_sv || ""} width={400} height={533}
@@ -145,19 +263,35 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <p style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.4)", marginTop: "0.5rem" }}>
           Varje verk har en dominant färg. Vilken lockar dig?
         </p>
-        <div style={{
-          display: "flex", gap: "0.5rem", overflowX: "auto",
-          paddingTop: "1rem", paddingBottom: "0.5rem",
-        }} className="no-scrollbar">
-          {colorful.map((c: any) => (
-            <a key={c.id} href={"/artwork/" + c.id} style={{
-              flexShrink: 0, width: "7rem", height: "9rem",
-              borderRadius: "0.75rem", overflow: "hidden",
-            }}>
-              <img src={iiif(c.iiif_url, 200)} alt="" width={200} height={250}
-                loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </a>
-          ))}
+        <div style={{ position: "relative" }}>
+          <div style={{
+            display: "flex", gap: "0.5rem", overflowX: "auto",
+            paddingTop: "1rem", paddingBottom: "0.5rem",
+          }} className="no-scrollbar">
+            {colorful.map((c: any) => (
+              <a key={c.id} href={"/artwork/" + c.id} style={{
+                flexShrink: 0, width: "9rem", height: "12rem",
+                borderRadius: "0.75rem", overflow: "hidden",
+              }}>
+                <img src={iiif(c.iiif_url, 200)} alt="" width={200} height={250}
+                  loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </a>
+            ))}
+          </div>
+          <div aria-hidden="true" style={{
+            position: "absolute",
+            inset: "0 auto 0 0",
+            width: "2.5rem",
+            pointerEvents: "none",
+            background: "linear-gradient(90deg, rgba(61,56,49,0.9), rgba(61,56,49,0))",
+          }} />
+          <div aria-hidden="true" style={{
+            position: "absolute",
+            inset: "0 0 0 auto",
+            width: "2.5rem",
+            pointerEvents: "none",
+            background: "linear-gradient(270deg, rgba(61,56,49,0.9), rgba(61,56,49,0))",
+          }} />
         </div>
         <a href="/explore?color=blue" style={{
           display: "inline-block", marginTop: "1rem",
