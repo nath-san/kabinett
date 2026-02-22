@@ -3,6 +3,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 export default [
   index("routes/home.tsx"),
   route("explore", "routes/explore.tsx"),
+  route("discover", "routes/discover.tsx"),
   route("search", "routes/search.tsx"),
   route("api/autocomplete", "routes/api.autocomplete.tsx"),
   route("api/color-search", "routes/api.color-search.tsx"),
