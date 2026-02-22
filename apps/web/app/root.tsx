@@ -7,7 +7,7 @@ import {
   ScrollRestoration,
   useLocation,
 } from "react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -34,6 +34,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <Meta />
         <Links />
+        <style dangerouslySetInnerHTML={{ __html: `
+          #bottom-nav { display: none; }
+          .top-nav-links-ssr { display: flex; }
+          @media (max-width: 767px) {
+            #bottom-nav { display: flex !important; }
+            .top-nav-links-ssr { display: none !important; }
+            .top-header-nav { justify-content: center !important; }
+            main { padding-bottom: 7rem; }
+          }
+        `}} />
       </head>
       <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"DM Sans", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
         <Header />
@@ -67,50 +77,33 @@ document.addEventListener('DOMContentLoaded',function(){
 }
 
 function Header() {
-  const isMobile = useIsMobile();
-
   return (
     <header style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
       backgroundColor: "rgba(250,247,242,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
       borderBottom: "1px solid rgba(212,205,195,0.3)",
     }}>
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: isMobile ? "center" : "space-between", padding: "0 1rem", height: "3.5rem" }}>
+      <nav className="top-header-nav" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 1rem", height: "3.5rem" }}>
         <a href="/" style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "1.25rem", fontWeight: 600, color: "#3D3831", textDecoration: "none" }}>
           Kabinett
         </a>
 
-        {!isMobile && (
-          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
-            <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
-              <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-            </a>
-            <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
-            <a href="/walks" style={{ color: "inherit", textDecoration: "none" }}>Vandringar</a>
-          </div>
-        )}
+        <div className="top-nav-links-ssr" style={{ alignItems: "center", gap: "1.25rem", fontSize: "0.875rem", color: "#8C8478" }}>
+          <a href="/search" style={{ color: "inherit", textDecoration: "none" }} aria-label="Sök">
+            <svg style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+          </a>
+          <a href="/explore" style={{ color: "inherit", textDecoration: "none" }}>Utforska</a>
+          <a href="/walks" style={{ color: "inherit", textDecoration: "none" }}>Vandringar</a>
+        </div>
       </nav>
     </header>
   );
 }
 
-function useIsMobile(breakpoint = 768) {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
-    setIsMobile(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, [breakpoint]);
-  return isMobile;
-}
-
 function BottomNav() {
   const location = useLocation();
-  const isMobile = useIsMobile();
   const navItems = [
     { href: "/search", label: "Sök", icon: (
       <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
@@ -124,10 +117,9 @@ function BottomNav() {
 
   const isActive = (href: string) => location.pathname === href || location.pathname.startsWith(`${href}/`);
 
-  if (!isMobile) return null;
-
   return (
     <nav
+      id="bottom-nav"
       aria-label="Primär navigation"
       style={{
         position: "fixed",
