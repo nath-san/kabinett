@@ -1,5 +1,5 @@
 import type { Route } from "./+types/home";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { getDb } from "../lib/db.server";
 
 export function meta({}: Route.MetaArgs) {
@@ -54,8 +54,6 @@ function iiif(url: string, size: number): string {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { total, hero, featured, colorful } = loaderData;
-  const heroImageRef = useRef<HTMLImageElement | null>(null);
-
   useEffect(() => {
     const targets = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
     const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -77,26 +75,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     );
     targets.forEach((el) => observer.observe(el));
 
-    const image = heroImageRef.current;
-    if (!image) return () => observer.disconnect();
-
-    let rafId = 0;
-    const onScroll = () => {
-      if (rafId) return;
-      rafId = window.requestAnimationFrame(() => {
-        rafId = 0;
-        image.style.transform = `translateY(${window.scrollY * 0.5}px)`;
-      });
-    };
-
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      if (rafId) window.cancelAnimationFrame(rafId);
-    };
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -150,18 +129,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       }}>
         {hero && (
           <img
-            ref={heroImageRef}
             src={iiif(hero.iiif_url, 800)}
             alt={hero.title_sv || ""}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              willChange: "transform",
-            }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
           />
         )}
         <div style={{
