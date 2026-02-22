@@ -8,6 +8,50 @@ import {
 
 env.allowLocalModels = false;
 
+// Swedish → English lookup for CLIP (trained primarily on English)
+const SV_EN_LOOKUP: Record<string, string> = {
+  // Animals
+  djur: "animals", häst: "horse", hund: "dog", katt: "cat", fågel: "bird",
+  fåglar: "birds", ko: "cow", lejon: "lion", fisk: "fish", fjäril: "butterfly",
+  // Nature
+  landskap: "landscape", skog: "forest", hav: "sea ocean", sjö: "lake",
+  berg: "mountain", himmel: "sky", moln: "clouds", sol: "sun", måne: "moon",
+  träd: "tree", blommor: "flowers", blomma: "flower", vinter: "winter snow",
+  sommar: "summer", höst: "autumn", vår: "spring",
+  // People
+  kvinna: "woman", man: "man", barn: "child children", flicka: "girl",
+  pojke: "boy", porträtt: "portrait", ansikte: "face", människor: "people",
+  naken: "nude naked", kropp: "body",
+  // Mood
+  mörk: "dark darkness", mörkt: "dark night", ljus: "light bright",
+  lugn: "calm peaceful", storm: "storm stormy", dramatisk: "dramatic",
+  sorg: "sadness grief", glädje: "joy happiness", ensam: "lonely solitary",
+  kärlek: "love romance",
+  // Objects & scenes
+  stad: "city town", hus: "house building", kyrka: "church", slott: "castle palace",
+  skepp: "ship boat", bro: "bridge", trädgård: "garden", mat: "food",
+  frukt: "fruit", vin: "wine", bord: "table", stol: "chair",
+  // Art
+  stilleben: "still life", abstrakt: "abstract", skulptur: "sculpture",
+  målning: "painting", teckning: "drawing",
+  // Colors
+  röd: "red", blå: "blue", grön: "green", gul: "yellow", vit: "white",
+  svart: "black", guld: "gold golden",
+  // Misc
+  krig: "war battle", död: "death", musik: "music", dans: "dance",
+  religion: "religion religious", gud: "god", ängel: "angel",
+  vågor: "waves", snö: "snow", is: "ice", eld: "fire",
+};
+
+function translateQuery(query: string): string {
+  const words = query.toLowerCase().split(/\s+/);
+  const translated = words.map((w) => {
+    const en = SV_EN_LOOKUP[w];
+    return en ? `${w} ${en}` : w;
+  });
+  return translated.join(" ");
+}
+
 type CachedEmbedding = {
   id: number;
   title: string;
@@ -25,6 +69,8 @@ let textModelPromise: Promise<{
 }> | null = null;
 let embeddingCache: CachedEmbedding[] | null = null;
 let embeddingCachePromise: Promise<CachedEmbedding[]> | null = null;
+let embeddingCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 function parseArtist(json: string | null): string {
   if (!json) return "Okänd konstnär";
@@ -66,8 +112,12 @@ async function getTextModel() {
 }
 
 async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
-  if (embeddingCache) return embeddingCache;
-  if (embeddingCachePromise) return embeddingCachePromise;
+  const now = Date.now();
+  if (embeddingCache && (now - embeddingCacheTime) < CACHE_TTL) return embeddingCache;
+  if (embeddingCachePromise && (now - embeddingCacheTime) < CACHE_TTL) return embeddingCachePromise;
+  // Bust stale cache
+  embeddingCache = null;
+  embeddingCachePromise = null;
 
   embeddingCachePromise = (async () => {
     const db = getDb();
@@ -101,6 +151,7 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
     });
 
     embeddingCache = mapped;
+    embeddingCacheTime = Date.now();
     return mapped;
   })();
 
@@ -149,7 +200,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 
-  const textInputs = tokenizer(q, { padding: true, truncation: true });
+  const translatedQuery = translateQuery(q);
+  const textInputs = tokenizer(translatedQuery, { padding: true, truncation: true });
   const { text_embeds } = await textModel(textInputs);
   const queryEmbedding = normalize(new Float32Array(text_embeds.data));
 
