@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Route } from "./+types/quiz";
 import { getDb } from "../lib/db.server";
 
@@ -23,6 +23,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE (color_r + color_g + color_b) / 3 < 90
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+           AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -33,6 +34,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE (color_r + color_g + color_b) / 3 > 170
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -43,6 +45,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) > 80
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -53,6 +56,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -66,6 +70,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE year_start BETWEEN 1500 AND 1599
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -76,6 +81,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE year_start BETWEEN 1600 AND 1699
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -86,6 +92,7 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE year_start BETWEEN 1700 AND 1799
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -96,53 +103,31 @@ export async function loader({}: Route.LoaderArgs) {
          WHERE year_start BETWEEN 1800 AND 1899
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          ORDER BY RANDOM()
          LIMIT 1`
       )
       .get() as any,
   };
 
+  function subjectSample(ftsQuery: string) {
+    return db.prepare(
+      `SELECT a.id, a.iiif_url FROM artworks_fts f
+       JOIN artworks a ON a.id = f.rowid
+       WHERE artworks_fts MATCH ?
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 90
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       ORDER BY RANDOM()
+       LIMIT 1`
+    ).get(ftsQuery) as any;
+  }
+
   const subjectSamples = {
-    landskap: db
-      .prepare(
-        `SELECT id, iiif_url FROM artworks
-         WHERE category LIKE '%landskap%'
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    portratt: db
-      .prepare(
-        `SELECT id, iiif_url FROM artworks
-         WHERE category LIKE '%porträtt%'
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    stilleben: db
-      .prepare(
-        `SELECT id, iiif_url FROM artworks
-         WHERE category LIKE '%stilleben%'
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    abstrakt: db
-      .prepare(
-        `SELECT id, iiif_url FROM artworks
-         WHERE category LIKE '%abstrakt%'
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
+    landskap: subjectSample("landskap OR skog OR sjö OR berg"),
+    portratt: subjectSample("porträtt OR portrait OR man OR kvinna"),
+    stilleben: subjectSample("stilleben OR blommor OR frukt"),
+    abstrakt: subjectSample("abstrakt OR komposition"),
   };
 
   function mapSample(row: any) {
@@ -257,15 +242,19 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
     [answers]
   );
 
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+
   async function submitQuiz() {
-    if (!canSubmit) return;
+    const a = answersRef.current;
+    if (!a.mood || !a.color || !a.epoch || !a.subject || !a.size) return;
     setLoading(true);
     const params = new URLSearchParams({
-      mood: answers.mood,
-      color: answers.color,
-      epoch: answers.epoch,
-      subject: answers.subject,
-      size: answers.size,
+      mood: a.mood,
+      color: a.color,
+      epoch: a.epoch,
+      subject: a.subject,
+      size: a.size,
     });
 
     try {
@@ -421,16 +410,19 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
                   size: option.id,
                 }))}
                 selected={answers.size}
-                onSelect={(value) => setAnswers((prev) => ({ ...prev, size: value }))}
+                onSelect={(value) => {
+                  setAnswers((prev) => ({ ...prev, size: value }));
+                }}
                 footer={
                   <div className="flex flex-col md:flex-row gap-3 mt-6">
                     <button
+                      id="quiz-submit"
                       type="button"
                       onClick={submitQuiz}
-                      disabled={!canSubmit || loading}
+                      disabled={loading}
                       className="px-6 py-4 rounded-full bg-charcoal text-cream text-sm font-medium disabled:opacity-50"
                     >
-                      {loading ? "Söker..." : "Hitta mitt konstverk"}
+                      {loading ? "Söker ditt verk..." : "Hitta mitt konstverk"}
                     </button>
                     <button
                       type="button"
@@ -451,9 +443,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
         <div className={`fixed inset-0 z-50 ${reveal ? "" : "pointer-events-none"}`}>
           <div className="absolute inset-0 bg-charcoal/90 backdrop-blur-sm" />
           <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center">
-            <div className="absolute inset-0 overflow-hidden">
-              <Confetti />
-            </div>
+            {/* removed confetti */}
             <p className="text-xs uppercase tracking-[0.2em] text-stone">Ditt konstverk</p>
             <h2 className="font-serif text-4xl md:text-5xl text-cream mt-3">{result.title}</h2>
             <p className="text-sm text-stone mt-2">{result.artist}</p>

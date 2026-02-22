@@ -1,293 +1,205 @@
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Upptäck — Kabinett" },
-    { name: "description", content: "Upptäck konst, ett verk i taget." },
+    { name: "description", content: "Utforska Nationalmuseums samling på nya sätt." },
   ];
 }
 
-export async function loader() {
-  const db = getDb();
-  // Preload 10 interesting paintings
-  const works = db.prepare(
-    `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, category
-     FROM artworks
-     WHERE category LIKE '%Målningar%'
-       AND color_r IS NOT NULL
-       AND LENGTH(iiif_url) > 90
-     ORDER BY RANDOM()
-     LIMIT 10`
-  ).all() as any[];
-
-  return { works };
+function buildIiif(url: string, width: number) {
+  return url.replace("http://", "https://") + `full/${width},/0/default.jpg`;
 }
 
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
-  catch { return "Okänd konstnär"; }
+type Collection = {
+  title: string;
+  query: string;
+  imageUrl?: string;
+};
+
+const COLLECTIONS: Collection[] = [
+  { title: "Mörkt & dramatiskt", query: "mörk natt skugga dramatisk" },
+  { title: "Ljust & stilla", query: "ljus sommar äng lugn" },
+  { title: "Stormigt hav", query: "hav storm sjö vågor" },
+  { title: "Blommor", query: "blommor bukett ros" },
+  { title: "Djur i konsten", query: "häst hund fågel djur" },
+  { title: "Porträtt", query: "porträtt kvinna man" },
+  { title: "Landskap", query: "landskap skog berg" },
+  { title: "Mytologi", query: "gud gudinna venus mars" },
+  { title: "Vinter", query: "vinter snö is" },
+  { title: "Naket", query: "naken akt nude" },
+  { title: "Barn", query: "barn flicka pojke" },
+  { title: "Arkitektur", query: "kyrka slott byggnad" },
+];
+
+export async function loader() {
+  const db = getDb();
+
+  // Get images for collections
+  const collections = COLLECTIONS.map((c) => {
+    const terms = c.query.split(" ").join(" OR ");
+    try {
+      const row = db.prepare(`
+        SELECT a.iiif_url FROM artworks_fts f
+        JOIN artworks a ON a.id = f.rowid
+        WHERE artworks_fts MATCH ?
+          AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+          AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
+        ORDER BY RANDOM() LIMIT 1
+      `).get(terms) as any;
+      return { ...c, imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 400) : undefined };
+    } catch {
+      return c;
+    }
+  });
+
+  // Get image for "Hitta ditt verk"
+  const quizImg = db.prepare(`
+    SELECT iiif_url FROM artworks
+    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+      AND category LIKE '%Måleri%'
+      AND id NOT IN (SELECT artwork_id FROM broken_images)
+    ORDER BY RANDOM() LIMIT 1
+  `).get() as any;
+
+  return {
+    collections,
+    quizImage: quizImg?.iiif_url ? buildIiif(quizImg.iiif_url, 600) : undefined,
+  };
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { works } = loaderData;
+  const { collections, quizImage } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#1A1815" }}>
-      {/* Current card */}
-      <div id="card-stack" style={{ position: "relative", height: "100vh", overflow: "hidden" }}>
-        {works.map((w: any, i: number) => (
-          <div
-            key={w.id}
-            className="discover-card"
-            data-index={i}
-            data-id={w.id}
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: i === 0 ? "flex" : "none",
-              flexDirection: "column",
-              justifyContent: "flex-end",
-              backgroundColor: w.dominant_color || "#1A1815",
-            }}
-          >
-            <img
-              src={w.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg"}
-              alt={w.title_sv || ""}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                objectPosition: "center",
-              }}
-            />
-            {/* Gradient overlay at bottom */}
-            <div style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: "50%",
-              background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)",
-              pointerEvents: "none",
-            }} />
-            {/* Info */}
-            <div style={{
-              position: "relative",
-              zIndex: 10,
-              padding: "0 1.25rem 6rem",
-            }}>
-              <h2 className="font-serif" style={{
-                fontSize: "1.5rem",
-                fontWeight: 700,
-                color: "#fff",
-                lineHeight: 1.25,
-                textShadow: "0 1px 8px rgba(0,0,0,0.4)",
-              }}>
-                {w.title_sv || w.title_en || "Utan titel"}
-              </h2>
-              <p style={{
-                fontSize: "0.9rem",
-                color: "rgba(255,255,255,0.7)",
-                marginTop: "0.375rem",
-              }}>
-                {parseArtist(w.artists)}
-              </p>
-              {w.dating_text && (
-                <p style={{
-                  fontSize: "0.8rem",
-                  color: "rgba(255,255,255,0.4)",
-                  marginTop: "0.25rem",
-                }}>
-                  {w.dating_text}
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
+    <div style={{ minHeight: "100vh", paddingTop: "4.5rem", background: "#FAF7F2" }}>
 
-        {/* Controls overlay */}
+      {/* Hitta ditt verk — hero CTA */}
+      <a href="/quiz" style={{
+        display: "block", position: "relative",
+        margin: "0.75rem", borderRadius: "18px",
+        overflow: "hidden", height: "13rem",
+        textDecoration: "none",
+      }}>
+        {quizImage && (
+          <img src={quizImage} alt="" style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%", objectFit: "cover",
+          }} />
+        )}
         <div style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 20,
-          padding: "0 1.25rem 2rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to top, rgba(10,9,8,0.9) 0%, rgba(10,9,8,0.4) 50%, rgba(10,9,8,0.15) 100%)",
+        }} />
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: "1.2rem 1.3rem",
         }}>
-          <a id="btn-info" href={"/artwork/" + works[0]?.id}
-            style={{
-              width: "2.75rem", height: "2.75rem",
-              borderRadius: "50%",
-              backgroundColor: "rgba(255,255,255,0.15)",
-              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              textDecoration: "none", color: "#fff", fontSize: "1.1rem",
-            }}>
-            i
-          </a>
-          <button id="btn-next"
-            style={{
-              padding: "0.75rem 2rem",
-              borderRadius: "999px",
-              backgroundColor: "rgba(255,255,255,0.2)",
-              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff",
-              fontSize: "0.9rem",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}>
-            Nästa verk →
-          </button>
-          <button id="btn-share"
-            style={{
-              width: "2.75rem", height: "2.75rem",
-              borderRadius: "50%",
-              backgroundColor: "rgba(255,255,255,0.15)",
-              backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-              border: "none",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", fontSize: "1rem", cursor: "pointer",
-            }}>
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
-            </svg>
-          </button>
+          <p style={{
+            fontSize: "0.6rem", fontWeight: 600,
+            letterSpacing: "0.15em", textTransform: "uppercase",
+            color: "rgba(255,255,255,0.45)", marginBottom: "0.4rem",
+          }}>Personligt</p>
+          <h2 style={{
+            fontFamily: "'Instrument Serif', serif",
+            fontSize: "1.6rem", color: "#fff",
+            margin: 0, lineHeight: 1.15,
+          }}>Hitta ditt verk</h2>
+          <p style={{
+            color: "rgba(255,255,255,0.55)",
+            fontSize: "0.8rem", marginTop: "0.3rem",
+          }}>Fem frågor — ett konstverk som matchar dig</p>
         </div>
+      </a>
 
-        {/* Progress dots */}
-        <div id="dots" style={{
-          position: "absolute",
-          top: "3.5rem",
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 20,
-          display: "flex",
-          gap: "0.375rem",
-        }}>
-          {works.map((_: any, i: number) => (
-            <div key={i} className="dot" data-dot={i} style={{
-              width: "0.375rem",
-              height: "0.375rem",
-              borderRadius: "50%",
-              backgroundColor: i === 0 ? "#fff" : "rgba(255,255,255,0.3)",
-              transition: "background-color 0.3s",
-            }} />
+      {/* Samlingar */}
+      <div style={{ padding: "1.5rem 0 0" }}>
+        <h2 style={{
+          fontFamily: "'Instrument Serif', serif",
+          fontSize: "1.3rem", color: "#1A1815",
+          margin: "0 1rem 0.75rem",
+        }}>Samlingar</h2>
+
+        <div style={{
+          display: "flex", gap: "0.5rem",
+          overflowX: "auto", padding: "0 0.75rem 0.5rem",
+          scrollSnapType: "x mandatory",
+        }} className="no-scrollbar">
+          {collections.map((c) => (
+            <a
+              key={c.title}
+              href={`/?q=${encodeURIComponent(c.query.split(" ")[0])}`}
+              style={{
+                flex: "0 0 auto",
+                width: "9rem", height: "12rem",
+                borderRadius: "14px",
+                overflow: "hidden",
+                position: "relative",
+                textDecoration: "none",
+                scrollSnapAlign: "start",
+              }}
+            >
+              {c.imageUrl && (
+                <img src={c.imageUrl} alt="" loading="lazy" style={{
+                  position: "absolute", inset: 0,
+                  width: "100%", height: "100%", objectFit: "cover",
+                }} />
+              )}
+              <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(to top, rgba(10,9,8,0.8) 0%, rgba(10,9,8,0.15) 60%, transparent 100%)",
+              }} />
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                padding: "0.8rem",
+              }}>
+                <p style={{
+                  fontFamily: "'Instrument Serif', serif",
+                  fontSize: "1rem", color: "#fff",
+                  margin: 0, lineHeight: 1.2,
+                }}>{c.title}</p>
+              </div>
+            </a>
           ))}
         </div>
       </div>
 
-      {/* Inline navigation script */}
-      <script dangerouslySetInnerHTML={{ __html: `
-(function(){
-  var cards = document.querySelectorAll('.discover-card');
-  var dots = document.querySelectorAll('.dot');
-  var btnNext = document.getElementById('btn-next');
-  var btnInfo = document.getElementById('btn-info');
-  var btnShare = document.getElementById('btn-share');
-  var current = 0;
-  var total = cards.length;
-  var startX = 0;
-  var startY = 0;
-  var stack = document.getElementById('card-stack');
-
-  var animating = false;
-
-  function show(idx, direction) {
-    if (animating) return;
-    animating = true;
-    var old = cards[current];
-    var next = cards[idx];
-    var dir = direction || 'left';
-    // Setup next card off-screen
-    next.style.display = 'flex';
-    next.style.opacity = '0';
-    next.style.transform = dir === 'left' ? 'translateX(40px)' : 'translateX(-40px)';
-    next.style.transition = 'none';
-    // Force reflow
-    void next.offsetWidth;
-    // Animate old out
-    old.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-    old.style.opacity = '0';
-    old.style.transform = dir === 'left' ? 'translateX(-40px)' : 'translateX(40px)';
-    // Animate new in
-    next.style.transition = 'opacity 0.35s ease 0.1s, transform 0.35s ease 0.1s';
-    next.style.opacity = '1';
-    next.style.transform = 'translateX(0)';
-    setTimeout(function(){
-      old.style.display = 'none';
-      old.style.transform = '';
-      old.style.opacity = '';
-      old.style.transition = '';
-      animating = false;
-    }, 400);
-    dots.forEach(function(d,i){
-      d.style.backgroundColor = i === idx ? '#fff' : 'rgba(255,255,255,0.3)';
-    });
-    btnInfo.href = '/artwork/' + cards[idx].dataset.id;
-    current = idx;
-  }
-
-  function next() {
-    if (current < total - 1) {
-      show(current + 1, 'left');
-    } else {
-      window.location.reload();
-    }
-  }
-
-  function prev() {
-    if (current > 0) {
-      show(current - 1, 'right');
-    }
-  }
-
-  btnNext.addEventListener('click', next);
-
-  // Swipe support
-  stack.addEventListener('touchstart', function(e){
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-  }, { passive: true });
-
-  stack.addEventListener('touchend', function(e){
-    var dx = e.changedTouches[0].clientX - startX;
-    var dy = e.changedTouches[0].clientY - startY;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      if (dx < 0) next();
-      else prev();
-    }
-  }, { passive: true });
-
-  // Share
-  btnShare.addEventListener('click', function(){
-    var id = cards[current].dataset.id;
-    var title = cards[current].querySelector('h2');
-    var text = title ? title.textContent : 'Konstverk';
-    var url = window.location.origin + '/artwork/' + id;
-    if (navigator.share) {
-      navigator.share({ title: text, url: url });
-    } else {
-      navigator.clipboard.writeText(url);
-      btnShare.style.backgroundColor = 'rgba(255,255,255,0.4)';
-      setTimeout(function(){ btnShare.style.backgroundColor = 'rgba(255,255,255,0.15)'; }, 500);
-    }
-  });
-
-  // Keyboard
-  document.addEventListener('keydown', function(e){
-    if (e.key === 'ArrowRight' || e.key === ' ') next();
-    if (e.key === 'ArrowLeft') prev();
-  });
-})();
-      `}} />
+      {/* Verktyg */}
+      <div style={{ padding: "1.5rem 1rem 4rem" }}>
+        <h2 style={{
+          fontFamily: "'Instrument Serif', serif",
+          fontSize: "1.3rem", color: "#1A1815",
+          marginBottom: "0.75rem",
+        }}>Verktyg</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {[
+            { title: "Färgmatch", desc: "Matcha en färg med konstverk", href: "/color-match" },
+            { title: "Tidslinje", desc: "Scrolla genom 500 år", href: "/timeline" },
+          ].map((tool) => (
+            <a key={tool.href} href={tool.href} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "1rem 1.1rem",
+              borderRadius: "12px",
+              background: "#EDEAE4",
+              textDecoration: "none",
+            }}>
+              <div>
+                <p style={{
+                  fontSize: "0.9rem", fontWeight: 500,
+                  color: "#1A1815", margin: 0,
+                }}>{tool.title}</p>
+                <p style={{
+                  fontSize: "0.75rem", color: "#7A7268",
+                  margin: "0.15rem 0 0",
+                }}>{tool.desc}</p>
+              </div>
+              <span style={{ color: "#9C9488", fontSize: "1.1rem" }}>→</span>
+            </a>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

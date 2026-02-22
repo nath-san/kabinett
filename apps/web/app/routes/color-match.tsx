@@ -3,8 +3,8 @@ import type { Route } from "./+types/color-match";
 
 export function meta() {
   return [
-    { title: "Farg-match — Kabinett" },
-    { name: "description", content: "Matcha en farg i kameran med konstverk." },
+    { title: "Färg-match — Kabinett" },
+    { name: "description", content: "Matcha en färg i kameran med konstverk." },
   ];
 }
 
@@ -69,7 +69,7 @@ export default function ColorMatch() {
         }
         setStatus("");
       } catch {
-        setStatus("Kameran kunde inte starta. Välj en farg nedan.");
+        setStatus("Kameran kunde inte starta. Välj en färg nedan.");
       }
     }
     initCamera();
@@ -138,7 +138,7 @@ export default function ColorMatch() {
     <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
       <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "1.5rem" }}>
         <h1 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "2rem", color: "#3D3831" }}>
-          Farg-match
+          Färg-match
         </h1>
         <p style={{ marginTop: "0.35rem", color: "#8C8478" }}>
           Rikta kameran mot en nyans och hitta konst som matchar.
@@ -193,7 +193,7 @@ export default function ColorMatch() {
               cursor: "pointer",
             }}
           >
-            Matcha farg
+            Matcha färg
           </button>
           {color && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -204,7 +204,7 @@ export default function ColorMatch() {
         </div>
 
         <div style={{ marginTop: "1.5rem" }}>
-          <p style={{ fontSize: "0.85rem", color: "#8C8478" }}>Eller valj en palett:</p>
+          <p style={{ fontSize: "0.85rem", color: "#8C8478" }}>Eller välj en palett:</p>
           <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
             {palette.map((hex) => (
               <button
@@ -215,7 +215,7 @@ export default function ColorMatch() {
                   setColor({ ...rgb, hex });
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
-                aria-label={`Valj ${hex}`}
+                aria-label={`Välj ${hex}`}
                 style={{
                   width: "2.25rem",
                   height: "2.25rem",
@@ -228,7 +228,7 @@ export default function ColorMatch() {
             ))}
             <input
               type="color"
-              aria-label="Valj egen farg"
+              aria-label="Välj egen färg"
               onChange={(event) => {
                 const hex = event.target.value;
                 const rgb = hexToRgb(hex);

@@ -60,7 +60,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const db = getDb();
 
-  let where = "iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90";
+  let where = "iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90 AND id NOT IN (SELECT artwork_id FROM broken_images)";
   const params: any[] = [];
 
   if (epoch && EPOCHS[epoch]) {
@@ -68,9 +68,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
     params.push(EPOCHS[epoch].from, EPOCHS[epoch].to);
   }
 
-  if (subject) {
-    where += " AND category LIKE ?";
-    params.push(`%${subject}%`);
+  // Subject filter: search in title since category doesn't contain subject info
+  const subjectKeywords: Record<string, string> = {
+    landskap: "landskap OR skog OR sjö OR berg OR natur OR utsikt",
+    "porträtt": "porträtt OR portrait OR man OR kvinna OR flicka OR pojke",
+    stilleben: "stilleben OR blommor OR frukt OR vas OR bord",
+    abstrakt: "abstrakt OR komposition OR geometrisk",
+  };
+  if (subject && subjectKeywords[subject]) {
+    // Use a subquery via FTS
+    where += ` AND id IN (SELECT rowid FROM artworks_fts WHERE artworks_fts MATCH ?)`;
+    params.push(subjectKeywords[subject]);
   }
 
   if (mood === "dark") {

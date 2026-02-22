@@ -224,69 +224,59 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       minHeight: "100vh",
       overflowX: "hidden",
     }}>
-      <div
-        style={{
-          position: "fixed",
-          top: "3.75rem",
-          left: 0,
-          right: 0,
-          zIndex: 55,
-          padding: "0 1rem",
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.6rem",
-            padding: "0.65rem 0.9rem",
-            borderRadius: "999px",
-            background: "rgba(12,11,10,0.55)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            boxShadow: "0 12px 30px rgba(0,0,0,0.25)",
-            pointerEvents: "auto",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.6)" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Vad ser du?"
-            aria-label="Vad ser du?"
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              color: "#F5F0E8",
-              fontSize: "0.9rem",
-              outline: "none",
-            }}
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Rensa sök"
+      {/* Search + Upptäck */}
+      <div style={{
+        position: "fixed", top: "3.5rem", left: 0, right: 0, zIndex: 55,
+        background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 70%, transparent 100%)",
+        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        padding: "0.5rem 1rem 1.2rem",
+        pointerEvents: "none",
+      }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: "0.5rem",
+          pointerEvents: "auto",
+        }}>
+          {/* Search */}
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", gap: "0.6rem",
+            padding: "0.65rem 1rem",
+            borderRadius: "12px",
+            background: "rgba(255,255,255,0.08)",
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="search" value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Sök i samlingen"
+              aria-label="Sök"
               style={{
-                border: "none",
-                background: "rgba(245,240,232,0.12)",
-                color: "#F5F0E8",
-                width: "1.6rem",
-                height: "1.6rem",
-                borderRadius: "999px",
-                cursor: "pointer",
+                flex: 1, background: "transparent", border: "none",
+                color: "rgba(255,255,255,0.9)", fontSize: "16px",
+                fontWeight: 400, outline: "none",
               }}
-            >
-              ×
-            </button>
-          )}
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} aria-label="Rensa"
+                style={{
+                  border: "none", background: "rgba(255,255,255,0.12)",
+                  color: "rgba(255,255,255,0.6)", width: "1.3rem", height: "1.3rem",
+                  borderRadius: "999px", cursor: "pointer", fontSize: "0.7rem",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>×</button>
+            )}
+          </div>
+          {/* Upptäck */}
+          <a href="/discover" style={{
+            padding: "0.65rem 1rem",
+            borderRadius: "12px",
+            background: "rgba(255,255,255,0.08)",
+            color: "rgba(255,255,255,0.55)",
+            fontSize: "0.78rem", fontWeight: 500,
+            letterSpacing: "0.03em",
+            textDecoration: "none", whiteSpace: "nowrap",
+          }}>Upptäck</a>
         </div>
       </div>
 

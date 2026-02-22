@@ -9,7 +9,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 const CATEGORIES = [
-  { label: "Alla", value: "" },
+  { label: "Alla (konst)", value: "" },
   { label: "Målningar", value: "Målningar" },
   { label: "Skulptur", value: "Skulptur" },
   { label: "Teckningar", value: "Frihandsteckningar" },
@@ -62,7 +62,21 @@ export async function loader({ request }: Route.LoaderArgs) {
   const conditions: string[] = ["iiif_url IS NOT NULL", "LENGTH(iiif_url) > 90"];
   const params: any[] = [];
 
-  if (category) { conditions.push("category LIKE ?"); params.push(`%${category}%`); }
+  if (category) {
+    conditions.push("category LIKE ?");
+    params.push(`%${category}%`);
+  } else {
+    // Default: prioritize paintings, drawings, sculpture, graphics, photos — not ceramics
+    conditions.push(`(
+      category LIKE '%Måleri%'
+      OR category LIKE '%Teckningar%'
+      OR category LIKE '%Skulptur%'
+      OR category LIKE '%Grafik%'
+      OR category LIKE '%Fotografier%'
+      OR category LIKE '%Miniatyrer%'
+      OR category LIKE '%Textil%'
+    )`);
+  }
   const periodObj = PERIODS.find(p => p.value === periodVal);
   if (periodObj?.from) { conditions.push("year_start >= ? AND year_start <= ?"); params.push(periodObj.from, periodObj.to); }
 

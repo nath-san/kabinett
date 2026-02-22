@@ -159,6 +159,18 @@ export async function fetchFeed(options: {
   const tablePrefix = "artworks a";
 
   if (filter === "Alla") {
+    // Weight towards paintings, drawings, sculpture — deprioritize ceramics
+    conditions.push(`(
+      a.category LIKE '%Måleri%'
+      OR a.category LIKE '%Teckningar%'
+      OR a.category LIKE '%Skulptur%'
+      OR a.category LIKE '%Grafik%'
+      OR a.category LIKE '%Fotografier%'
+      OR a.category LIKE '%Miniatyrer%'
+      OR a.category LIKE '%Textil%'
+      OR (a.category LIKE '%Keramik%' AND RANDOM() % 8 = 0)
+      OR (a.category LIKE '%Konsthtv%' AND RANDOM() % 6 = 0)
+    )`);
     orderBy = "RANDOM()";
     mode = "offset";
   }
