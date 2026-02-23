@@ -107,7 +107,9 @@ async function main() {
     SELECT a.id, a.iiif_url
     FROM artworks a
     LEFT JOIN clip_embeddings c ON c.artwork_id = a.id
-    WHERE a.iiif_url IS NOT NULL AND c.artwork_id IS NULL AND a.id > ?
+    WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40 AND c.artwork_id IS NULL
+      AND (? = '' OR a.source = ?)
+      AND a.id > ?
     ORDER BY a.id ASC
     LIMIT ?
   `);
@@ -116,12 +118,15 @@ async function main() {
     `INSERT OR REPLACE INTO clip_embeddings (artwork_id, embedding) VALUES (?, ?)`
   );
 
+  const sourceFilter = process.env.EMBED_SOURCE || "";
+  console.log(`   Source filter: ${sourceFilter || "(all)"}`);
+
   let processed = 0;
   let failed = 0;
   let lastId = -Number.MAX_SAFE_INTEGER;
 
   while (true) {
-    const rows = selectBatch.all(lastId, BATCH_SIZE) as Array<{
+    const rows = selectBatch.all(sourceFilter, sourceFilter, lastId, BATCH_SIZE) as Array<{
       id: number;
       iiif_url: string;
     }>;
