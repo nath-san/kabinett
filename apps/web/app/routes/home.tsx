@@ -224,9 +224,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return firstArt?.item.dominant_color || "#1A1815";
   }, [feed]);
   useEffect(() => {
-    document.body.style.backgroundColor = firstColor;
-    document.body.style.color = "#F5F0E8";
-    return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
+    // On mobile: use artwork color. On desktop: always dark neutral
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const update = () => {
+      document.body.style.backgroundColor = mql.matches ? "#0F0E0D" : firstColor;
+      document.body.style.color = "#F5F0E8";
+    };
+    update();
+    mql.addEventListener("change", update);
+    return () => { mql.removeEventListener("change", update); document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
 
   async function loadMore() {
@@ -291,8 +297,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      <div className="md:max-w-3xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-4">
+      <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2">
           {feed.map((entry, i) =>
             entry.type === "art" ? (
               <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
@@ -326,7 +332,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-[2rem]"
+      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl"
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
