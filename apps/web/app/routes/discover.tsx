@@ -275,7 +275,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
             <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
-            <StatCard number={stats.museums.toLocaleString("sv")} label="museer" />
+            <StatCard number={stats.museums.toLocaleString("sv")} label="samlingar" />
             <StatCard number={`${stats.yearsSpan} år`} label="år av historia" />
             <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
           </div>
