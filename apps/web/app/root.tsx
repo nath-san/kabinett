@@ -127,6 +127,9 @@ function Header() {
           <a href="/favorites" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
             Sparade
           </a>
+          <a href="/om" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+            Om
+          </a>
         </div>
       </nav>
     </header>
@@ -199,6 +202,18 @@ function BottomNav() {
       icon: (color: string) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
           <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
+        </svg>
+      ),
+    },
+    {
+      href: "/om",
+      label: "Om",
+      active: path === "/om",
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 10v6" />
+          <circle cx="12" cy="7" r="1" fill={color} />
         </svg>
       ),
     },

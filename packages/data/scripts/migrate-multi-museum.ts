@@ -39,14 +39,21 @@ function ensureIndexes() {
 
 function seedMuseums() {
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO museums (id, name, description, url, image_base_url, source_type, enabled)
+    INSERT INTO museums (id, name, description, url, image_base_url, source_type, enabled)
     VALUES (?, ?, ?, ?, ?, ?, 1)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      url = excluded.url,
+      image_base_url = excluded.image_base_url,
+      source_type = excluded.source_type,
+      enabled = excluded.enabled
   `);
 
   insert.run(
     "nationalmuseum",
     "Nationalmuseum",
-    "Sveriges museum för konst och design",
+    "Sveriges främsta konstmuseum med verk från medeltiden till idag. Måleri, skulptur, grafik och konsthantverk.",
     "https://www.nationalmuseum.se",
     null,
     "api"
@@ -55,9 +62,18 @@ function seedMuseums() {
   insert.run(
     "shm",
     "Statens historiska museer",
-    "Sveriges nationella historiska museum",
+    "Fem museer under samma myndighet: Historiska museet, Livrustkammaren, Hallwylska museet, Skoklosters slott och Tumba bruksmuseum.",
     "https://shm.se",
     "https://media.samlingar.shm.se/item",
+    "ksamsok"
+  );
+
+  insert.run(
+    "nordiska",
+    "Nordiska museet",
+    "Sveriges största kulturhistoriska museum. Folkkonst, mode, fotografi och vardagshistoria från 1500-talet till idag.",
+    "https://www.nordiskamuseet.se",
+    null,
     "ksamsok"
   );
 

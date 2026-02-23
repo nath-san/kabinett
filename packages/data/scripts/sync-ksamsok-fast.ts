@@ -156,13 +156,13 @@ async function fetchObjectMeta(objectUri: string) {
 const upsert = db.prepare(`
   INSERT INTO artworks (
     id, inventory_number, title_sv, category, technique_material, dating_text,
-    year_start, year_end, iiif_url, source, synced_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', datetime('now'))
+    year_start, year_end, iiif_url, source, sub_museum, synced_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now'))
   ON CONFLICT(id) DO UPDATE SET
     title_sv=excluded.title_sv, category=excluded.category,
     technique_material=excluded.technique_material, dating_text=excluded.dating_text,
     year_start=excluded.year_start, year_end=excluded.year_end,
-    iiif_url=excluded.iiif_url, source='shm', synced_at=datetime('now')
+    iiif_url=excluded.iiif_url, source='shm', sub_museum=excluded.sub_museum, synced_at=datetime('now')
 `);
 
 // --- Main ---
@@ -232,6 +232,7 @@ async function main() {
           meta.yearStart,
           meta.yearEnd,
           `https://media.samlingar.shm.se/item/${mediaUuid}/medium`,
+          meta.collection,
         );
         processed++;
       }

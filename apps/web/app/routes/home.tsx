@@ -51,11 +51,26 @@ const THEMES = [
   { title: "Skulptur", subtitle: "Form i tre dimensioner", filter: "Skulptur", color: "#222222" },
 ];
 
-export function meta() {
-  return [
-    { title: "Kabinett — Upptäck svensk konst" },
-    { name: "description", content: "Upptäck svenska museers samlingar på ett nytt sätt." },
+export function meta({ data }: Route.MetaArgs) {
+  const title = "Kabinett — Utforska Sveriges kulturarv";
+  const description = "Upptäck svenska museers samlingar på ett nytt sätt.";
+  const tags = [
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
   ];
+  if (data?.ogImageUrl) {
+    tags.push(
+      { property: "og:image", content: data.ogImageUrl },
+      { name: "twitter:image", content: data.ogImageUrl }
+    );
+  }
+  return tags;
 }
 
 export function headers() {
@@ -157,6 +172,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       ...r,
       imageUrl: buildImageUrl(r.iiif_url, 800),
     }));
+  const ogImageUrl = curated[0]?.imageUrl || null;
 
   const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
 
@@ -185,6 +201,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     firstTheme: { ...firstTheme, items: themeItems.items },
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
+    ogImageUrl,
   };
 }
 

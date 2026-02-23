@@ -15,14 +15,14 @@ export function meta({ data }: Route.MetaArgs) {
     { name: "description", content: desc },
     // OG tags
     { property: "og:title", content: artwork.title },
-    { property: "og:description", content: `${artist}${artwork.datingText ? ` · ${artwork.datingText}` : ""}` },
-    { property: "og:image", content: artwork.imageUrl },
+    { property: "og:description", content: artwork.ogDescription || `${artist}${artwork.datingText ? ` · ${artwork.datingText}` : ""}` },
+    { property: "og:image", content: artwork.ogImageUrl || artwork.imageUrl },
     { property: "og:type", content: "article" },
     // Twitter card
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: artwork.title },
-    { name: "twitter:description", content: `${artist} — ${artwork.museumName || "Kabinett"}` },
-    { name: "twitter:image", content: artwork.imageUrl },
+    { name: "twitter:description", content: artwork.ogDescription || `${artist} — ${artwork.museumName || "Kabinett"}` },
+    { name: "twitter:image", content: artwork.ogImageUrl || artwork.imageUrl },
   ];
 }
 
@@ -74,6 +74,14 @@ export async function loader({ params }: Route.LoaderArgs) {
       : row.source === "nordiska"
         ? "https://www.nordiskamuseet.se"
         : row.museum_url || null;
+  const ogImageUrl = row.iiif_url
+    ? (row.source === "nationalmuseum" ? buildImageUrl(row.iiif_url, 800) : row.iiif_url)
+    : null;
+  const ogDescriptionParts = [
+    artists[0]?.name || "Okänd konstnär",
+    row.dating_text || "",
+    museumName || "",
+  ].filter(Boolean);
 
   const artwork = {
     id: row.id,
@@ -93,6 +101,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     colorB: row.color_b,
     museumName,
     museumSiteUrl,
+    ogImageUrl,
+    ogDescription: ogDescriptionParts.join(" · "),
     // Extra fields
     description: row.descriptions_sv || null,
     dimensions: parseDimensions(row.dimensions_json),
