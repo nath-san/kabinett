@@ -15,6 +15,23 @@ export async function loader({ request }: Route.LoaderArgs) {
   const query = url.searchParams.get("q")?.trim() || "";
   if (!query) return { query, results: [], total: 0 };
 
+  // Use CLIP semantic search via internal API
+  try {
+    const origin = url.origin;
+    const clipRes = await fetch(
+      `${origin}/api/clip-search?q=${encodeURIComponent(query)}&limit=60`
+    );
+    if (clipRes.ok) {
+      const clipResults = await clipRes.json();
+      if (clipResults.length > 0) {
+        return { query, results: clipResults, total: clipResults.length };
+      }
+    }
+  } catch {
+    // Fall through to FTS
+  }
+
+  // Fallback: FTS text search
   const db = getDb();
   let results: any[];
   let total: number;
@@ -163,18 +180,18 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 <a key={r.id} href={`/artwork/${r.id}`}
                   className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
                   <div
-                    style={{ backgroundColor: r.dominant_color || "#D4CDC3" }}
+                    style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
                     className="overflow-hidden aspect-[3/4]"
                   >
-                    <img src={r.iiif_url.replace("http://","https://") + "full/400,/0/default.jpg"}
-                      alt={r.title_sv || ""} width={400} height={533}
+                    <img src={r.imageUrl || (r.iiif_url?.replace("http://","https://") + "full/400,/0/default.jpg")}
+                      alt={r.title || r.title_sv || ""} width={400} height={533}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   </div>
                   <div className="p-3">
                     <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
-                      {r.title_sv || r.title_en || "Utan titel"}</p>
-                    <p className="text-xs text-warm-gray mt-1">{parseArtist(r.artists)}</p>
-                    {r.dating_text && <p className="text-xs text-stone mt-0.5">{r.dating_text}</p>}
+                      {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
+                    <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
+                    {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
                   </div>
                 </a>
               ))}
