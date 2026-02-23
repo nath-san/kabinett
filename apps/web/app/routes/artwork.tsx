@@ -66,6 +66,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     artists = JSON.parse(row.artists || "[]");
   } catch {}
 
+  const collectionName = (row as any).sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";
   const museumSiteUrl = row.source === "nationalmuseum"
     ? "https://www.nationalmuseum.se"
@@ -100,6 +101,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     colorG: row.color_g,
     colorB: row.color_b,
     museumName,
+    collectionName,
     museumSiteUrl,
     ogImageUrl,
     ogDescription: ogDescriptionParts.join(" · "),
@@ -207,9 +209,15 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             )}
           </p>
         )}
-        {artwork.museumName && (
+        {(artwork.collectionName || artwork.museumName) && (
           <p className="mt-2 text-[0.85rem] text-warm-gray">
-            Museum: <span className="text-charcoal">{artwork.museumName}</span>
+            Samling:{" "}
+            <a
+              href={`/samling/${encodeURIComponent(artwork.collectionName || artwork.museumName)}`}
+              className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors"
+            >
+              {artwork.collectionName || artwork.museumName}
+            </a>
           </p>
         )}
 
