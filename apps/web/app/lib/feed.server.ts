@@ -1,4 +1,5 @@
 import { getDb } from "./db.server";
+import { clipSearch } from "./clip-search.server";
 
 type FeedItemRow = {
   id: number;
@@ -97,14 +98,11 @@ export async function fetchFeed(options: {
   if (MOOD_QUERIES[filter]) {
     const mood = MOOD_QUERIES[filter];
     const offset = Math.max(0, cursor || 0);
-    const useClip = options.origin && (await hasClipEmbeddings(db));
+    const useClip = await hasClipEmbeddings(db);
 
     if (useClip) {
       const cap = Math.min(offset + limit, 50);
-      const res = await fetch(
-        `${options.origin}/api/clip-search?q=${encodeURIComponent(mood.clip)}&limit=${cap}`
-      );
-      const data = (await res.json()) as Array<{ id: number }>;
+      const data = await clipSearch(mood.clip, cap, 0);
       const slice = data.slice(offset, offset + limit);
       const ids = slice.map((item) => item.id).filter(Boolean);
 
