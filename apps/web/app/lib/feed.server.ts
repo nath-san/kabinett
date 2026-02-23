@@ -110,7 +110,7 @@ export async function fetchFeed(options: {
         return { items: [], nextCursor: offset, hasMore: false, mode: "offset" as const };
       }
 
-      const order = `CASE id ${ids.map((id, index) => `WHEN ${id} THEN ${index}`).join(" ")} END`;
+      const order = `CASE a.id ${ids.map((id, index) => `WHEN ${id} THEN ${index}`).join(" ")} END`;
       const rows = db
         .prepare(
           `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,

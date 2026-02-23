@@ -118,7 +118,7 @@ async function main() {
 
   let processed = 0;
   let failed = 0;
-  let lastId = 0;
+  let lastId = -Number.MAX_SAFE_INTEGER;
 
   while (true) {
     const rows = selectBatch.all(lastId, BATCH_SIZE) as Array<{
@@ -130,7 +130,10 @@ async function main() {
     for (const row of rows) {
       lastId = row.id;
       const iiifBase = row.iiif_url.replace("http://", "https://");
-      const imageUrl = `${iiifBase}full/400,/0/default.jpg`;
+      // SHM images are direct URLs (not IIIF), Nationalmuseum uses IIIF
+      const imageUrl = iiifBase.includes("media.samlingar.shm.se")
+        ? iiifBase
+        : `${iiifBase}full/400,/0/default.jpg`;
 
       try {
         const image = await fetchAndPrepImage(imageUrl);
