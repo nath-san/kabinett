@@ -129,35 +129,28 @@ export async function loader() {
   const currentYear = new Date().getFullYear();
   const yearsSpan = stats.oldestYear ? Math.max(0, currentYear - stats.oldestYear) : 0;
 
-  let museums: Array<{ id: string; name: string; count: number }> = [];
-  if (enabledMuseums.length > 0) {
-    const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
-    const countRows = db.prepare(
-      `SELECT source as id, COUNT(*) as count
-       FROM artworks
-       WHERE source IN (${enabledMuseums.map(() => "?").join(",")})
-       GROUP BY source`
-    ).all(...enabledMuseums) as Array<{ id: string; count: number }>;
-    const countMap = new Map(countRows.map((row) => [row.id, row.count]));
-    const rows = db.prepare(
-      `SELECT id, name
-       FROM museums
-       WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
-       ORDER BY ${order}`
-    ).all(...enabledMuseums) as any[];
-    museums = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      count: countMap.get(row.id) ?? 0,
-    }));
-  }
+  const museums = db.prepare(`
+    SELECT COALESCE(a.sub_museum, m.name) as coll_name, COUNT(*) as count
+    FROM artworks a
+    LEFT JOIN museums m ON m.id = a.source
+    WHERE ${sourceFilter("a")}
+      AND COALESCE(a.sub_museum, m.name) IS NOT NULL
+      AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
+    GROUP BY coll_name
+    ORDER BY count DESC
+  `).all() as Array<{ coll_name: string; count: number }>;
+  const museumList = museums.map((row: any) => ({
+    id: row.coll_name,
+    name: row.coll_name,
+    count: row.count as number,
+  }));
 
   return {
     collections,
     quizImage: quizImg?.iiif_url ? buildIiif(quizImg.iiif_url, 600) : undefined,
     topArtists: artistsWithImages,
     stats: { ...stats, yearsSpan },
-    museums,
+    museums: museumList,
   };
 }
 
@@ -251,12 +244,12 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Museer */}
         {museums.length > 0 && (
           <section className="pt-8 px-4">
-            <h2 className="font-serif text-[1.3rem] text-ink mb-3">Museer</h2>
+            <h2 className="font-serif text-[1.3rem] text-ink mb-3">Samlingar</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {museums.map((museum) => (
                 <a
                   key={museum.id}
-                  href={`/search?museum=${encodeURIComponent(museum.id)}`}
+                  href={`/samling/${encodeURIComponent(museum.name)}`}
                   className="rounded-[14px] bg-linen p-4 no-underline hover:bg-[#E5E1DA] transition-colors"
                 >
                   <p className="text-[0.9rem] font-medium text-charcoal">{museum.name}</p>

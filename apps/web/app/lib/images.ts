@@ -13,5 +13,10 @@ export function buildImageUrl(iiifOrDirect: string, width: number): string {
     return normalized.replace(/\/(thumb|thumbnail|medium|full)(\?.*)?$/, `/${target}$2`);
   }
 
+  // Nordiska museet (ems.dimu.org) — resize via dimension param
+  if (normalized.includes("ems.dimu.org")) {
+    return normalized.replace(/dimension=\d+x\d+/, `dimension=${width}x${width}`);
+  }
+
   return normalized + `full/${width},/0/default.jpg`;
 }

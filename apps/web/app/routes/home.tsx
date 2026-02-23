@@ -396,7 +396,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
         <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.6)]">
           {parseArtist(item.artists)}
         </p>
-        {showMuseumBadge && item.museum_name && (
+        {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
           <p className="text-[0.7rem] text-warm-gray mt-[0.15rem]">
             {item.museum_name}
           </p>
@@ -520,7 +520,7 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
               <p className="text-[0.7rem] text-[rgba(255,255,255,0.5)] mt-[0.15rem]">
                 {parseArtist(item.artists)}
               </p>
-              {showMuseumBadge && item.museum_name && (
+              {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
                 <p className="text-[0.65rem] text-warm-gray mt-[0.15rem]">
                   {item.museum_name}
                 </p>

@@ -71,7 +71,7 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
     dominant_color: row.dominant_color || "#1A1815",
     category: row.category,
     technique_material: row.technique_material,
-    imageUrl: buildImageUrl(row.iiif_url, 800),
+    imageUrl: buildImageUrl(row.iiif_url, 400),
     museum_name: row.museum_name,
   }));
 }

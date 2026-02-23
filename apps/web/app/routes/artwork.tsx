@@ -212,12 +212,16 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {(artwork.collectionName || artwork.museumName) && (
           <p className="mt-2 text-[0.85rem] text-warm-gray">
             Samling:{" "}
-            <a
-              href={`/samling/${encodeURIComponent(artwork.collectionName || artwork.museumName)}`}
-              className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors"
-            >
-              {artwork.collectionName || artwork.museumName}
-            </a>
+            {artwork.collectionName ? (
+              <a
+                href={`/samling/${encodeURIComponent(artwork.collectionName)}`}
+                className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors"
+              >
+                {artwork.collectionName}
+              </a>
+            ) : (
+              <span className="text-charcoal">{artwork.museumName}</span>
+            )}
           </p>
         )}
 
