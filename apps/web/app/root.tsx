@@ -103,7 +103,7 @@ function Header() {
         <a
           href="/"
           className={[
-            "font-serif text-[1.25rem] font-semibold no-underline",
+            "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline",
             isHome ? "text-[#F5F0E8]" : "text-charcoal",
           ].join(" ")}
         >
