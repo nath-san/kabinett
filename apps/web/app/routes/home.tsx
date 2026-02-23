@@ -189,7 +189,14 @@ export async function loader({ request }: Route.LoaderArgs) {
   const currentYear = new Date().getFullYear();
   const stats = {
     total: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
-    museums: enabledMuseums.length,
+    museums: (db.prepare(`
+      SELECT COUNT(*) as c FROM (
+        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
+        FROM artworks a
+        LEFT JOIN museums m ON m.id = a.source
+        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL
+      )
+    `).get() as any).c,
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
     yearsSpan: oldestYear ? Math.max(0, currentYear - oldestYear) : 0,
   };
@@ -429,7 +436,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
 function StatsSection({ stats }: { stats: StatsCard }) {
   const items = [
     { value: stats.total.toLocaleString("sv"), label: "verk" },
-    { value: stats.museums.toLocaleString("sv"), label: "museer" },
+    { value: stats.museums.toLocaleString("sv"), label: "samlingar" },
     { value: `${stats.yearsSpan} år`, label: "år av historia" },
     { value: stats.paintings.toLocaleString("sv"), label: "målningar" },
   ];
