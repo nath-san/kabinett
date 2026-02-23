@@ -113,34 +113,44 @@ export async function loader() {
   });
 
   // Stats
+  const enabledMuseums = getEnabledMuseums();
   const stats = {
     totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
-    drawings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Teckningar%' AND ${sourceFilter()}`).get() as any).c,
-    sculptures: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Skulptur%' AND ${sourceFilter()}`).get() as any).c,
-    ceramics: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%' AND ${sourceFilter()}`).get() as any).c,
-    artists: (db.prepare(`SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL AND ${sourceFilter()}`).get() as any).c,
+    museums: enabledMuseums.length,
     oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,
   };
+  const currentYear = new Date().getFullYear();
+  const yearsSpan = stats.oldestYear ? Math.max(0, currentYear - stats.oldestYear) : 0;
 
-  const enabledMuseums = getEnabledMuseums();
-  let museums: Array<{ id: string; name: string; description: string | null; url: string | null }> = [];
+  let museums: Array<{ id: string; name: string; count: number }> = [];
   if (enabledMuseums.length > 0) {
     const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
+    const countRows = db.prepare(
+      `SELECT source as id, COUNT(*) as count
+       FROM artworks
+       WHERE source IN (${enabledMuseums.map(() => "?").join(",")})
+       GROUP BY source`
+    ).all(...enabledMuseums) as Array<{ id: string; count: number }>;
+    const countMap = new Map(countRows.map((row) => [row.id, row.count]));
     const rows = db.prepare(
-      `SELECT id, name, description, url
+      `SELECT id, name
        FROM museums
        WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
        ORDER BY ${order}`
     ).all(...enabledMuseums) as any[];
-    museums = rows;
+    museums = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      count: countMap.get(row.id) ?? 0,
+    }));
   }
 
   return {
     collections,
     quizImage: quizImg?.iiif_url ? buildIiif(quizImg.iiif_url, 600) : undefined,
     topArtists: artistsWithImages,
-    stats,
+    stats: { ...stats, yearsSpan },
     museums,
   };
 }
@@ -237,16 +247,16 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <section className="pt-8 px-4">
             <h2 className="font-serif text-[1.3rem] text-ink mb-3">Museer</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {museums.map((museum: any) => (
+              {museums.map((museum) => (
                 <a
                   key={museum.id}
                   href={`/search?museum=${encodeURIComponent(museum.id)}`}
-                  className="rounded-[14px] bg-[#EDEAE4] p-4 no-underline hover:bg-[#E5E1DA] transition-colors"
+                  className="rounded-[14px] bg-linen p-4 no-underline hover:bg-[#E5E1DA] transition-colors"
                 >
                   <p className="text-[0.9rem] font-medium text-charcoal">{museum.name}</p>
-                  {museum.description && (
-                    <p className="text-[0.7rem] text-warm-gray mt-1 line-clamp-2">{museum.description}</p>
-                  )}
+                  <p className="text-[0.7rem] text-warm-gray mt-1">
+                    {museum.count.toLocaleString("sv")} verk
+                  </p>
                 </a>
               ))}
             </div>
@@ -257,14 +267,11 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <section className="pt-8 px-4 pb-12">
           <h2 className="font-serif text-[1.3rem] text-ink mb-4">Samlingen i siffror</h2>
 
-          <div className="grid grid-cols-3 gap-2 lg:grid-cols-5 lg:gap-4">
-            <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk totalt" />
-            <StatCard number={stats.artists.toLocaleString("sv")} label="konstnärer" />
-            <StatCard number={`${stats.oldestYear}`} label="äldsta verket" />
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
+            <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
+            <StatCard number={stats.museums.toLocaleString("sv")} label="museer" />
+            <StatCard number={`${stats.yearsSpan} år`} label="år av historia" />
             <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
-            <StatCard number={stats.drawings.toLocaleString("sv")} label="teckningar" />
-            <StatCard number={stats.sculptures.toLocaleString("sv")} label="skulpturer" />
-            <StatCard number={stats.ceramics.toLocaleString("sv")} label="keramik" />
           </div>
         </section>
       </div>

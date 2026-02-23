@@ -67,10 +67,13 @@ export async function loader({ params }: Route.LoaderArgs) {
   } catch {}
 
   const museumName = row.museum_name || "Museum";
-  const museumUrl = row.museum_url || null;
-  const externalUrl = row.source === "nationalmuseum"
-    ? `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${row.id}`
-    : museumUrl;
+  const museumSiteUrl = row.source === "nationalmuseum"
+    ? "https://www.nationalmuseum.se"
+    : row.source === "shm"
+      ? "https://samlingar.shm.se"
+      : row.source === "nordiska"
+        ? "https://www.nordiskamuseet.se"
+        : row.museum_url || null;
 
   const artwork = {
     id: row.id,
@@ -89,8 +92,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     colorG: row.color_g,
     colorB: row.color_b,
     museumName,
-    museumUrl,
-    externalUrl,
+    museumSiteUrl,
     // Extra fields
     description: row.descriptions_sv || null,
     dimensions: parseDimensions(row.dimensions_json),
@@ -195,16 +197,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             )}
           </p>
         )}
-        {artwork.museumUrl && (
+        {artwork.museumName && (
           <p className="mt-2 text-[0.85rem] text-warm-gray">
-            <a
-              href={artwork.museumUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="no-underline border-b border-stone/60 text-warm-gray"
-            >
-              {artwork.museumName}
-            </a>
+            Museum: <span className="text-charcoal">{artwork.museumName}</span>
           </p>
         )}
 
@@ -297,8 +292,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             >
               Dela
             </button>
-            {artwork.externalUrl && (
-              <a href={artwork.externalUrl} target="_blank" rel="noopener noreferrer"
+            {artwork.museumSiteUrl && (
+              <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
                 className="text-[0.8rem] text-warm-gray no-underline">
                 {`Visa på ${artwork.museumName}`} →
               </a>

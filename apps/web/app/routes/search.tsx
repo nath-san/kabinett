@@ -3,7 +3,7 @@ import type { Route } from "./+types/search";
 import { getDb } from "../lib/db.server";
 import { clipSearch } from "../lib/clip-search.server";
 import { buildImageUrl } from "../lib/images";
-import { isMuseumEnabled, sourceFilter } from "../lib/museums.server";
+import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
@@ -17,10 +17,34 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() || "";
   const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
+  const db = getDb();
+  const enabledMuseums = getEnabledMuseums();
+  let museumOptions: Array<{ id: string; name: string; count: number }> = [];
+  if (enabledMuseums.length > 0) {
+    const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
+    const countRows = db.prepare(
+      `SELECT source as id, COUNT(*) as count
+       FROM artworks
+       WHERE source IN (${enabledMuseums.map(() => "?").join(",")})
+       GROUP BY source`
+    ).all(...enabledMuseums) as Array<{ id: string; count: number }>;
+    const countMap = new Map(countRows.map((row) => [row.id, row.count]));
+    const rows = db.prepare(
+      `SELECT id, name
+       FROM museums
+       WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
+       ORDER BY ${order}`
+    ).all(...enabledMuseums) as any[];
+    museumOptions = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      count: countMap.get(row.id) ?? 0,
+    }));
+  }
+  const showMuseumBadge = enabledMuseums.length > 1;
   const museum = museumParam && isMuseumEnabled(museumParam) ? museumParam : "";
-  if (!query && !museum) return { query, museum, results: [], total: 0 };
+  if (!query && !museum) return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge };
   if (!query && museum) {
-    const db = getDb();
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
@@ -31,7 +55,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.source = ?
        ORDER BY RANDOM() LIMIT 60`
     ).all(museum);
-    return { query, museum, results, total: results.length };
+    return { query, museum, results, total: results.length, museumOptions, showMuseumBadge };
   }
 
   // Color queries — match dominant_color RGB
@@ -45,7 +69,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
   const colorTarget = COLOR_TERMS[query.toLowerCase()];
   if (colorTarget) {
-    const db = getDb();
     const rows = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
@@ -57,14 +80,14 @@ export async function loader({ request }: Route.LoaderArgs) {
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT 120`
     ).all(...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b) as any[];
-    return { query, results: rows, total: rows.length };
+    return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge };
   }
 
   // Use CLIP semantic search directly
   try {
     const clipResults = await clipSearch(query, 60, 0, museum || undefined);
     if (clipResults.length > 0) {
-      return { query, museum, results: clipResults, total: clipResults.length };
+      return { query, museum, results: clipResults, total: clipResults.length, museumOptions, showMuseumBadge };
     }
   } catch (err) {
     console.error("[CLIP search error]", err);
@@ -72,7 +95,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   // Fallback: FTS text search
-  const db = getDb();
   let results: any[];
   let total: number;
   try {
@@ -109,7 +131,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     ).all(like, like, ...(museum ? [museum] : []));
     total = results.length;
   }
-  return { query, museum, results, total };
+  return { query, museum, results, total, museumOptions, showMuseumBadge };
 }
 
 function parseArtist(json: string | null): string {
@@ -203,7 +225,7 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
   );
 }
 
-function ResultCard({ r }: { r: any }) {
+function ResultCard({ r, showMuseumBadge }: { r: any; showMuseumBadge: boolean }) {
   return (
     <a key={r.id} href={`/artwork/${r.id}`}
       className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
@@ -219,7 +241,9 @@ function ResultCard({ r }: { r: any }) {
         <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
           {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
         <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
-        {r.museum_name && <p className="text-[0.65rem] text-warm-gray mt-0.5">{r.museum_name}</p>}
+        {showMuseumBadge && r.museum_name && (
+          <p className="text-[0.65rem] text-warm-gray mt-0.5">{r.museum_name}</p>
+        )}
         {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
       </div>
     </a>
@@ -229,7 +253,7 @@ function ResultCard({ r }: { r: any }) {
 const PAGE_SIZE = 60;
 
 export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, museum, results: initialResults, total } = loaderData;
+  const { query, museum, results: initialResults, total, museumOptions, showMuseumBadge } = loaderData;
   const [results, setResults] = useState(initialResults);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialResults.length >= PAGE_SIZE);
@@ -274,12 +298,53 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   }, [loadMore]);
 
   const showResults = Boolean(query) || Boolean(museum);
+  const showMuseumFilters = museumOptions.length > 1;
+  const buildSearchUrl = (museumId?: string) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (museumId) params.set("museum", museumId);
+    const qs = params.toString();
+    return qs ? `/search?${qs}` : "/search";
+  };
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
         <AutocompleteSearch defaultValue={query} museum={museum || undefined} />
+
+        {showMuseumFilters && (
+          <div className="mt-4">
+            <p className="text-xs text-warm-gray mb-2">Museer</p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={buildSearchUrl()}
+                className={[
+                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  museum
+                    ? "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal"
+                    : "bg-charcoal text-cream",
+                ].join(" ")}
+              >
+                Alla
+              </a>
+              {museumOptions.map((option: any) => (
+                <a
+                  key={option.id}
+                  href={buildSearchUrl(option.id)}
+                  className={[
+                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                    museum === option.id
+                      ? "bg-charcoal text-cream"
+                      : "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal",
+                  ].join(" ")}
+                >
+                  {option.name}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {!query && (
           <div className="mt-6">
@@ -305,7 +370,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           {results.length > 0 && (
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
               {results.map((r: any) => (
-                <ResultCard key={r.id} r={r} />
+                <ResultCard key={r.id} r={r} showMuseumBadge={showMuseumBadge} />
               ))}
             </div>
           )}

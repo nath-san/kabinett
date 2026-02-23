@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
-import { sourceFilter } from "../lib/museums.server";
+import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 
 type FeedItem = {
   id: number;
@@ -31,10 +31,9 @@ type ThemeSection = {
 type StatsCard = {
   type: "stats";
   total: number;
+  museums: number;
   paintings: number;
-  artists: number;
-  oldest: number;
-  ceramics: number;
+  yearsSpan: number;
 };
 type ArtCard = { type: "art"; item: FeedItem };
 type FeedEntry = ArtCard | ThemeSection | StatsCard;
@@ -133,6 +132,7 @@ const CURATED_POOL = [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
+  const enabledMuseums = getEnabledMuseums();
 
   // Load curated hero artworks first
   const { getDb } = await import("../lib/db.server");
@@ -169,12 +169,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id));
 
   // Stats for the collection card
+  const oldestYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null;
+  const currentYear = new Date().getFullYear();
   const stats = {
     total: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
+    museums: enabledMuseums.length,
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
-    artists: (db.prepare(`SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL AND ${sourceFilter()}`).get() as any).c,
-    oldest: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,
-    ceramics: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%' AND ${sourceFilter()}`).get() as any).c,
+    yearsSpan: oldestYear ? Math.max(0, currentYear - oldestYear) : 0,
   };
 
   return {
@@ -182,6 +183,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     initialCursor: initial.nextCursor,
     initialHasMore: initial.hasMore,
     firstTheme: { ...firstTheme, items: themeItems.items },
+    showMuseumBadge: enabledMuseums.length > 1,
     stats,
   };
 }
@@ -308,14 +310,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {feed.map((entry, i) =>
             entry.type === "art" ? (
-              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
+              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} showMuseumBadge={loaderData.showMuseumBadge} />
             ) : entry.type === "stats" ? (
               <div key="stats" className="lg:col-span-3">
                 <StatsSection stats={entry} />
               </div>
             ) : (
               <div key={`theme-${entry.title}-${i}`} className="lg:col-span-3">
-                <ThemeCard section={entry} />
+                <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
               </div>
             )
           )}
@@ -331,7 +333,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: FeedItem; index: number }) {
+const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBadge }: { item: FeedItem; index: number; showMuseumBadge: boolean }) {
   const eager = index < 3;
   const { isFavorite, toggle } = useFavorites();
   const saved = isFavorite(item.id);
@@ -370,7 +372,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
         <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.6)]">
           {parseArtist(item.artists)}
         </p>
-        {item.museum_name && (
+        {showMuseumBadge && item.museum_name && (
           <p className="text-[0.7rem] text-warm-gray mt-[0.15rem]">
             {item.museum_name}
           </p>
@@ -410,10 +412,9 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
 function StatsSection({ stats }: { stats: StatsCard }) {
   const items = [
     { value: stats.total.toLocaleString("sv"), label: "verk" },
-    { value: stats.artists.toLocaleString("sv"), label: "konstnärer" },
-    { value: String(stats.oldest), label: "äldsta verket" },
+    { value: stats.museums.toLocaleString("sv"), label: "museer" },
+    { value: `${stats.yearsSpan} år`, label: "år av historia" },
     { value: stats.paintings.toLocaleString("sv"), label: "målningar" },
-    { value: stats.ceramics.toLocaleString("sv"), label: "keramik" },
   ];
   return (
     <div className="py-12 md:py-16 lg:py-20 px-6 md:px-8 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center lg:rounded-[1.5rem]">
@@ -423,7 +424,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
       <h2 className="font-serif text-[2rem] lg:text-[2.6rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
         Samlingen i siffror
       </h2>
-      <div className="grid grid-cols-3 lg:grid-cols-5 gap-y-4 gap-x-2 lg:gap-x-6 lg:gap-y-6 max-w-[22rem] md:max-w-[30rem] lg:max-w-5xl mx-auto">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-4 lg:gap-x-8 lg:gap-y-6 max-w-[18rem] md:max-w-[30rem] lg:max-w-5xl mx-auto">
         {items.map((item) => (
           <div key={item.label}>
             <p className="font-serif text-[1.6rem] md:text-[2rem] lg:text-[2.7rem] font-semibold text-[#F5F0E8] m-0 leading-none">
@@ -445,7 +446,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
   );
 }
 
-function ThemeCard({ section }: { section: ThemeSection }) {
+function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMuseumBadge: boolean }) {
   return (
     <div
       className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-[1.5rem] lg:overflow-hidden"
@@ -495,7 +496,7 @@ function ThemeCard({ section }: { section: ThemeSection }) {
               <p className="text-[0.7rem] text-[rgba(255,255,255,0.5)] mt-[0.15rem]">
                 {parseArtist(item.artists)}
               </p>
-              {item.museum_name && (
+              {showMuseumBadge && item.museum_name && (
                 <p className="text-[0.65rem] text-warm-gray mt-[0.15rem]">
                   {item.museum_name}
                 </p>
