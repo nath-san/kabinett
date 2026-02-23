@@ -72,7 +72,10 @@ async function fetchCollection(objectUuid: string): Promise<string | null> {
     if (!res.ok) { collectionCache.set(objectUuid, null); return null; }
     const text = await res.text();
     const parsed = parser.parse(text);
-    const collection = getText(findFirst(parsed, "collection"))?.trim() || null;
+    let collection = getText(findFirst(parsed, "collection"))?.trim() || null;
+    // Normalize duplicates
+    if (collection === "Skoklosters slotts boksamling") collection = "Skoklosters slott";
+    if (collection === "Tumba bruksmuseum Rekvisita") collection = "Tumba bruksmuseum";
     collectionCache.set(objectUuid, collection);
     return collection;
   } catch {
