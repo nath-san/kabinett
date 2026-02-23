@@ -59,7 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  const decades = Array.from({ length: (rangeTo - rangeFrom) / 10 + 1 }, (_, i) => {
+  const allDecades = Array.from({ length: (rangeTo - rangeFrom) / 10 + 1 }, (_, i) => {
     const decade = rangeFrom + i * 10;
     return {
       decade,
@@ -100,6 +100,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       year: r.dating_text || r.year_start,
     }));
   }
+
+  // Filter out empty decades
+  const decades = allDecades.filter((d) => d.count > 0);
 
   return { decades, selectedDecade, selectedLabel, selectedWorks };
 }
@@ -193,7 +196,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         }
       `}</style>
 
-      <header id="top" className="pt-10 px-5 pb-0 md:max-w-4xl md:mx-auto md:px-6 lg:pt-14 lg:px-8">
+      <header id="top" className="pt-10 px-5 pb-0 md:max-w-6xl md:mx-auto md:px-6 lg:pt-14 lg:px-8">
         <p className="text-[0.75rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.55)]">
           Tidslinje
         </p>
