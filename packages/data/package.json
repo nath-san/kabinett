@@ -5,6 +5,9 @@
   "scripts": {
     "sync": "tsx scripts/sync.ts",
     "sync:test": "tsx scripts/sync.ts --test",
+    "sync:incremental": "tsx scripts/sync-incremental.ts",
+    "sync:incremental:full": "tsx scripts/sync-incremental.ts --full",
+    "sync:check-removed": "tsx scripts/sync-incremental.ts --check-removed",
     "embeddings:generate": "tsx scripts/generate-embeddings.ts"
   },
   "dependencies": {
