@@ -121,7 +121,7 @@ export async function loader() {
       SELECT COUNT(*) as c FROM (
         SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
         FROM artworks a LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL
+        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
       )
     `).get() as any).c,
     oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,

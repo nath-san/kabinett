@@ -194,7 +194,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
         FROM artworks a
         LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL
+        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
       )
     `).get() as any).c,
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
