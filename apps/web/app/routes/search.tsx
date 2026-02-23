@@ -182,7 +182,9 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     setHasMore(initialResults.length >= PAGE_SIZE);
   }, [initialResults]);
 
-  async function loadMore() {
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
     try {
@@ -200,7 +202,18 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       setHasMore(false);
     }
     setLoading(false);
-  }
+  }, [loading, hasMore, query, results.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
@@ -235,15 +248,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             </div>
           )}
           {hasMore && (
-            <div className="text-center mt-8">
-              <button
-                onClick={loadMore}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-full bg-linen text-warm-gray text-sm font-medium
-                           hover:bg-stone hover:text-charcoal transition-colors disabled:opacity-50"
-              >
-                {loading ? "Laddar..." : "Visa fler"}
-              </button>
+            <div ref={sentinelRef} className="text-center mt-8 py-4">
+              {loading && <p className="text-sm text-warm-gray">Laddar fler...</p>}
             </div>
           )}
         </div>
