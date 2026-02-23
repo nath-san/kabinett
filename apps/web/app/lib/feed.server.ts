@@ -88,7 +88,6 @@ export async function fetchFeed(options: {
   cursor?: number | null;
   limit: number;
   filter: string;
-  origin?: string;
 }) {
   const db = getDb();
   const limit = Math.max(1, Math.min(options.limit, 40));

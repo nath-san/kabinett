@@ -13,7 +13,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     cursor: Number.isNaN(cursor) ? null : cursor,
     limit,
     filter,
-    origin: url.origin,
+
   });
 
   return Response.json(result);

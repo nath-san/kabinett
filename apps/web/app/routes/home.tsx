@@ -151,11 +151,11 @@ export async function loader({ request }: Route.LoaderArgs) {
       imageUrl: r.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg",
     }));
 
-  const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla", origin: url.origin });
+  const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
 
   // Load first theme section
   const firstTheme = THEMES[0];
-  const themeItems = await fetchFeed({ cursor: null, limit: 6, filter: firstTheme.filter, origin: url.origin });
+  const themeItems = await fetchFeed({ cursor: null, limit: 6, filter: firstTheme.filter });
 
   // Prepend curated, deduplicate
   const curatedIds = new Set(curated.map((c: any) => c.id));
