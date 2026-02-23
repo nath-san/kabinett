@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Route } from "./+types/search";
 import { getDb } from "../lib/db.server";
+import { clipSearch } from "../lib/clip-search.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
@@ -15,17 +16,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   const query = url.searchParams.get("q")?.trim() || "";
   if (!query) return { query, results: [], total: 0 };
 
-  // Use CLIP semantic search via internal API
+  // Use CLIP semantic search directly
   try {
-    const origin = url.origin;
-    const clipRes = await fetch(
-      `${origin}/api/clip-search?q=${encodeURIComponent(query)}&limit=60`
-    );
-    if (clipRes.ok) {
-      const clipResults = await clipRes.json();
-      if (clipResults.length > 0) {
-        return { query, results: clipResults, total: clipResults.length };
-      }
+    const clipResults = await clipSearch(query, 60, 0);
+    if (clipResults.length > 0) {
+      return { query, results: clipResults, total: clipResults.length };
     }
   } catch {
     // Fall through to FTS
