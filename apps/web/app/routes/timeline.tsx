@@ -129,9 +129,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           scroll-snap-align: start;
           background: rgba(255,255,255,0.04);
           border-radius: 1rem;
-          padding: 0.75rem;
+          padding: 0.5rem 0.75rem 0.75rem;
           display: grid;
-          gap: 0.6rem;
+          gap: 0.35rem;
+          align-content: start;
         }
         .timeline-column:first-child {
           margin-left: 1.25rem;
