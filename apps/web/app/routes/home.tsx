@@ -160,13 +160,33 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
 
+  // Mix in SHM highlights to ensure multi-museum content appears early
+  const shmHighlights = db.prepare(
+    `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+            m.name as museum_name
+     FROM artworks a
+     LEFT JOIN museums m ON m.id = a.source
+     WHERE a.source != 'nationalmuseum'
+       AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+       AND ${sourceFilter("a")}
+     ORDER BY RANDOM()
+     LIMIT 3`
+  ).all() as any[];
+  const shmItems = shmHighlights.map((r: any) => ({
+    ...r,
+    imageUrl: buildImageUrl(r.iiif_url, 400),
+  }));
+
   // Load first theme section
   const firstTheme = THEMES[0];
   const themeItems = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
 
-  // Prepend curated, deduplicate
+  // Prepend curated, mix in SHM, deduplicate
   const curatedIds = new Set(curated.map((c: any) => c.id));
-  const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id));
+  const shmIds = new Set(shmItems.map((s: any) => s.id));
+  const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id) && !shmIds.has(item.id));
+  // Insert SHM items after first 3 items
+  restItems.splice(3, 0, ...shmItems);
 
   // Stats for the collection card
   const stats = {
