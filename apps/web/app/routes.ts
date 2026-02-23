@@ -11,6 +11,7 @@ export default [
   route("artwork/:id", "routes/artwork.tsx"),
   route("artist/:name", "routes/artist.tsx"),
   route("museum/:id", "routes/museum.tsx"),
+  route("samling/:name", "routes/samling.tsx"),
   route("om", "routes/om.tsx"),
   route("walks", "routes/walks.tsx"),
   route("api/feed", "routes/api.feed.tsx"),

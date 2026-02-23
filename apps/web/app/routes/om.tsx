@@ -107,12 +107,13 @@ export default function About({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-charcoal">Samlingar</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {museums.map((m) => (
-              <span
+              <a
                 key={m.name}
-                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink"
+                href={`/samling/${encodeURIComponent(m.name)}`}
+                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink no-underline hover:bg-stone transition-colors"
               >
                 {m.name}
-              </span>
+              </a>
             ))}
           </div>
         </section>
