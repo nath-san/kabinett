@@ -32,14 +32,17 @@ export async function loader() {
     maxYear: (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null,
   };
 
-  let museums: MuseumLink[] = [];
-  if (enabledMuseums.length > 0) {
-    const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
-    const rows = db.prepare(
-      `SELECT id, name FROM museums WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")}) ORDER BY ${order}`
-    ).all(...enabledMuseums) as any[];
-    museums = rows.map((row) => ({ id: row.id, name: row.name }));
-  }
+  const collections = db.prepare(`
+    SELECT COALESCE(a.sub_museum, m.name) as name, a.source as id, COUNT(*) as cnt
+    FROM artworks a
+    LEFT JOIN museums m ON m.id = a.source
+    WHERE ${sourceFilter("a")}
+      AND COALESCE(a.sub_museum, m.name) IS NOT NULL
+      AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
+    GROUP BY name
+    ORDER BY cnt DESC
+  `).all() as Array<{ name: string; id: string; cnt: number }>;
+  const museums = collections.map((row) => ({ id: row.id, name: row.name }));
 
   return { stats, museums };
 }
@@ -101,16 +104,15 @@ export default function About({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">Museer</h2>
+          <h2 className="font-serif text-[1.3rem] text-charcoal">Samlingar</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {museums.map((m) => (
-              <a
-                key={m.id}
-                href={`/museum/${encodeURIComponent(m.id)}`}
-                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink no-underline"
+              <span
+                key={m.name}
+                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink"
               >
                 {m.name}
-              </a>
+              </span>
             ))}
           </div>
         </section>
