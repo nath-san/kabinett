@@ -155,7 +155,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // Load first theme section
   const firstTheme = THEMES[0];
-  const themeItems = await fetchFeed({ cursor: null, limit: 6, filter: firstTheme.filter });
+  const themeItems = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
 
   // Prepend curated, deduplicate
   const curatedIds = new Set(curated.map((c: any) => c.id));
@@ -253,7 +253,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (themeIndex < THEMES.length) {
         const theme = THEMES[themeIndex];
         try {
-          const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=6`);
+          const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
           const themeData = await themeRes.json();
           if (themeData.items?.length > 0) {
             // Insert theme after ~5 artworks
