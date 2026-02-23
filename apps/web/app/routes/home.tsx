@@ -291,21 +291,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      {feed.map((entry, i) =>
-        entry.type === "art" ? (
-          <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
-        ) : entry.type === "stats" ? (
-          <StatsSection key="stats" stats={entry} />
-        ) : (
-          <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
-        )
-      )}
-      <div ref={sentinelRef} className="h-px" />
-      {loading && (
-        <div className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
-          Laddar mer konst…
+      <div className="md:max-w-3xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-6">
+          {feed.map((entry, i) =>
+            entry.type === "art" ? (
+              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
+            ) : entry.type === "stats" ? (
+              <div key="stats" className="lg:col-span-2">
+                <StatsSection stats={entry} />
+              </div>
+            ) : (
+              <div key={`theme-${entry.title}-${i}`} className="lg:col-span-2">
+                <ThemeCard section={entry} />
+              </div>
+            )
+          )}
         </div>
-      )}
+        <div ref={sentinelRef} className="h-px" />
+        {loading && (
+          <div className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
+            Laddar mer konst…
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -318,7 +326,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="block relative w-full h-[100vh] no-underline text-inherit overflow-hidden contain-[layout_paint]"
+      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-[34rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-[2rem]"
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -342,15 +350,15 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
         ].join(" ")}
       />
       <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 p-6">
-        <p className="font-serif text-[1.5rem] font-semibold text-white leading-[1.2] mb-[0.35rem]">
+      <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-7">
+        <p className="font-serif text-[1.5rem] lg:text-[1.7rem] font-semibold text-white leading-[1.2] mb-[0.35rem]">
           {item.title_sv || "Utan titel"}
         </p>
-        <p className="text-[0.85rem] text-[rgba(255,255,255,0.6)]">
+        <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.6)]">
           {parseArtist(item.artists)}
         </p>
         {item.dating_text && (
-          <p className="text-[0.75rem] text-[rgba(255,255,255,0.35)] mt-[0.2rem]">
+          <p className="text-[0.75rem] lg:text-[0.8rem] text-[rgba(255,255,255,0.35)] mt-[0.2rem]">
             {item.dating_text}
           </p>
         )}
@@ -368,7 +376,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           toggle(item.id);
         }}
         className={[
-          "absolute right-5 bottom-5 w-[2.2rem] h-[2.2rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
+          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-[2.2rem] h-[2.2rem] lg:w-[2.5rem] lg:h-[2.5rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
           saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
           pulsing ? "heart-pulse" : "",
         ].join(" ")}
@@ -390,20 +398,20 @@ function StatsSection({ stats }: { stats: StatsCard }) {
     { value: stats.ceramics.toLocaleString("sv"), label: "keramik" },
   ];
   return (
-    <div className="py-12 px-6 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center">
+    <div className="py-12 md:py-16 lg:py-20 px-6 md:px-8 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center lg:rounded-[1.5rem]">
       <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
         Nationalmuseums samling
       </p>
-      <h2 className="font-serif text-[2rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
+      <h2 className="font-serif text-[2rem] lg:text-[2.4rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
         Samlingen i siffror
       </h2>
-      <div className="grid grid-cols-3 gap-y-4 gap-x-2 max-w-[22rem] mx-auto">
+      <div className="grid grid-cols-3 gap-y-4 gap-x-2 max-w-[22rem] md:max-w-[30rem] lg:max-w-[42rem] mx-auto">
         {items.map((item) => (
           <div key={item.label}>
-            <p className="font-serif text-[1.6rem] font-semibold text-[#F5F0E8] m-0 leading-none">
+            <p className="font-serif text-[1.6rem] md:text-[2rem] lg:text-[2.4rem] font-semibold text-[#F5F0E8] m-0 leading-none">
               {item.value}
             </p>
-            <p className="text-[0.6rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
+            <p className="text-[0.6rem] md:text-[0.65rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
               {item.label}
             </p>
           </div>
@@ -422,7 +430,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
 function ThemeCard({ section }: { section: ThemeSection }) {
   return (
     <div
-      className="pt-12 px-4 pb-8 snap-start"
+      className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-[1.5rem] lg:overflow-hidden"
       style={{ backgroundColor: section.color }}
     >
       {/* Theme header */}
@@ -437,12 +445,12 @@ function ThemeCard({ section }: { section: ThemeSection }) {
       </p>
 
       {/* Horizontal scroll of themed artworks */}
-      <div className="flex gap-3 overflow-x-auto pt-6 pb-2 snap-x snap-mandatory no-scrollbar">
+      <div className="flex gap-3 md:gap-4 lg:gap-5 overflow-x-auto pt-6 pb-2 snap-x snap-mandatory no-scrollbar">
         {section.items.map((item: FeedItem) => (
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] rounded-xl overflow-hidden no-underline text-inherit snap-start"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-[240px] lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div

@@ -177,6 +177,15 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           column-count: 2;
           column-gap: 0.75rem;
         }
+        @media (min-width: 1024px) {
+          .timeline-scroll {
+            grid-auto-columns: minmax(220px, 260px);
+            padding: 1.5rem 0 2.5rem;
+          }
+          .timeline-column {
+            padding: 0.9rem;
+          }
+        }
         @media (min-width: 960px) {
           .timeline-grid {
             column-count: 3;
@@ -184,7 +193,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         }
       `}</style>
 
-      <header id="top" className="pt-10 px-5 pb-0">
+      <header id="top" className="pt-10 px-5 pb-0 md:max-w-6xl md:mx-auto md:px-6">
         <p className="text-[0.75rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.55)]">
           Tidslinje
         </p>
@@ -196,36 +205,38 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         </p>
       </header>
 
-      <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
-        {decades.map((decade) => (
-          <div key={decade.decade} className="timeline-column">
-            <div className="timeline-label font-serif">{decade.decade}</div>
-            {decade.samples.length === 0 && (
-              <div className="text-[0.75rem] text-[rgba(245,240,232,0.45)]">
-                Inga verk hittades
-              </div>
-            )}
-            {decade.samples.map((art) => (
-              <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card">
-                <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                  <img src={art.imageUrl} alt={art.title} loading="lazy" width={400} height={533} />
+      <div className="md:max-w-6xl md:mx-auto md:px-6">
+        <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
+          {decades.map((decade) => (
+            <div key={decade.decade} className="timeline-column">
+              <div className="timeline-label font-serif">{decade.decade}</div>
+              {decade.samples.length === 0 && (
+                <div className="text-[0.75rem] text-[rgba(245,240,232,0.45)]">
+                  Inga verk hittades
                 </div>
-                <div className="timeline-card-meta">
-                  <span className="text-[0.8rem] font-semibold">{art.title}</span>
-                  <span className="text-[0.7rem] text-[rgba(245,240,232,0.6)]">{art.artist}</span>
-                  <span className="text-[0.65rem] text-[rgba(245,240,232,0.45)]">{art.year}</span>
-                </div>
+              )}
+              {decade.samples.map((art) => (
+                <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card">
+                  <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
+                    <img src={art.imageUrl} alt={art.title} loading="lazy" width={400} height={533} />
+                  </div>
+                  <div className="timeline-card-meta">
+                    <span className="text-[0.8rem] font-semibold">{art.title}</span>
+                    <span className="text-[0.7rem] text-[rgba(245,240,232,0.6)]">{art.artist}</span>
+                    <span className="text-[0.65rem] text-[rgba(245,240,232,0.45)]">{art.year}</span>
+                  </div>
+                </a>
+              ))}
+              <a className="timeline-expand" href={`/timeline?decade=${decade.decade}#decade-${decade.decade}`}>
+                Visa {decade.count} verk
               </a>
-            ))}
-            <a className="timeline-expand" href={`/timeline?decade=${decade.decade}#decade-${decade.decade}`}>
-              Visa {decade.count} verk
-            </a>
-          </div>
-        ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       {selectedDecade > 0 && (
-        <section id={`decade-${selectedDecade}`} className="pt-4 px-5 pb-16">
+        <section id={`decade-${selectedDecade}`} className="pt-4 px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6">
           <div className="flex items-baseline justify-between flex-wrap gap-4">
             <div>
               <h2 className="font-serif text-[1.7rem]">

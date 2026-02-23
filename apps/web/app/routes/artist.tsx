@@ -228,7 +228,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="pt-[2.75rem] px-5 pb-6">
+      <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6">
         <p className="text-[0.75rem] uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>
@@ -269,11 +269,11 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       </div>
 
       {timelineWorks.length > 0 && (
-        <section className="px-5 pb-8">
+        <section className="px-5 pb-8 md:max-w-6xl md:mx-auto md:px-6">
           <h2 className="font-serif text-[1.35rem] text-charcoal mb-3">
             Verk över tid
           </h2>
-          <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar">
+          <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar lg:auto-cols-[minmax(180px,220px)]">
             {timelineWorks.map((w) => (
               <a
                 key={w.id}
@@ -304,11 +304,11 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <section className="px-5 pb-16">
+      <section className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6">
         <h2 className="font-serif text-[1.35rem] text-charcoal mb-4">
           Alla verk
         </h2>
-        <div className="columns-2 [column-gap:0.8rem]">
+        <div className="columns-2 [column-gap:0.8rem] md:columns-3 lg:columns-4 lg:[column-gap:1rem]">
           {works.map((w: any) => (
             <a
               key={w.id}

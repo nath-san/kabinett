@@ -45,7 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-cream text-ink font-sans antialiased m-0">
         <Header />
-        <main className="app-main pb-[4.5rem]">{children}</main>
+        <main className="app-main pb-[4.5rem] lg:pb-8">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
@@ -98,7 +98,7 @@ function Header() {
       ].join(" ")}
     >
       <nav
-        className="flex items-center justify-between px-4 h-[3.5rem]"
+        className="flex items-center justify-between px-4 h-[3.5rem] max-w-6xl mx-auto"
       >
         <a
           href="/"
@@ -109,8 +109,24 @@ function Header() {
         >
           Kabinett
         </a>
-        <div className="flex items-center gap-[0.85rem]">
-          {/* Icons moved to bottom nav */}
+        <div
+          className={[
+            "hidden lg:flex items-center gap-6 text-[0.9rem]",
+            isHome ? "text-[rgba(245,240,232,0.85)]" : "text-warm-gray",
+          ].join(" ")}
+        >
+          <a href="/discover" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+            Upptäck
+          </a>
+          <a href="/timeline" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+            Tidslinje
+          </a>
+          <a href="/search" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+            Sök
+          </a>
+          <a href="/favorites" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+            Sparade
+          </a>
         </div>
       </nav>
     </header>
@@ -191,7 +207,7 @@ function BottomNav() {
   return (
     <nav
       className={[
-        "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t",
+        "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
         isDark
           ? "bg-[rgba(10,9,8,0.85)] border-[rgba(255,255,255,0.08)]"
           : "bg-[rgba(250,247,242,0.92)] border-[rgba(212,205,195,0.3)]",

@@ -134,7 +134,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
-      <div className="px-(--spacing-page) pt-8 pb-4">
+      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
         <AutocompleteSearch defaultValue={query} />
 
@@ -153,12 +153,12 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       </div>
 
       {query && (
-        <div className="px-(--spacing-page) pb-24">
+        <div className="px-(--spacing-page) pb-24 md:max-w-6xl md:mx-auto md:px-6">
           <p className="text-sm text-warm-gray mb-6">
             {total > 0 ? `${total} träffar för "${query}"${total > 60 ? " (visar 60)" : ""}` : `Inga träffar för "${query}"`}
           </p>
           {results.length > 0 && (
-            <div className="columns-2 md:columns-3 lg:columns-4 gap-3 space-y-3">
+            <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
               {results.map((r: any) => (
                 <a key={r.id} href={`/artwork/${r.id}`}
                   className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">

@@ -130,102 +130,103 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-cream">
+      <div className="md:max-w-4xl md:mx-auto md:px-4">
+        {/* Hero — Quiz CTA */}
+        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 no-underline">
+          {quizImage && (
+            <img src={quizImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
+          <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
+            <p className="text-[0.6rem] font-semibold tracking-[0.15em] uppercase text-[rgba(255,255,255,0.45)] mb-[0.35rem]">
+              Personligt
+            </p>
+            <h2 className="font-serif text-[1.5rem] text-white m-0 leading-[1.15]">Hitta ditt verk</h2>
+            <p className="text-[0.78rem] text-[rgba(255,255,255,0.55)] mt-1">
+              Fem frågor — ett konstverk som matchar dig
+            </p>
+          </div>
+        </a>
 
-      {/* Hero — Quiz CTA */}
-      <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 no-underline">
-        {quizImage && (
-          <img src={quizImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        )}
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
-        <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
-          <p className="text-[0.6rem] font-semibold tracking-[0.15em] uppercase text-[rgba(255,255,255,0.45)] mb-[0.35rem]">
-            Personligt
-          </p>
-          <h2 className="font-serif text-[1.5rem] text-white m-0 leading-[1.15]">Hitta ditt verk</h2>
-          <p className="text-[0.78rem] text-[rgba(255,255,255,0.55)] mt-1">
-            Fem frågor — ett konstverk som matchar dig
-          </p>
-        </div>
-      </a>
+        {/* Samlingar — 2-column grid */}
+        <section className="pt-6 px-3">
+          <h2 className="font-serif text-[1.3rem] text-ink mx-1 mb-3">Samlingar</h2>
 
-      {/* Samlingar — 2-column grid */}
-      <section className="pt-6 px-3">
-        <h2 className="font-serif text-[1.3rem] text-ink mx-1 mb-3">Samlingar</h2>
-
-        <div className="grid grid-cols-2 gap-[0.6rem]">
-          {collections.map((c, i) => (
-            <a
-              key={c.title}
-              href={`/search?q=${encodeURIComponent(c.query.split(" ")[0])}`}
-              className={[
-                "relative rounded-[14px] overflow-hidden no-underline",
-                i < 2 ? "aspect-[4/3]" : "aspect-square",
-              ].join(" ")}
-              style={{ backgroundColor: c.color || "#2B2A27" }}
-            >
-              {c.imageUrl && (
-                <img src={c.imageUrl} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-              )}
-              <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
-              <div className="absolute bottom-0 left-0 right-0 py-[0.7rem] px-[0.8rem]">
-                <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{c.title}</p>
-                <p className="text-[0.65rem] text-[rgba(255,255,255,0.5)] mt-[0.1rem]">{c.subtitle}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* Top artists */}
-      <section className="pt-8">
-        <h2 className="font-serif text-[1.3rem] text-ink mx-4 mb-3">Formgivare & konstnärer</h2>
-
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar">
-          {topArtists.map((a) => (
-            <a
-              key={a.name}
-              href={`/artist/${encodeURIComponent(a.name)}`}
-              className="shrink-0 w-[5.5rem] no-underline text-center"
-            >
-              <div className="w-20 h-20 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
-                {a.imageUrl && (
-                  <img src={a.imageUrl} alt={a.name} loading="lazy" className="w-full h-full object-cover" />
+          <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+            {collections.map((c, i) => (
+              <a
+                key={c.title}
+                href={`/search?q=${encodeURIComponent(c.query.split(" ")[0])}`}
+                className={[
+                  "relative rounded-[14px] overflow-hidden no-underline",
+                  i < 2 ? "aspect-[4/3]" : "aspect-square",
+                ].join(" ")}
+                style={{ backgroundColor: c.color || "#2B2A27" }}
+              >
+                {c.imageUrl && (
+                  <img src={c.imageUrl} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 )}
-              </div>
-              <p className="text-[0.7rem] font-medium text-charcoal mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
-                {a.name}
-              </p>
-              <p className="text-[0.6rem] text-warm-gray mt-[0.1rem]">
-                {a.count.toLocaleString("sv")} verk
-              </p>
-            </a>
-          ))}
-        </div>
-      </section>
+                <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
+                <div className="absolute bottom-0 left-0 right-0 py-[0.7rem] px-[0.8rem]">
+                  <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{c.title}</p>
+                  <p className="text-[0.65rem] text-[rgba(255,255,255,0.5)] mt-[0.1rem]">{c.subtitle}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
 
-      {/* Verktyg */}
-      <section className="pt-8 px-4">
-        <h2 className="font-serif text-[1.3rem] text-ink mb-3">Verktyg</h2>
-        <div className="flex flex-col gap-2">
-          <ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" />
-          <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
-        </div>
-      </section>
+        {/* Top artists */}
+        <section className="pt-8">
+          <h2 className="font-serif text-[1.3rem] text-ink mx-4 mb-3">Formgivare & konstnärer</h2>
 
-      {/* Samlingen i siffror */}
-      <section className="pt-8 px-4 pb-12">
-        <h2 className="font-serif text-[1.3rem] text-ink mb-4">Samlingen i siffror</h2>
+          <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible">
+            {topArtists.map((a) => (
+              <a
+                key={a.name}
+                href={`/artist/${encodeURIComponent(a.name)}`}
+                className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center"
+              >
+                <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
+                  {a.imageUrl && (
+                    <img src={a.imageUrl} alt={a.name} loading="lazy" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <p className="text-[0.7rem] font-medium text-charcoal mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
+                  {a.name}
+                </p>
+                <p className="text-[0.6rem] text-warm-gray mt-[0.1rem]">
+                  {a.count.toLocaleString("sv")} verk
+                </p>
+              </a>
+            ))}
+          </div>
+        </section>
 
-        <div className="grid grid-cols-3 gap-2">
-          <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk totalt" />
-          <StatCard number={stats.artists.toLocaleString("sv")} label="konstnärer" />
-          <StatCard number={`${stats.oldestYear}`} label="äldsta verket" />
-          <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
-          <StatCard number={stats.drawings.toLocaleString("sv")} label="teckningar" />
-          <StatCard number={stats.sculptures.toLocaleString("sv")} label="skulpturer" />
-          <StatCard number={stats.ceramics.toLocaleString("sv")} label="keramik" />
-        </div>
-      </section>
+        {/* Verktyg */}
+        <section className="pt-8 px-4">
+          <h2 className="font-serif text-[1.3rem] text-ink mb-3">Verktyg</h2>
+          <div className="flex flex-col gap-2">
+            <ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" />
+            <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
+          </div>
+        </section>
+
+        {/* Samlingen i siffror */}
+        <section className="pt-8 px-4 pb-12">
+          <h2 className="font-serif text-[1.3rem] text-ink mb-4">Samlingen i siffror</h2>
+
+          <div className="grid grid-cols-3 gap-2 lg:grid-cols-4">
+            <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk totalt" />
+            <StatCard number={stats.artists.toLocaleString("sv")} label="konstnärer" />
+            <StatCard number={`${stats.oldestYear}`} label="äldsta verket" />
+            <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
+            <StatCard number={stats.drawings.toLocaleString("sv")} label="teckningar" />
+            <StatCard number={stats.sculptures.toLocaleString("sv")} label="skulpturer" />
+            <StatCard number={stats.ceramics.toLocaleString("sv")} label="keramik" />
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

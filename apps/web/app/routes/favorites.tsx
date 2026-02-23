@@ -48,7 +48,7 @@ export default function Favorites() {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="max-w-[64rem] mx-auto p-6">
+      <div className="max-w-[64rem] lg:max-w-6xl mx-auto p-6">
         <h1 className="font-serif text-[2rem] text-charcoal">
           Favoriter
         </h1>
@@ -67,7 +67,7 @@ export default function Favorites() {
         )}
 
         <div
-          className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 mt-6"
+          className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 mt-6"
         >
           {items.map((item) => (
             <FavoriteCard key={item.id} item={item} onRemove={remove} />

@@ -144,18 +144,18 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       {/* Hero image with color bg */}
       <div
-        className="flex justify-center items-center py-6 px-4 min-h-[50vh]"
+        className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh]"
         style={{ backgroundColor: artwork.color }}
       >
         <img
           src={artwork.imageUrl}
           alt={artwork.title}
-          className="max-h-[70vh] max-w-full object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
+          className="max-h-[70vh] lg:max-h-[60vh] max-w-full lg:max-w-[64rem] object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
 
       {/* Info card — overlapping the image slightly */}
-      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-[40rem] mx-auto">
+      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-[40rem] mx-auto lg:mx-auto lg:px-8">
         <h1 className="font-serif text-[1.5rem] font-bold text-charcoal leading-[1.3]">
           {artwork.title}
         </h1>
@@ -278,13 +278,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Same artist section */}
       {sameArtist.length > 0 && (
-        <section className="pt-10 px-4 max-w-[50rem] mx-auto">
+        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-[70rem] mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Mer av {artistName}
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {sameArtist.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 rounded-xl overflow-hidden bg-linen no-underline">
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline">
                 <div
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
@@ -306,13 +306,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Similar colors */}
       {similar.length > 0 && (
-        <section className="pt-10 px-4 max-w-[50rem] mx-auto">
+        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-[70rem] mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Liknande verk
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {similar.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 rounded-xl overflow-hidden bg-linen no-underline">
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline">
                 <div
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
