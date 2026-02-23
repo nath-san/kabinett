@@ -20,7 +20,14 @@ export async function loader() {
 
   const stats = {
     totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c as number,
-    museums: enabledMuseums.length,
+    museums: (db.prepare(`
+      SELECT COUNT(*) as c FROM (
+        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
+        FROM artworks a
+        LEFT JOIN museums m ON m.id = a.source
+        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL
+      )
+    `).get() as any).c as number,
     minYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null,
     maxYear: (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null,
   };
