@@ -1,5 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -17,20 +19,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const rows = db
     .prepare(
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
-       FROM artworks WHERE id IN (${ids.map(() => "?").join(",")})
+       FROM artworks
+       WHERE id IN (${ids.map(() => "?").join(",")})
+         AND ${sourceFilter()}
        ORDER BY ${order}`
     )
     .all(...ids) as any[];
 
   const results = rows.map((row) => {
-    const iiif = row.iiif_url.replace("http://", "https://");
     return {
       id: row.id,
       title: row.title_sv || row.title_en || "Utan titel",
       artists: row.artists,
       dating_text: row.dating_text || "",
       dominant_color: row.dominant_color || "#D4CDC3",
-      imageUrl: iiif + "full/400,/0/default.jpg",
+      imageUrl: buildImageUrl(row.iiif_url, 400),
     };
   });
 

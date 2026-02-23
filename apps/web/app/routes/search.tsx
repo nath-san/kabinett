@@ -2,19 +2,37 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Route } from "./+types/search";
 import { getDb } from "../lib/db.server";
 import { clipSearch } from "../lib/clip-search.server";
+import { buildImageUrl } from "../lib/images";
+import { isMuseumEnabled, sourceFilter } from "../lib/museums.server";
 
 export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
   return [
     { title: q ? `"${q}" — Kabinett` : "Sök — Kabinett" },
-    { name: "description", content: "Sök i Nationalmuseums samling." },
+    { name: "description", content: "Sök i svenska museers samlingar." },
   ];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() || "";
-  if (!query) return { query, results: [], total: 0 };
+  const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
+  const museum = museumParam && isMuseumEnabled(museumParam) ? museumParam : "";
+  if (!query && !museum) return { query, museum, results: [], total: 0 };
+  if (!query && museum) {
+    const db = getDb();
+    const results = db.prepare(
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              m.name as museum_name
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+         AND ${sourceFilter("a")}
+         AND a.source = ?
+       ORDER BY RANDOM() LIMIT 60`
+    ).all(museum);
+    return { query, museum, results, total: results.length };
+  }
 
   // Color queries — match dominant_color RGB
   const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
@@ -29,20 +47,24 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (colorTarget) {
     const db = getDb();
     const rows = db.prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
-       FROM artworks
-       WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              m.name as museum_name
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+         AND ${sourceFilter("a")}
+         ${museum ? "AND a.source = ?" : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT 120`
-    ).all(colorTarget.r, colorTarget.g, colorTarget.b) as any[];
+    ).all(...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b) as any[];
     return { query, results: rows, total: rows.length };
   }
 
   // Use CLIP semantic search directly
   try {
-    const clipResults = await clipSearch(query, 60, 0);
+    const clipResults = await clipSearch(query, 60, 0, museum || undefined);
     if (clipResults.length > 0) {
-      return { query, results: clipResults, total: clipResults.length };
+      return { query, museum, results: clipResults, total: clipResults.length };
     }
   } catch (err) {
     console.error("[CLIP search error]", err);
@@ -56,22 +78,38 @@ export async function loader({ request }: Route.LoaderArgs) {
   try {
     const ftsQuery = query.split(/\s+/).map(w => `"${w}"*`).join(" ");
     results = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
-       FROM artworks_fts f JOIN artworks a ON a.id = f.rowid
-       WHERE artworks_fts MATCH ? ORDER BY rank LIMIT 60`
-    ).all(ftsQuery);
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              m.name as museum_name
+       FROM artworks_fts f
+       JOIN artworks a ON a.id = f.rowid
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE artworks_fts MATCH ?
+         AND ${sourceFilter("a")}
+         ${museum ? "AND a.source = ?" : ""}
+       ORDER BY rank LIMIT 60`
+    ).all(ftsQuery, ...(museum ? [museum] : []));
     total = (db.prepare(
-      `SELECT COUNT(*) as count FROM artworks_fts WHERE artworks_fts MATCH ?`
-    ).get(ftsQuery) as any).count;
+      `SELECT COUNT(*) as count
+       FROM artworks_fts f JOIN artworks a ON a.id = f.rowid
+       WHERE artworks_fts MATCH ?
+         AND ${sourceFilter("a")}
+         ${museum ? "AND a.source = ?" : ""}`
+    ).get(ftsQuery, ...(museum ? [museum] : [])) as any).count;
   } catch {
     const like = `%${query}%`;
     results = db.prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
-       FROM artworks WHERE title_sv LIKE ? OR artists LIKE ? LIMIT 60`
-    ).all(like, like);
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              m.name as museum_name
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE (a.title_sv LIKE ? OR a.artists LIKE ?)
+         AND ${sourceFilter("a")}
+         ${museum ? "AND a.source = ?" : ""}
+       LIMIT 60`
+    ).all(like, like, ...(museum ? [museum] : []));
     total = results.length;
   }
-  return { query, results, total };
+  return { query, museum, results, total };
 }
 
 function parseArtist(json: string | null): string {
@@ -84,7 +122,7 @@ const TYPE_LABELS: Record<string, string> = {
   artist: "Konstnär", title: "Verk", category: "Kategori",
 };
 
-function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
+function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; museum?: string }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -140,6 +178,7 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
     <>
       <form ref={formRef} action="/search" method="get" className="mt-4">
         <div className="flex gap-2">
+          {museum && <input type="hidden" name="museum" value={museum} />}
           <input
             type="search" name="q"
             defaultValue={defaultValue}
@@ -172,7 +211,7 @@ function ResultCard({ r }: { r: any }) {
         style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
         className="overflow-hidden aspect-[3/4]"
       >
-        <img src={r.imageUrl || (r.iiif_url?.replace("http://","https://") + "full/400,/0/default.jpg")}
+        <img src={r.imageUrl || (r.iiif_url ? buildImageUrl(r.iiif_url, 400) : "")}
           alt={r.title || r.title_sv || ""} width={400} height={533}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       </div>
@@ -180,6 +219,7 @@ function ResultCard({ r }: { r: any }) {
         <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
           {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
         <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
+        {r.museum_name && <p className="text-[0.65rem] text-warm-gray mt-0.5">{r.museum_name}</p>}
         {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
       </div>
     </a>
@@ -189,7 +229,7 @@ function ResultCard({ r }: { r: any }) {
 const PAGE_SIZE = 60;
 
 export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, results: initialResults, total } = loaderData;
+  const { query, museum, results: initialResults, total } = loaderData;
   const [results, setResults] = useState(initialResults);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialResults.length >= PAGE_SIZE);
@@ -207,7 +247,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/clip-search?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&offset=${results.length}`
+        `/api/clip-search?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&offset=${results.length}${museum ? `&museum=${museum}` : ""}`
       );
       const data = await res.json();
       if (data.length === 0) {
@@ -233,11 +273,13 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     return () => observer.disconnect();
   }, [loadMore]);
 
+  const showResults = Boolean(query) || Boolean(museum);
+
   return (
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
-        <AutocompleteSearch defaultValue={query} />
+        <AutocompleteSearch defaultValue={query} museum={museum || undefined} />
 
         {!query && (
           <div className="mt-6">
@@ -253,10 +295,12 @@ export default function Search({ loaderData }: Route.ComponentProps) {
         )}
       </div>
 
-      {query && (
+      {showResults && (
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <p className="text-sm text-warm-gray mb-6">
-            {results.length > 0 ? `${results.length} träffar för "${query}"` : `Inga träffar för "${query}"`}
+            {results.length > 0
+              ? `${results.length} träffar${query ? ` för "${query}"` : ""}`
+              : `Inga träffar${query ? ` för "${query}"` : ""}`}
           </p>
           {results.length > 0 && (
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">

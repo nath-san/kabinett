@@ -1,6 +1,8 @@
 import type { LoaderFunctionArgs } from "react-router";
 import sharp from "sharp";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 function parseArtist(json: string | null): string {
   if (!json) return "Okand konstnar";
@@ -33,15 +35,17 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
   const db = getDb();
   const row = db
-    .prepare("SELECT id, title_sv, title_en, artists, iiif_url, dominant_color, dating_text FROM artworks WHERE id = ?")
+    .prepare(
+      `SELECT id, title_sv, title_en, artists, iiif_url, dominant_color, dating_text
+       FROM artworks WHERE id = ? AND ${sourceFilter()}`
+    )
     .get(id) as any;
 
   if (!row) return new Response("Not found", { status: 404 });
 
   const title = row.title_sv || row.title_en || "Utan titel";
   const artist = parseArtist(row.artists);
-  const iiif = row.iiif_url.replace("http://", "https://");
-  const imageUrl = iiif + "full/1200,/0/default.jpg";
+  const imageUrl = buildImageUrl(row.iiif_url, 1200);
 
   let base = sharp({
     create: {

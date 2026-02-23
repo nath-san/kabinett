@@ -1,8 +1,10 @@
 import type { Route } from "./+types/artist";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 function buildIiif(url: string, size: number) {
-  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+  return buildImageUrl(url, size);
 }
 
 type ActorDate = { date_type?: string; date_earliest?: string | number };
@@ -122,7 +124,7 @@ export function meta({ data }: Route.MetaArgs) {
     { title: `${name} — Kabinett` },
     {
       name: "description",
-      content: `Verk av ${name} ur Nationalmuseums samling.`,
+      content: `Verk av ${name} ur svenska museers samlingar.`,
     },
     { property: "og:title", content: name },
     { property: "og:description", content: `Utforska verk av ${name}` },
@@ -140,12 +142,13 @@ export async function loader({ params }: Route.LoaderArgs) {
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, dating_text, year_start, year_end, category, actors_json
        FROM artworks
        WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+         AND ${sourceFilter()}
        ORDER BY year_start ASC NULLS LAST`
     )
     .all(`%${name}%`) as any[];
 
   const total = (
-    db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE artists LIKE ?`).get(
+    db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE artists LIKE ? AND ${sourceFilter()}`).get(
       `%${name}%`
     ) as any
   ).c as number;
@@ -161,7 +164,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   const fallbackRow = !actor
     ? (db
         .prepare(
-          `SELECT actors_json FROM artworks WHERE artists LIKE ? AND actors_json IS NOT NULL LIMIT 1`
+          `SELECT actors_json FROM artworks WHERE artists LIKE ? AND actors_json IS NOT NULL AND ${sourceFilter()} LIMIT 1`
         )
         .get(`%${name}%`) as any)
     : null;

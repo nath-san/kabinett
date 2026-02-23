@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 // Search removed — now lives at /search via bottom nav
 import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 type FeedItem = {
   id: number;
@@ -14,6 +16,7 @@ type FeedItem = {
   category: string | null;
   technique_material: string | null;
   imageUrl: string;
+  museum_name: string | null;
 };
 
 type ThemeSection = {
@@ -52,7 +55,7 @@ const THEMES = [
 export function meta() {
   return [
     { title: "Kabinett — Upptäck svensk konst" },
-    { name: "description", content: "Upptäck Nationalmuseums samling på ett nytt sätt." },
+    { name: "description", content: "Upptäck svenska museers samlingar på ett nytt sätt." },
   ];
 }
 
@@ -138,9 +141,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   const shuffled = [...CURATED_POOL].sort(() => Math.random() - 0.5);
   const pickedIds = shuffled.slice(0, 5);
   const curatedRows = db.prepare(
-    `SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material
-     FROM artworks WHERE id IN (${pickedIds.join(",")})
-     AND id NOT IN (SELECT artwork_id FROM broken_images)`
+    `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+            m.name as museum_name
+     FROM artworks a
+     LEFT JOIN museums m ON m.id = a.source
+     WHERE a.id IN (${pickedIds.join(",")})
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceFilter("a")}`
   ).all() as any[];
   const curatedMap = new Map(curatedRows.map((r: any) => [r.id, r]));
   const curated = pickedIds
@@ -148,7 +155,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     .filter(Boolean)
     .map((r: any) => ({
       ...r,
-      imageUrl: r.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg",
+      imageUrl: buildImageUrl(r.iiif_url, 800),
     }));
 
   const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
@@ -163,11 +170,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // Stats for the collection card
   const stats = {
-    total: (db.prepare("SELECT COUNT(*) as c FROM artworks").get() as any).c,
-    paintings: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%'").get() as any).c,
-    artists: (db.prepare("SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL").get() as any).c,
-    oldest: (db.prepare("SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0").get() as any).c,
-    ceramics: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%'").get() as any).c,
+    total: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
+    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
+    artists: (db.prepare(`SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL AND ${sourceFilter()}`).get() as any).c,
+    oldest: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,
+    ceramics: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%' AND ${sourceFilter()}`).get() as any).c,
   };
 
   return {
@@ -185,7 +192,7 @@ function parseArtist(json: string | null): string {
 }
 
 function iiif(url: string, size: number): string {
-  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+  return buildImageUrl(url, size);
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -363,6 +370,11 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
         <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.6)]">
           {parseArtist(item.artists)}
         </p>
+        {item.museum_name && (
+          <p className="text-[0.7rem] text-warm-gray mt-[0.15rem]">
+            {item.museum_name}
+          </p>
+        )}
         {item.dating_text && (
           <p className="text-[0.75rem] lg:text-[0.8rem] text-[rgba(255,255,255,0.35)] mt-[0.2rem]">
             {item.dating_text}
@@ -406,7 +418,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
   return (
     <div className="py-12 md:py-16 lg:py-20 px-6 md:px-8 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center lg:rounded-[1.5rem]">
       <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
-        Nationalmuseums samling
+        Museernas samling
       </p>
       <h2 className="font-serif text-[2rem] lg:text-[2.6rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
         Samlingen i siffror
@@ -483,6 +495,11 @@ function ThemeCard({ section }: { section: ThemeSection }) {
               <p className="text-[0.7rem] text-[rgba(255,255,255,0.5)] mt-[0.15rem]">
                 {parseArtist(item.artists)}
               </p>
+              {item.museum_name && (
+                <p className="text-[0.65rem] text-warm-gray mt-[0.15rem]">
+                  {item.museum_name}
+                </p>
+              )}
             </div>
           </a>
         ))}

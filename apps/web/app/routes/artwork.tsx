@@ -1,12 +1,15 @@
 import type { Route } from "./+types/artwork";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { loadClipCache, dot } from "../lib/clip-cache.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
   const { artwork } = data;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-  const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur Nationalmuseums samling.`;
+  const genitive = artwork.museumName ? `${artwork.museumName}${artwork.museumName.endsWith("s") ? "" : "s"}` : "Kabinett";
+  const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur ${genitive} samling.`;
   return [
     { title: `${artwork.title} — Kabinett` },
     { name: "description", content: desc },
@@ -18,7 +21,7 @@ export function meta({ data }: Route.MetaArgs) {
     // Twitter card
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: artwork.title },
-    { name: "twitter:description", content: `${artist} — Nationalmuseum` },
+    { name: "twitter:description", content: `${artist} — ${artwork.museumName || "Kabinett"}` },
     { name: "twitter:image", content: artwork.imageUrl },
   ];
 }
@@ -48,8 +51,13 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
 export async function loader({ params }: Route.LoaderArgs) {
   const db = getDb();
   const row = db
-    .prepare("SELECT * FROM artworks WHERE id = ?")
-    .get(params.id) as ArtworkRow | undefined;
+    .prepare(
+      `SELECT a.*, m.name as museum_name, m.url as museum_url
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE a.id = ? AND ${sourceFilter("a")}`
+    )
+    .get(params.id) as (ArtworkRow & { museum_name: string | null; museum_url: string | null }) | undefined;
 
   if (!row) throw new Response("Inte hittat", { status: 404 });
 
@@ -58,7 +66,12 @@ export async function loader({ params }: Route.LoaderArgs) {
     artists = JSON.parse(row.artists || "[]");
   } catch {}
 
-  const iiifBase = row.iiif_url.replace("http://", "https://");
+  const museumName = row.museum_name || "Museum";
+  const museumUrl = row.museum_url || null;
+  const externalUrl = row.source === "nationalmuseum"
+    ? `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${row.id}`
+    : museumUrl;
+
   const artwork = {
     id: row.id,
     title: row.title_sv || row.title_en || "Utan titel",
@@ -69,14 +82,15 @@ export async function loader({ params }: Route.LoaderArgs) {
     datingText: row.dating_text,
     yearStart: row.year_start,
     acquisitionYear: row.acquisition_year,
-    imageUrl: iiifBase + "full/800,/0/default.jpg",
-    thumbUrl: iiifBase + "full/400,/0/default.jpg",
+    imageUrl: buildImageUrl(row.iiif_url, 800),
+    thumbUrl: buildImageUrl(row.iiif_url, 400),
     color: row.dominant_color || "#D4CDC3",
     colorR: row.color_r,
     colorG: row.color_g,
     colorB: row.color_b,
-    iiifBase,
-    nmUrl: `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${row.id}`,
+    museumName,
+    museumUrl,
+    externalUrl,
     // Extra fields
     description: row.descriptions_sv || null,
     dimensions: parseDimensions(row.dimensions_json),
@@ -105,7 +119,9 @@ export async function loader({ params }: Route.LoaderArgs) {
         similar = db
           .prepare(
             `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-             FROM artworks WHERE id IN (${topIds.map(() => "?").join(",")})`)
+             FROM artworks
+             WHERE id IN (${topIds.map(() => "?").join(",")})
+               AND ${sourceFilter()}`)
           .all(...topIds) as any[];
         // Preserve similarity order
         const orderMap = new Map(topIds.map((id, i) => [id, i]));
@@ -124,6 +140,7 @@ export async function loader({ params }: Route.LoaderArgs) {
         `SELECT id, title_sv, iiif_url, dominant_color, dating_text
          FROM artworks
          WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
+           AND ${sourceFilter()}
          ORDER BY RANDOM() LIMIT 6`
       ).all(row.id, `%${artistName}%`) as any[])
     : [];
@@ -176,6 +193,18 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 {" "}· {artwork.artists[0].nationality}
               </span>
             )}
+          </p>
+        )}
+        {artwork.museumUrl && (
+          <p className="mt-2 text-[0.85rem] text-warm-gray">
+            <a
+              href={artwork.museumUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="no-underline border-b border-stone/60 text-warm-gray"
+            >
+              {artwork.museumName}
+            </a>
           </p>
         )}
 
@@ -268,10 +297,12 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             >
               Dela
             </button>
-            <a href={artwork.nmUrl} target="_blank" rel="noopener noreferrer"
-              className="text-[0.8rem] text-warm-gray no-underline">
-              Nationalmuseum →
-            </a>
+            {artwork.externalUrl && (
+              <a href={artwork.externalUrl} target="_blank" rel="noopener noreferrer"
+                className="text-[0.8rem] text-warm-gray no-underline">
+                {`Visa på ${artwork.museumName}`} →
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -289,7 +320,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
-                  <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
+                  <img src={buildImageUrl(s.iiif_url, 200)}
                     alt={s.title_sv || ""} width={200} height={267}
                     className="w-full h-full object-cover" />
                 </div>
@@ -317,7 +348,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
-                  <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
+                  <img src={buildImageUrl(s.iiif_url, 200)}
                     alt={s.title_sv || ""} width={200} height={267}
                     className="w-full h-full object-cover" />
                 </div>

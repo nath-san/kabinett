@@ -1,15 +1,17 @@
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 
 export function meta() {
   return [
     { title: "Upptäck — Kabinett" },
-    { name: "description", content: "Utforska Nationalmuseums samling på nya sätt." },
+    { name: "description", content: "Utforska svenska museers samlingar på nya sätt." },
   ];
 }
 
 function buildIiif(url: string, width: number) {
-  return url.replace("http://", "https://") + `full/${width},/0/default.jpg`;
+  return buildImageUrl(url, width);
 }
 
 function parseArtist(json: string | null): string {
@@ -55,6 +57,7 @@ export async function loader() {
           AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
           AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
+          AND ${sourceFilter("a")}
         ORDER BY RANDOM() LIMIT 1
       `).all(terms) as any[];
       const row = rows[0];
@@ -70,6 +73,7 @@ export async function loader() {
     WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
+      AND ${sourceFilter()}
     ORDER BY RANDOM() LIMIT 1
   `).get() as any;
 
@@ -83,6 +87,7 @@ export async function loader() {
       AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
       AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
       AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+      AND ${sourceFilter()}
     GROUP BY name
     HAVING cnt >= 20
     ORDER BY cnt DESC
@@ -96,6 +101,7 @@ export async function loader() {
       WHERE json_extract(artists, '$[0].name') = ?
         AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
         AND id NOT IN (SELECT artwork_id FROM broken_images)
+        AND ${sourceFilter()}
       ORDER BY RANDOM() LIMIT 1
     `).get(a.name) as any;
     return {
@@ -108,25 +114,39 @@ export async function loader() {
 
   // Stats
   const stats = {
-    totalWorks: (db.prepare("SELECT COUNT(*) as c FROM artworks").get() as any).c,
-    paintings: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%'").get() as any).c,
-    drawings: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Teckningar%'").get() as any).c,
-    sculptures: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Skulptur%'").get() as any).c,
-    ceramics: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%'").get() as any).c,
-    artists: (db.prepare("SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL").get() as any).c,
-    oldestYear: (db.prepare("SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0").get() as any).c,
+    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
+    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
+    drawings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Teckningar%' AND ${sourceFilter()}`).get() as any).c,
+    sculptures: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Skulptur%' AND ${sourceFilter()}`).get() as any).c,
+    ceramics: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%' AND ${sourceFilter()}`).get() as any).c,
+    artists: (db.prepare(`SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL AND ${sourceFilter()}`).get() as any).c,
+    oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,
   };
+
+  const enabledMuseums = getEnabledMuseums();
+  let museums: Array<{ id: string; name: string; description: string | null; url: string | null }> = [];
+  if (enabledMuseums.length > 0) {
+    const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
+    const rows = db.prepare(
+      `SELECT id, name, description, url
+       FROM museums
+       WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
+       ORDER BY ${order}`
+    ).all(...enabledMuseums) as any[];
+    museums = rows;
+  }
 
   return {
     collections,
     quizImage: quizImg?.iiif_url ? buildIiif(quizImg.iiif_url, 600) : undefined,
     topArtists: artistsWithImages,
     stats,
+    museums,
   };
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { collections, quizImage, topArtists, stats } = loaderData;
+  const { collections, quizImage, topArtists, stats, museums } = loaderData;
 
   return (
     <div className="min-h-screen pt-16 bg-cream">
@@ -211,6 +231,27 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
             <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
           </div>
         </section>
+
+        {/* Museer */}
+        {museums.length > 0 && (
+          <section className="pt-8 px-4">
+            <h2 className="font-serif text-[1.3rem] text-ink mb-3">Museer</h2>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {museums.map((museum: any) => (
+                <a
+                  key={museum.id}
+                  href={`/search?museum=${encodeURIComponent(museum.id)}`}
+                  className="rounded-[14px] bg-[#EDEAE4] p-4 no-underline hover:bg-[#E5E1DA] transition-colors"
+                >
+                  <p className="text-[0.9rem] font-medium text-charcoal">{museum.name}</p>
+                  {museum.description && (
+                    <p className="text-[0.7rem] text-warm-gray mt-1 line-clamp-2">{museum.description}</p>
+                  )}
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Samlingen i siffror */}
         <section className="pt-8 px-4 pb-12">

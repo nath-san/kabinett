@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Route } from "./+types/quiz";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 function buildIiif(url: string, size: number) {
-  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+  return buildImageUrl(url, size);
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -24,6 +26,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
            AND id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -35,6 +38,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -46,6 +50,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -57,6 +62,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -71,6 +77,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -82,6 +89,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -93,6 +101,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -104,6 +113,7 @@ export async function loader({}: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
          AND id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter()}
          ORDER BY RANDOM()
          LIMIT 1`
       )
@@ -118,6 +128,7 @@ export async function loader({}: Route.LoaderArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 90
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceFilter("a")}
        ORDER BY RANDOM()
        LIMIT 1`
     ).get(ftsQuery) as any;

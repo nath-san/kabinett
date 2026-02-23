@@ -81,7 +81,7 @@ const upsertStmt = db.prepare(`
     descriptions_sv, descriptions_en, acquisition_sv, object_type_sv,
     style_sv, signature, inscription, motive_category, loan,
     material_tags, technique_tags, dimensions_json, actors_json,
-    exhibitions_json, last_updated, synced_at
+    exhibitions_json, last_updated, source, synced_at
   ) VALUES (
     ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
@@ -89,7 +89,7 @@ const upsertStmt = db.prepare(`
     ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
     ?, ?, ?, ?,
-    ?, ?, datetime('now')
+    ?, ?, ?, datetime('now')
   )
 `);
 
@@ -178,7 +178,7 @@ async function main() {
         parsed.object_type_sv, parsed.style_sv, parsed.signature,
         parsed.inscription, parsed.motive_category, parsed.loan,
         parsed.material_tags, parsed.technique_tags, parsed.dimensions_json,
-        parsed.actors_json, parsed.exhibitions_json, parsed.last_updated,
+        parsed.actors_json, parsed.exhibitions_json, parsed.last_updated, "nationalmuseum",
       );
 
       if (existing) {

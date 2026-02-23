@@ -1,4 +1,5 @@
 import { getDb } from "./db.server";
+import { sourceFilter } from "./museums.server";
 
 export type CachedEmbedding = {
   id: number;
@@ -20,7 +21,12 @@ export async function loadClipCache(): Promise<CachedEmbedding[]> {
   cachePromise = (async () => {
     const db = getDb();
     const rows = db
-      .prepare("SELECT artwork_id, embedding FROM clip_embeddings")
+      .prepare(
+        `SELECT c.artwork_id, c.embedding
+         FROM clip_embeddings c
+         JOIN artworks a ON a.id = c.artwork_id
+         WHERE ${sourceFilter("a")}`
+      )
       .all() as any[];
 
     const mapped = rows.map((r) => {

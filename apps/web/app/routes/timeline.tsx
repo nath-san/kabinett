@@ -1,8 +1,10 @@
 import type { Route } from "./+types/timeline";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 function buildIiif(url: string, size: number) {
-  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+  return buildImageUrl(url, size);
 }
 
 function parseArtist(json: string | null): string {
@@ -39,6 +41,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        WHERE year_start BETWEEN ? AND ?
          AND iiif_url IS NOT NULL
          AND LENGTH(iiif_url) > 90
+         AND ${sourceFilter()}
        ORDER BY year_start ASC`
     )
     .all(rangeFrom, rangeTo) as any[];
@@ -86,6 +89,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 90
+           AND ${sourceFilter()}
          ORDER BY year_start ASC`
       )
       .all(selectedDecade, selectedDecade + 9) as any[];

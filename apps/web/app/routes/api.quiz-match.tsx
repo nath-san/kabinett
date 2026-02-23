@@ -1,5 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 function parseArtist(json: string | null): string {
   if (!json) return "Okänd konstnär";
@@ -60,7 +62,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const db = getDb();
 
-  let where = "iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90 AND id NOT IN (SELECT artwork_id FROM broken_images)";
+  let where = `iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90 AND id NOT IN (SELECT artwork_id FROM broken_images)
+               AND ${sourceFilter()}`;
   const params: any[] = [];
 
   if (epoch && EPOCHS[epoch]) {
@@ -136,14 +139,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const picked = candidates[0];
   const r = picked.row;
-  const iiif = r.iiif_url.replace("http://", "https://");
-
   return Response.json({
     result: {
       id: r.id,
       title: r.title_sv || r.title_en || "Utan titel",
       artist: parseArtist(r.artists),
-      imageUrl: iiif + "full/800,/0/default.jpg",
+      imageUrl: buildImageUrl(r.iiif_url, 800),
       color: r.dominant_color || "#D4CDC3",
       year: r.dating_text || r.year_start || "",
       technique: r.technique_material || "",

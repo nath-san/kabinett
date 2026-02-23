@@ -1,5 +1,7 @@
 import { getDb } from "./db.server";
 import { clipSearch } from "./clip-search.server";
+import { buildImageUrl } from "./images";
+import { sourceFilter } from "./museums.server";
 
 type FeedItemRow = {
   id: number;
@@ -11,6 +13,7 @@ type FeedItemRow = {
   dominant_color: string | null;
   category: string | null;
   technique_material: string | null;
+  museum_name: string | null;
 };
 
 export type FeedItem = {
@@ -23,6 +26,7 @@ export type FeedItem = {
   category: string | null;
   technique_material: string | null;
   imageUrl: string;
+  museum_name: string | null;
 };
 
 const COLOR_TARGETS: Record<string, { r: number; g: number; b: number }> = {
@@ -57,10 +61,6 @@ const MOOD_QUERIES: Record<string, { clip: string; fts: string }> = {
   },
 };
 
-function toImageUrl(iiif: string, width: number) {
-  return iiif.replace("http://", "https://") + `full/${width},/0/default.jpg`;
-}
-
 function mapRows(rows: FeedItemRow[]): FeedItem[] {
   return rows.map((row) => ({
     id: row.id,
@@ -71,7 +71,8 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
     dominant_color: row.dominant_color || "#1A1815",
     category: row.category,
     technique_material: row.technique_material,
-    imageUrl: toImageUrl(row.iiif_url, 800),
+    imageUrl: buildImageUrl(row.iiif_url, 800),
+    museum_name: row.museum_name,
   }));
 }
 
@@ -112,8 +113,12 @@ export async function fetchFeed(options: {
       const order = `CASE id ${ids.map((id, index) => `WHEN ${id} THEN ${index}`).join(" ")} END`;
       const rows = db
         .prepare(
-          `SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material
-           FROM artworks WHERE id IN (${ids.map(() => "?").join(",")})
+          `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                  m.name as museum_name
+           FROM artworks a
+           LEFT JOIN museums m ON m.id = a.source
+           WHERE a.id IN (${ids.map(() => "?").join(",")})
+             AND ${sourceFilter("a")}
            ORDER BY ${order}`
         )
         .all(...ids) as FeedItemRow[];
@@ -128,10 +133,13 @@ export async function fetchFeed(options: {
 
     const rows = db
       .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material
+        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                m.name as museum_name
          FROM artworks_fts f
          JOIN artworks a ON a.id = f.rowid
+         LEFT JOIN museums m ON m.id = a.source
          WHERE f MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+           AND ${sourceFilter("a")}
          ORDER BY bm25(f)
          LIMIT ? OFFSET ?`
       )
@@ -149,6 +157,7 @@ export async function fetchFeed(options: {
     "a.iiif_url IS NOT NULL",
     "LENGTH(a.iiif_url) > 90",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
+    sourceFilter("a"),
   ];
   const params: Array<string | number> = [];
   let orderBy = "a.id ASC";
@@ -202,8 +211,11 @@ export async function fetchFeed(options: {
     const offset = Math.max(0, cursor || 0);
     rows = db
       .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material
-         FROM ${tablePrefix} WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
+        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                m.name as museum_name
+         FROM ${tablePrefix}
+         LEFT JOIN museums m ON m.id = a.source
+         WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
       )
       .all(...params, limit, offset) as FeedItemRow[];
 
@@ -217,8 +229,11 @@ export async function fetchFeed(options: {
 
   rows = db
     .prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material
-       FROM ${tablePrefix} WHERE ${where} ORDER BY ${orderBy} LIMIT ?`
+      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+              m.name as museum_name
+       FROM ${tablePrefix}
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE ${where} ORDER BY ${orderBy} LIMIT ?`
     )
     .all(...params, limit) as FeedItemRow[];
 

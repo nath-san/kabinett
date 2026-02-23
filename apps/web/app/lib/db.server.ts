@@ -22,6 +22,7 @@ export interface ArtworkRow {
   id: number;
   title_sv: string;
   title_en: string | null;
+  source: string | null;
   category: string | null;
   technique_material: string | null;
   artists: string | null;

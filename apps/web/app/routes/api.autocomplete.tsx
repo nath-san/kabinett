@@ -1,4 +1,5 @@
 import { getDb } from "../lib/db.server";
+import { sourceFilter } from "../lib/museums.server";
 import type { Route } from "./+types/api.autocomplete";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -19,6 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          FROM artworks_fts f
          JOIN artworks a ON a.id = f.rowid
          WHERE artworks_fts MATCH ?
+           AND ${sourceFilter("a")}
          ORDER BY rank
          LIMIT 20`
       )
@@ -48,7 +50,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     // Categories
     const cats = db.prepare(
-      `SELECT DISTINCT category as value FROM artworks WHERE category LIKE ? LIMIT 2`
+      `SELECT DISTINCT category as value
+       FROM artworks
+       WHERE category LIKE ?
+         AND ${sourceFilter()}
+       LIMIT 2`
     ).all(`%${q}%`) as any[];
     for (const c of cats) {
       if (c.value && !seen.has(`c:${c.value}`)) {

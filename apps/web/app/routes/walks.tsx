@@ -1,10 +1,12 @@
 import type { Route } from "./+types/walks";
 import { getDb } from "../lib/db.server";
+import { buildImageUrl } from "../lib/images";
+import { sourceFilter } from "../lib/museums.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Vandringar — Kabinett" },
-    { name: "description", content: "Curaterade vandringar genom Nationalmuseums samling." },
+    { name: "description", content: "Curaterade vandringar genom svenska museers samlingar." },
   ];
 }
 
@@ -50,6 +52,7 @@ export async function loader({ request }: Route.LoaderArgs) {
      WHERE wi.walk_id = ?
        AND a.iiif_url IS NOT NULL
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceFilter("a")}
      ORDER BY RANDOM()
      LIMIT 1`
   );
@@ -59,7 +62,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     try {
       const row = previewStmt.get(w.id) as any;
       if (row?.iiif_url) {
-        previewUrl = row.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg";
+        previewUrl = buildImageUrl(row.iiif_url, 800);
       }
     } catch {
       previewUrl = null;
@@ -89,10 +92,11 @@ export async function loader({ request }: Route.LoaderArgs) {
         .prepare(
           `SELECT wi.position, wi.narrative_text,
                   a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
-           FROM walk_items wi
-           JOIN artworks a ON a.id = wi.artwork_id
-           WHERE wi.walk_id = ?
-           ORDER BY wi.position ASC`
+          FROM walk_items wi
+          JOIN artworks a ON a.id = wi.artwork_id
+          WHERE wi.walk_id = ?
+            AND ${sourceFilter("a")}
+          ORDER BY wi.position ASC`
         )
         .all(walk.id) as WalkArtwork[];
     }
@@ -160,7 +164,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
           <div className="pt-12 px-4 pb-10 relative md:px-6" style={{ backgroundColor: walkInfo.color }}>
             {artworks[0] && (
               <img
-                src={artworks[0].iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg"}
+                src={buildImageUrl(artworks[0].iiif_url, 800)}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover opacity-25"
               />
@@ -192,7 +196,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   className="block rounded-2xl overflow-hidden bg-linen mb-4 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
                 >
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
-                    <img src={a.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg"}
+                    <img src={buildImageUrl(a.iiif_url, 800)}
                       alt={a.title_sv || ""} width={800} height={600}
                       onError={(e: any) => { e.target.classList.add("hidden"); }}
                       loading="lazy" className="w-full block" />

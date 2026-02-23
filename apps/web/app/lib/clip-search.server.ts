@@ -1,4 +1,6 @@
 import { getDb } from "./db.server";
+import { buildImageUrl } from "./images";
+import { sourceFilter } from "./museums.server";
 import {
   AutoTokenizer,
   CLIPTextModelWithProjection,
@@ -134,6 +136,8 @@ export type ClipResult = {
   year: string;
   color: string;
   similarity: number;
+  museum_name: string | null;
+  source: string | null;
 };
 
 type CachedEmbedding = {
@@ -145,6 +149,8 @@ type CachedEmbedding = {
   year: string;
   color: string;
   embedding: Float32Array;
+  museum_name: string | null;
+  source: string | null;
 };
 
 let textModelPromise: Promise<{ tokenizer: any; textModel: any }> | null = null;
@@ -195,23 +201,28 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
   embeddingCachePromise = (async () => {
     const db = getDb();
     const rows = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text, c.embedding
-       FROM clip_embeddings c JOIN artworks a ON a.id = c.artwork_id`
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.source, m.name as museum_name, c.embedding
+       FROM clip_embeddings c
+       JOIN artworks a ON a.id = c.artwork_id
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE ${sourceFilter("a")}`
     ).all() as any[];
 
     const mapped = rows.map((r) => {
       const buffer: Buffer = r.embedding;
       const view = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4);
-      const iiif = r.iiif_url.replace("http://", "https://");
       return {
         id: r.id,
         title: r.title_sv || r.title_en || "Utan titel",
         artist: parseArtist(r.artists),
-        imageUrl: iiif + "full/400,/0/default.jpg",
-        heroUrl: iiif + "full/800,/0/default.jpg",
+        imageUrl: buildImageUrl(r.iiif_url, 400),
+        heroUrl: buildImageUrl(r.iiif_url, 800),
         year: r.dating_text || "",
         color: r.dominant_color || "#D4CDC3",
         embedding: new Float32Array(view),
+        museum_name: r.museum_name ?? null,
+        source: r.source ?? null,
       } as CachedEmbedding;
     });
 
@@ -223,13 +234,14 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
   return embeddingCachePromise;
 }
 
-export async function clipSearch(q: string, limit = 60, offset = 0): Promise<ClipResult[]> {
+export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
   const [{ tokenizer, textModel }, cache] = await Promise.all([
     getTextModel(),
     loadEmbeddingCache(),
   ]);
 
-  if (cache.length === 0) return [];
+  const scoped = source ? cache.filter((item) => item.source === source) : cache;
+  if (scoped.length === 0) return [];
 
   // Try async translation first, fallback to sync lookup
   let translatedQuery: string;
@@ -242,7 +254,7 @@ export async function clipSearch(q: string, limit = 60, offset = 0): Promise<Cli
   const { text_embeds } = await textModel(textInputs);
   const queryEmbedding = normalize(new Float32Array(text_embeds.data));
 
-  const scored = cache.map((item) => ({
+  const scored = scoped.map((item) => ({
     item,
     score: dot(queryEmbedding, item.embedding),
   }));
@@ -258,5 +270,7 @@ export async function clipSearch(q: string, limit = 60, offset = 0): Promise<Cli
     year: item.year,
     color: item.color,
     similarity: score,
+    museum_name: item.museum_name ?? null,
+    source: item.source ?? null,
   }));
 }

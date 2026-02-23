@@ -1,5 +1,6 @@
 import type { Route } from "./+types/api.color-search";
 import { getDb } from "../lib/db.server";
+import { sourceFilter } from "../lib/museums.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -13,6 +14,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
      FROM artworks
      WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL
+       AND ${sourceFilter()}
      ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
      LIMIT ?`
   ).all(r, g, b, limit) as any[];

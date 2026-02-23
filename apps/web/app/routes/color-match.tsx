@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "./+types/color-match";
+import { buildImageUrl } from "../lib/images";
 
 export function meta() {
   return [
@@ -22,7 +23,7 @@ function parseArtist(json: string | null): string {
 }
 
 function iiif(url: string, size: number) {
-  return url.replace("http://", "https://") + `full/${size},/0/default.jpg`;
+  return buildImageUrl(url, size);
 }
 
 function hexToRgb(hex: string) {
