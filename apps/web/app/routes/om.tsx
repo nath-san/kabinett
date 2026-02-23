@@ -33,16 +33,16 @@ export async function loader() {
   };
 
   const collections = db.prepare(`
-    SELECT COALESCE(a.sub_museum, m.name) as name, a.source as id, COUNT(*) as cnt
+    SELECT COALESCE(a.sub_museum, m.name) as coll_name, a.source as id, COUNT(*) as cnt
     FROM artworks a
     LEFT JOIN museums m ON m.id = a.source
     WHERE ${sourceFilter("a")}
       AND COALESCE(a.sub_museum, m.name) IS NOT NULL
       AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
-    GROUP BY name
+    GROUP BY coll_name
     ORDER BY cnt DESC
   `).all() as Array<{ name: string; id: string; cnt: number }>;
-  const museums = collections.map((row) => ({ id: row.id, name: row.name }));
+  const museums = collections.map((row: any) => ({ id: row.id, name: row.coll_name }));
 
   return { stats, museums };
 }
