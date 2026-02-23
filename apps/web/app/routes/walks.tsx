@@ -136,11 +136,11 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
         <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/walks?walk=" + w.slug}
-              className="block relative overflow-hidden rounded-2xl h-40 no-underline"
+              className="block relative overflow-hidden rounded-2xl h-40 no-underline focus-ring"
               style={{ backgroundColor: w.color }}
             >
               {w.previewUrl && (
-                <img src={w.previewUrl} alt=""
+                <img src={w.previewUrl} alt="" role="presentation"
                   className="absolute inset-0 w-full h-full object-cover opacity-60" />
               )}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
@@ -166,11 +166,12 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
               <img
                 src={buildImageUrl(artworks[0].iiif_url, 800)}
                 alt=""
+                role="presentation"
                 className="absolute inset-0 w-full h-full object-cover opacity-25"
               />
             )}
             <div className="relative md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-0 lg:px-0">
-              <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
+              <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
                 ← Alla vandringar
               </a>
               <h1 className="font-serif text-[2rem] font-bold text-white mt-4 leading-[1.2]">
@@ -193,11 +194,11 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
             {artworks.map((a: WalkArtwork, i: number) => (
               <div key={a.id}>
                 <a href={"/artwork/" + a.id}
-                  className="block rounded-2xl overflow-hidden bg-linen mb-4 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)]"
+                  className="block rounded-2xl overflow-hidden bg-linen mb-4 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)] focus-ring"
                 >
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
                     <img src={buildImageUrl(a.iiif_url, 800)}
-                      alt={a.title_sv || ""} width={800} height={600}
+                      alt={`${a.title_sv || a.title_en || "Utan titel"} — ${parseArtist(a.artists)}`} width={800} height={600}
                       onError={(e: any) => { e.target.classList.add("hidden"); }}
                       loading="lazy" className="w-full block" />
                   </div>

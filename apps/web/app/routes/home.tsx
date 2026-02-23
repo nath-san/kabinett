@@ -73,6 +73,11 @@ export function meta({ data }: Route.MetaArgs) {
   return tags;
 }
 
+export const links: Route.LinksFunction = ({ data }) => {
+  if (!data?.canonicalUrl) return [];
+  return [{ rel: "canonical", href: data.canonicalUrl }];
+};
+
 export function headers() {
   return { "Cache-Control": "private, no-store" };
 }
@@ -147,6 +152,7 @@ const CURATED_POOL = [
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
+  const canonicalUrl = `${url.origin}${url.pathname}`;
   const enabledMuseums = getEnabledMuseums();
 
   // Load curated hero artworks first
@@ -209,6 +215,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
     ogImageUrl,
+    canonicalUrl,
+    origin: url.origin,
   };
 }
 
@@ -222,6 +230,18 @@ function iiif(url: string, size: number): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Kabinett",
+    url: loaderData.canonicalUrl,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${loaderData.origin}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
@@ -330,6 +350,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+      />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {feed.map((entry, i) =>
@@ -365,12 +389,12 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
+      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card focus-ring ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
         src={item.imageUrl}
-        alt={item.title_sv || ""}
+        alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
         loading={eager ? "eager" : "lazy"}
         decoding="auto"
         fetchPriority={eager ? "high" : undefined}
@@ -421,6 +445,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
         }}
         className={[
           "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-[2.2rem] h-[2.2rem] lg:w-[2.5rem] lg:h-[2.5rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
+          "focus-ring",
           saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
           pulsing ? "heart-pulse" : "",
         ].join(" ")}
@@ -462,7 +487,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
       </div>
       <a
         href="/discover"
-        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em]"
+        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em] focus-ring"
       >
         Upptäck samlingen →
       </a>
@@ -493,7 +518,7 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start lg:snap-none"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start lg:snap-none focus-ring"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div
@@ -502,8 +527,10 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
             >
               <img
                 src={iiif(item.iiif_url, 400)}
-                alt={item.title_sv || ""}
+                alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
                 loading="lazy"
+                width={400}
+                height={533}
                 onLoad={(e) => {
                   const img = e.currentTarget;
                   img.classList.remove("opacity-0");
@@ -531,7 +558,7 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
       </div>
 
       {/* "Visa fler" link */}
-      <a href={`/search?q=${encodeURIComponent(section.filter || section.title)}`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
+      <a href={`/search?q=${encodeURIComponent(section.filter || section.title)}`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
         Visa fler →
       </a>
     </div>

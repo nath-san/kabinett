@@ -8,6 +8,11 @@ function buildIiif(url: string, size: number) {
   return buildImageUrl(url, size);
 }
 
+function parseArtist(json: string | null): string {
+  if (!json) return "Okänd konstnär";
+  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
+}
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Ditt konstverk — Kabinett" },
@@ -21,7 +26,7 @@ export async function loader({}: Route.LoaderArgs) {
   const moodSamples = {
     dark: db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE (color_r + color_g + color_b) / 3 < 90
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -33,7 +38,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     light: db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE (color_r + color_g + color_b) / 3 > 170
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -45,7 +50,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     dramatic: db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) > 80
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -57,7 +62,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     calm: db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -72,7 +77,7 @@ export async function loader({}: Route.LoaderArgs) {
   const epochSamples = {
     "1500s": db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE year_start BETWEEN 1500 AND 1599
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -84,7 +89,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     "1600s": db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE year_start BETWEEN 1600 AND 1699
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -96,7 +101,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     "1700s": db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE year_start BETWEEN 1700 AND 1799
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -108,7 +113,7 @@ export async function loader({}: Route.LoaderArgs) {
       .get() as any,
     "1800s": db
       .prepare(
-        `SELECT id, iiif_url FROM artworks
+        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
          WHERE year_start BETWEEN 1800 AND 1899
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -122,7 +127,7 @@ export async function loader({}: Route.LoaderArgs) {
 
   function subjectSample(ftsQuery: string) {
     return db.prepare(
-      `SELECT a.id, a.iiif_url FROM artworks_fts f
+      `SELECT a.id, a.iiif_url, a.title_sv, a.title_en, a.artists FROM artworks_fts f
        JOIN artworks a ON a.id = f.rowid
        WHERE artworks_fts MATCH ?
          AND a.iiif_url IS NOT NULL
@@ -142,8 +147,12 @@ export async function loader({}: Route.LoaderArgs) {
   };
 
   function mapSample(row: any) {
-    if (!row?.iiif_url) return "";
-    return buildIiif(row.iiif_url, 400);
+    if (!row?.iiif_url) return null;
+    return {
+      url: buildIiif(row.iiif_url, 400),
+      title: row.title_sv || row.title_en || "Utan titel",
+      artist: parseArtist(row.artists || null),
+    };
   }
 
   return {
@@ -322,13 +331,13 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
         <div className="px-(--spacing-page) pb-6">
           <div className="bg-linen rounded-3xl p-4 flex flex-col md:flex-row gap-4 items-center">
             <div className="w-full md:w-32 aspect-[3/4] rounded-2xl overflow-hidden" style={{ backgroundColor: lastResult.color }}>
-              <img src={lastResult.imageUrl} alt={lastResult.title} className="w-full h-full object-cover" loading="lazy" />
+              <img src={lastResult.imageUrl} alt={`${lastResult.title} — ${lastResult.artist}`} className="w-full h-full object-cover" loading="lazy" width={400} height={533} />
             </div>
             <div className="flex-1">
               <p className="text-xs uppercase tracking-[0.2em] text-stone">Ditt senaste</p>
               <h2 className="font-serif text-2xl text-charcoal mt-2">{lastResult.title}</h2>
               <p className="text-sm text-warm-gray mt-1">{lastResult.artist}</p>
-              <a href={`/artwork/${lastResult.id}`} className="text-sm text-accent mt-3 inline-block">
+              <a href={`/artwork/${lastResult.id}`} className="text-sm text-accent mt-3 inline-block focus-ring">
                 Se verket
               </a>
             </div>
@@ -431,14 +440,14 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
                       type="button"
                       onClick={submitQuiz}
                       disabled={loading}
-                      className="px-6 py-4 rounded-full bg-charcoal text-cream text-sm font-medium disabled:opacity-50"
+                      className="px-6 py-4 rounded-full bg-charcoal text-cream text-sm font-medium disabled:opacity-50 focus-ring"
                     >
-                      {loading ? "Söker ditt verk..." : "Hitta mitt konstverk"}
+                      {loading ? "Söker ditt verk…" : "Hitta mitt konstverk"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setStep(3)}
-                      className="px-6 py-4 rounded-full bg-cream text-charcoal text-sm font-medium"
+                      className="px-6 py-4 rounded-full bg-cream text-charcoal text-sm font-medium focus-ring"
                     >
                       Tillbaka
                     </button>
@@ -459,20 +468,20 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
             <h2 className="font-serif text-4xl md:text-5xl text-cream mt-3">{result.title}</h2>
             <p className="text-sm text-stone mt-2">{result.artist}</p>
             <div className="mt-6 w-full max-w-sm rounded-3xl overflow-hidden" style={{ backgroundColor: result.color }}>
-              <img src={result.imageUrl} alt={result.title} className="w-full h-[60vh] object-cover" />
+              <img src={result.imageUrl} alt={`${result.title} — ${result.artist}`} className="w-full h-[60vh] object-cover" />
             </div>
             <div className="mt-6 flex flex-col md:flex-row gap-3">
               <button
                 type="button"
                 onClick={shareResult}
-                className="px-6 py-3 rounded-full bg-cream text-charcoal text-sm font-medium"
+                className="px-6 py-3 rounded-full bg-cream text-charcoal text-sm font-medium focus-ring"
               >
                 Dela ditt resultat
               </button>
               <button
                 type="button"
                 onClick={resetQuiz}
-                className="px-6 py-3 rounded-full bg-transparent border border-cream/50 text-cream text-sm font-medium"
+                className="px-6 py-3 rounded-full bg-transparent border border-cream/50 text-cream text-sm font-medium focus-ring"
               >
                 Prova igen
               </button>
@@ -487,7 +496,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
 type QuestionOption = {
   id: string;
   label: string;
-  image?: string;
+  image?: { url: string; title: string; artist: string } | null;
   color?: string;
   size?: string;
 };
@@ -514,12 +523,19 @@ function Question({ title, subtitle, options, selected, onSelect, footer }: Ques
               key={option.id}
               type="button"
               onClick={() => onSelect(option.id)}
-              className={`relative rounded-3xl overflow-hidden aspect-[3/4] border transition-all ${
+              className={`relative rounded-3xl overflow-hidden aspect-[3/4] border transition-all focus-ring ${
                 isActive ? "border-charcoal shadow-xl" : "border-transparent"
               }`}
             >
               {option.image ? (
-                <img src={option.image} alt={option.label} className="w-full h-full object-cover" loading="lazy" />
+                <img
+                  src={option.image.url}
+                  alt={`${option.image.title} — ${option.image.artist}`}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  width={400}
+                  height={533}
+                />
               ) : option.color ? (
                 <div className="w-full h-full" style={{ backgroundColor: option.color }} />
               ) : option.size ? (

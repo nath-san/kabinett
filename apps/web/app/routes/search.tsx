@@ -171,7 +171,7 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
         }
         dropdown.classList.remove("hidden");
         dropdown.innerHTML = data.map((s: any, i: number) =>
-          `<div class="ac-item px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}">
+          `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}" role="button" tabindex="0">
             <span class="text-charcoal truncate">${s.value}</span>
             <span class="text-xs text-stone ml-2 shrink-0">${TYPE_LABELS[s.type] || ""}</span>
           </div>`
@@ -196,22 +196,39 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
     }
   }, []);
 
+  const handleDropdownKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.classList.contains("ac-item")) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    const val = target.dataset.value || "";
+    const dropdown = dropdownRef.current;
+    if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
+    if (formRef.current) {
+      const inp = formRef.current.querySelector("input[name=q]") as HTMLInputElement;
+      if (inp) inp.value = val;
+      formRef.current.submit();
+    }
+  }, []);
+
   return (
     <>
       <form ref={formRef} action="/search" method="get" className="mt-4">
         <div className="flex gap-2">
           {museum && <input type="hidden" name="museum" value={museum} />}
+          <label htmlFor="search-input" className="sr-only">Sök</label>
           <input
+            id="search-input"
             type="search" name="q"
             defaultValue={defaultValue}
             onInput={(e) => fetchSuggestions((e.target as HTMLInputElement).value)}
-            placeholder="Konstnär, titel, teknik..."
+            placeholder="Konstnär, titel, teknik…"
             autoComplete="off"
             className="flex-1 px-4 py-3 rounded-xl bg-linen text-charcoal placeholder:text-stone
-                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none"
+                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring"
           />
           <button type="submit"
-            className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0">
+            className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0 focus-ring">
             Sök
           </button>
         </div>
@@ -219,6 +236,8 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
       <div
         ref={dropdownRef}
         onPointerDown={handleDropdownClick}
+        onKeyDown={handleDropdownKeyDown}
+        role="listbox"
         className="hidden mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
       />
     </>
@@ -226,21 +245,23 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
 }
 
 function ResultCard({ r, showMuseumBadge }: { r: any; showMuseumBadge: boolean }) {
+  const title = r.title || r.title_sv || r.title_en || "Utan titel";
+  const artist = r.artist || parseArtist(r.artists);
   return (
     <a key={r.id} href={`/artwork/${r.id}`}
-      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
+      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group focus-ring">
       <div
         style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
         className="overflow-hidden aspect-[3/4]"
       >
         <img src={r.imageUrl || (r.iiif_url ? buildImageUrl(r.iiif_url, 400) : "")}
-          alt={r.title || r.title_sv || ""} width={400} height={533}
+          alt={`${title} — ${artist}`} width={400} height={533}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       </div>
       <div className="p-3">
         <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
-          {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
-        <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
+          {title}</p>
+        <p className="text-xs text-warm-gray mt-1">{artist}</p>
         {showMuseumBadge && r.museum_name && (
           <p className="text-[0.65rem] text-warm-gray mt-0.5">{r.museum_name}</p>
         )}
@@ -321,6 +342,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 href={buildSearchUrl()}
                 className={[
                   "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  "focus-ring",
                   museum
                     ? "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal"
                     : "bg-charcoal text-cream",
@@ -334,6 +356,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   href={buildSearchUrl(option.id)}
                   className={[
                     "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                    "focus-ring",
                     museum === option.id
                       ? "bg-charcoal text-cream"
                       : "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal",
@@ -353,7 +376,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
                 <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
                   className="px-3 py-1.5 rounded-full bg-linen text-warm-gray text-sm font-medium
-                             hover:bg-stone hover:text-charcoal transition-colors">{s}</a>
+                             hover:bg-stone hover:text-charcoal transition-colors focus-ring">{s}</a>
               ))}
             </div>
           </div>
@@ -376,7 +399,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           )}
           {hasMore && (
             <div ref={sentinelRef} className="text-center mt-8 py-4">
-              {loading && <p className="text-sm text-warm-gray">Laddar fler...</p>}
+              {loading && <p className="text-sm text-warm-gray">Laddar fler…</p>}
             </div>
           )}
         </div>

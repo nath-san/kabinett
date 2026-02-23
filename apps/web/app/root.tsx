@@ -22,6 +22,9 @@ export function headers() {
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "preconnect", href: "https://nationalmuseumse.iiifhosting.com" },
+  { rel: "preconnect", href: "https://media.samlingar.shm.se" },
+  { rel: "preconnect", href: "https://ems.dimu.org" },
   {
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap",
@@ -34,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#3D3831" />
+        <meta name="theme-color" content="#FAF7F2" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="manifest" href="/manifest.json" />
@@ -44,8 +47,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="bg-cream text-ink font-sans antialiased m-0">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-cream focus:text-ink focus:px-4 focus:py-2 focus:rounded-full focus:shadow-lg focus-ring"
+        >
+          Hoppa till innehåll
+        </a>
         <Header />
-        <main className="app-main pb-[4.5rem] lg:pb-8">{children}</main>
+        <main id="main-content" className="app-main pb-[4.5rem] lg:pb-8">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
@@ -98,12 +107,13 @@ function Header() {
       ].join(" ")}
     >
       <nav
+        aria-label="Huvudnavigering"
         className="flex items-center justify-between px-4 h-[3.5rem] max-w-6xl mx-auto"
       >
         <a
           href="/"
           className={[
-            "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline",
+            "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline focus-ring",
             isHome ? "text-[#F5F0E8]" : "text-charcoal",
           ].join(" ")}
         >
@@ -115,19 +125,19 @@ function Header() {
             isHome ? "text-[rgba(245,240,232,0.85)]" : "text-warm-gray",
           ].join(" ")}
         >
-          <a href="/discover" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+          <a href="/discover" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
             Upptäck
           </a>
-          <a href="/timeline" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+          <a href="/timeline" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
             Tidslinje
           </a>
-          <a href="/search" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+          <a href="/search" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
             Sök
           </a>
-          <a href="/favorites" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+          <a href="/favorites" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
             Sparade
           </a>
-          <a href="/om" className={isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"}>
+          <a href="/om" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
             Om
           </a>
         </div>
@@ -221,6 +231,7 @@ function BottomNav() {
 
   return (
     <nav
+      aria-label="Primär navigation"
       className={[
         "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
         isDark
@@ -235,19 +246,22 @@ function BottomNav() {
           const color = tab.active
             ? (isDark ? "#F5F0E8" : "#3D3831")
             : (isDark ? "rgba(245,240,232,0.4)" : "rgba(61,56,49,0.35)");
+          const labelClass = tab.active
+            ? (isDark ? "text-[#F5F0E8]" : "text-charcoal")
+            : (isDark ? "text-[rgba(245,240,232,0.4)]" : "text-[rgba(61,56,49,0.35)]");
           return (
             <a
               key={tab.href}
               href={tab.href}
-              className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2"
+              className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2 focus-ring"
             >
               {tab.icon(color)}
               <span
                 className={[
                   "text-[0.6rem] tracking-[0.01em]",
                   tab.active ? "font-semibold" : "font-normal",
+                  labelClass,
                 ].join(" ")}
-                style={{ color }}
               >
                 {tab.label}
               </span>

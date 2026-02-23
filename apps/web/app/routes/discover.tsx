@@ -25,6 +25,8 @@ type Collection = {
   query: string;
   clipQuery: string;
   imageUrl?: string;
+  imageTitle?: string;
+  imageArtist?: string;
   color?: string;
 };
 
@@ -51,7 +53,7 @@ export async function loader() {
     const terms = c.query.split(" ").join(" OR ");
     try {
       const rows = db.prepare(`
-        SELECT a.iiif_url, a.dominant_color FROM artworks_fts f
+        SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts f
         JOIN artworks a ON a.id = f.rowid
         WHERE artworks_fts MATCH ?
           AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
@@ -61,7 +63,13 @@ export async function loader() {
         ORDER BY RANDOM() LIMIT 1
       `).all(terms) as any[];
       const row = rows[0];
-      return { ...c, imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 400) : undefined, color: row?.dominant_color || "#2B2A27" };
+      return {
+        ...c,
+        imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 400) : undefined,
+        imageTitle: row?.title_sv || row?.title_en || "Utan titel",
+        imageArtist: parseArtist(row?.artists || null),
+        color: row?.dominant_color || "#2B2A27",
+      };
     } catch {
       return { ...c, color: "#2B2A27" };
     }
@@ -69,7 +77,7 @@ export async function loader() {
 
   // Quiz image
   const quizImg = db.prepare(`
-    SELECT iiif_url FROM artworks
+    SELECT iiif_url, title_sv, title_en, artists FROM artworks
     WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
@@ -97,7 +105,7 @@ export async function loader() {
   // Get a sample artwork for each top artist
   const artistsWithImages = topArtists.map((a: any) => {
     const row = db.prepare(`
-      SELECT id, iiif_url, dominant_color FROM artworks
+      SELECT id, iiif_url, dominant_color, title_sv, title_en, artists FROM artworks
       WHERE json_extract(artists, '$[0].name') = ?
         AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
         AND id NOT IN (SELECT artwork_id FROM broken_images)
@@ -108,6 +116,8 @@ export async function loader() {
       name: a.name,
       count: a.cnt,
       imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 300) : undefined,
+      imageTitle: row?.title_sv || row?.title_en || "Utan titel",
+      imageArtist: parseArtist(row?.artists || null),
       color: row?.dominant_color || "#D4CDC3",
     };
   });
@@ -147,7 +157,13 @@ export async function loader() {
 
   return {
     collections,
-    quizImage: quizImg?.iiif_url ? buildIiif(quizImg.iiif_url, 600) : undefined,
+    quizImage: quizImg?.iiif_url
+      ? {
+          url: buildIiif(quizImg.iiif_url, 600),
+          title: quizImg?.title_sv || quizImg?.title_en || "Utan titel",
+          artist: parseArtist(quizImg?.artists || null),
+        }
+      : undefined,
     topArtists: artistsWithImages,
     stats: { ...stats, yearsSpan },
     museums: museumList,
@@ -161,9 +177,9 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-16 bg-cream">
       <div className="md:max-w-4xl lg:max-w-5xl md:mx-auto md:px-4 lg:px-6">
         {/* Hero — Quiz CTA */}
-        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline">
+        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline focus-ring">
           {quizImage && (
-            <img src={quizImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={quizImage.url} alt={`${quizImage.title} — ${quizImage.artist}`} className="absolute inset-0 w-full h-full object-cover" />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
           <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
@@ -187,13 +203,20 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(c.query)}`}
                 className={[
-                  "relative rounded-[14px] overflow-hidden no-underline",
+                  "relative rounded-[14px] overflow-hidden no-underline focus-ring",
                   i < 2 ? "aspect-[4/3]" : "aspect-square",
                 ].join(" ")}
                 style={{ backgroundColor: c.color || "#2B2A27" }}
               >
                 {c.imageUrl && (
-                  <img src={c.imageUrl} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                  <img
+                    src={c.imageUrl}
+                    alt={`${c.imageTitle || "Utan titel"} — ${c.imageArtist || "Okänd konstnär"}`}
+                    loading="lazy"
+                    width={400}
+                    height={i < 2 ? 300 : 400}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
                 <div className="absolute bottom-0 left-0 right-0 py-[0.7rem] px-[0.8rem]">
@@ -214,11 +237,18 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
               <a
                 key={a.name}
                 href={`/artist/${encodeURIComponent(a.name)}`}
-                className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center"
+                className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center focus-ring"
               >
                 <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
                   {a.imageUrl && (
-                    <img src={a.imageUrl} alt={a.name} loading="lazy" className="w-full h-full object-cover" />
+                    <img
+                      src={a.imageUrl}
+                      alt={`${a.imageTitle || "Utan titel"} — ${a.imageArtist || a.name}`}
+                      loading="lazy"
+                      width={300}
+                      height={300}
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
                 <p className="text-[0.7rem] font-medium text-charcoal mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
@@ -250,7 +280,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 <a
                   key={museum.id}
                   href={`/samling/${encodeURIComponent(museum.name)}`}
-                  className="rounded-[14px] bg-linen p-4 no-underline hover:bg-[#E5E1DA] transition-colors"
+                  className="rounded-[14px] bg-linen p-4 no-underline hover:bg-[#E5E1DA] transition-colors focus-ring"
                 >
                   <p className="text-[0.9rem] font-medium text-charcoal">{museum.name}</p>
                   <p className="text-[0.7rem] text-warm-gray mt-1">
@@ -280,7 +310,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
 function ToolLink({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 rounded-[14px] bg-[#EDEAE4] no-underline">
+    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 rounded-[14px] bg-[#EDEAE4] no-underline focus-ring">
       <div className="flex-1">
         <p className="text-[0.88rem] font-medium text-ink m-0">{title}</p>
         <p className="text-[0.72rem] text-[#7A7268] mt-[0.1rem]">{desc}</p>

@@ -26,6 +26,11 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
+export const links: Route.LinksFunction = ({ data }) => {
+  if (!data?.canonicalUrl) return [];
+  return [{ rel: "canonical", href: data.canonicalUrl }];
+};
+
 function parseDimensions(json: string | null): string | null {
   if (!json) return null;
   try {
@@ -48,7 +53,8 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
   } catch { return []; }
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
+  const url = new URL(request.url);
   const db = getDb();
   const row = db
     .prepare(
@@ -159,7 +165,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       ).all(row.id, `%${artistName}%`) as any[])
     : [];
 
-  return { artwork, similar, sameArtist, artistName };
+  return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
 }
 
 function parseArtist(json: string | null): string {
@@ -170,9 +176,26 @@ function parseArtist(json: string | null): string {
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {
   const { artwork, similar, sameArtist, artistName } = loaderData;
+  const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const artworkJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VisualArtwork",
+    name: artwork.title,
+    image: artwork.imageUrl,
+    creator: { "@type": "Person", name: artist },
+    dateCreated: artwork.datingText || undefined,
+    artform: artwork.category || undefined,
+    artMedium: artwork.techniqueMaterial || undefined,
+    description: artwork.description || artwork.ogDescription || undefined,
+    url: loaderData.canonicalUrl,
+  };
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(artworkJsonLd) }}
+      />
       {/* Hero image with color bg */}
       <div
         className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
@@ -180,7 +203,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       >
         <img
           src={artwork.imageUrl}
-          alt={artwork.title}
+          alt={`${artwork.title} — ${artist}`}
           className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
@@ -197,7 +220,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               <span key={i}>
                 {i > 0 && ", "}
                 <a href={"/artist/" + encodeURIComponent(a.name)}
-                  className="text-warm-gray no-underline border-b border-stone">
+                  className="text-warm-gray no-underline border-b border-stone focus-ring">
                   {a.name}
                 </a>
               </span>
@@ -215,7 +238,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             {artwork.collectionName ? (
               <a
                 href={`/samling/${encodeURIComponent(artwork.collectionName)}`}
-                className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors"
+                className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors focus-ring"
               >
                 {artwork.collectionName}
               </a>
@@ -310,13 +333,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   (window as any).__toast?.("Länk kopierad");
                 }
               }}
-              className="py-2 px-4 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium"
+              className="py-2 px-4 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium focus-ring"
             >
               Dela
             </button>
             {artwork.museumSiteUrl && (
               <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[0.8rem] text-warm-gray no-underline">
+                className="text-[0.8rem] text-warm-gray no-underline focus-ring">
                 {`Visa på ${artwork.museumName}`} →
               </a>
             )}
@@ -332,13 +355,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {sameArtist.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline">
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
                 <div
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
                   <img src={buildImageUrl(s.iiif_url, 200)}
-                    alt={s.title_sv || ""} width={200} height={267}
+                    alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={200} height={267}
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">
@@ -360,13 +383,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {similar.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline">
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
                 <div
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
                   <img src={buildImageUrl(s.iiif_url, 200)}
-                    alt={s.title_sv || ""} width={200} height={267}
+                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={200} height={267}
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">
@@ -383,7 +406,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Back */}
       <div className="pt-10 pb-12 px-4 text-center">
-        <a href="/discover" className="text-[0.875rem] text-warm-gray no-underline">
+        <a href="/discover" className="text-[0.875rem] text-warm-gray no-underline focus-ring">
           ← Utforska mer
         </a>
       </div>

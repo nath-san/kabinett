@@ -157,7 +157,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
           <div className="mt-5 flex flex-wrap gap-3">
             <a
               href={`/search?museum=${encodeURIComponent(museum.id)}`}
-              className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full bg-ink text-cream text-[0.85rem] no-underline font-medium"
+              className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full bg-ink text-cream text-[0.85rem] no-underline font-medium focus-ring"
             >
               Utforska
             </a>
@@ -166,7 +166,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                 href={museum.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full border border-stone text-ink text-[0.85rem] no-underline font-medium"
+                className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full border border-stone text-ink text-[0.85rem] no-underline font-medium focus-ring"
               >
                 Besök webbplats
               </a>
@@ -175,6 +175,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
         </div>
 
         <section className="pt-8">
+          <h2 className="sr-only">Nyckeltal</h2>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
               <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
@@ -213,7 +214,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
             <h2 className="font-serif text-[1.4rem] text-charcoal">Utvalda verk</h2>
             <a
               href={`/search?museum=${encodeURIComponent(museum.id)}`}
-              className="text-[0.8rem] text-warm-gray no-underline"
+              className="text-[0.8rem] text-warm-gray no-underline focus-ring"
             >
               Se fler
             </a>
@@ -225,13 +226,15 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                 <a
                   key={item.id}
                   href={`/artwork/${item.id}`}
-                  className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint]"
+                  className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint] focus-ring"
                 >
                   <div className="relative aspect-[3/4]" style={{ backgroundColor: item.color }}>
                     <img
                       src={item.imageUrl}
-                      alt={item.title}
+                      alt={`${item.title} — ${item.artist}`}
                       loading="lazy"
+                      width={400}
+                      height={533}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />

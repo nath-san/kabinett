@@ -5,7 +5,7 @@
   --color-cream: #FAF7F2;
   --color-linen: #F0EBE3;
   --color-stone: #D4CDC3;
-  --color-warm-gray: #8C8478;
+  --color-warm-gray: #706A5F;
   --color-charcoal: #3D3831;
   --color-ink: #1A1815;
   --color-accent: #C4553A;
@@ -28,6 +28,12 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+@layer utilities {
+  .focus-ring {
+    @apply focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-cream;
+  }
 }
 
 /* Animations */

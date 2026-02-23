@@ -125,7 +125,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           removedRef.current = false;
         }
       }}
-      className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)]"
+      className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
     >
       <div
         className="aspect-[3/4]"
@@ -133,8 +133,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
       >
         <img
           src={item.imageUrl}
-          alt={item.title}
+          alt={`${item.title} — ${parseArtist(item.artists)}`}
           loading="lazy"
+          width={400}
+          height={533}
           className="w-full h-full object-cover"
         />
       </div>

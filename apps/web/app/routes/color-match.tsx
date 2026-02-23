@@ -163,7 +163,7 @@ export default function ColorMatch() {
           <button
             type="button"
             onClick={captureColor}
-            className="py-3 px-6 rounded-full border-0 bg-charcoal text-cream font-semibold cursor-pointer"
+            className="py-3 px-6 rounded-full border-0 bg-charcoal text-cream font-semibold cursor-pointer focus-ring"
           >
             Matcha färg
           </button>
@@ -191,7 +191,7 @@ export default function ColorMatch() {
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
                 aria-label={`Välj ${hex}`}
-                className="w-9 h-9 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer"
+                className="w-9 h-9 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
                 style={{ background: hex }}
               />
             ))}
@@ -204,7 +204,7 @@ export default function ColorMatch() {
                 setColor({ ...rgb, hex });
                 void fetchMatches(rgb.r, rgb.g, rgb.b);
               }}
-              className="w-10 h-9 border-0 bg-transparent p-0"
+              className="w-10 h-9 border-0 bg-transparent p-0 focus-ring"
             />
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function ColorMatch() {
               <a
                 key={item.id}
                 href={`/artwork/${item.id}`}
-                className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden border border-[rgba(212,205,195,0.3)]"
+                className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden border border-[rgba(212,205,195,0.3)] focus-ring"
               >
                 <div
                   className="aspect-[3/4]"
@@ -227,8 +227,10 @@ export default function ColorMatch() {
                 >
                   <img
                     src={iiif(item.iiif_url, 400)}
-                    alt={item.title_sv || ""}
+                    alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
                     loading="lazy"
+                    width={400}
+                    height={533}
                     className="w-full h-full object-cover"
                   />
                 </div>

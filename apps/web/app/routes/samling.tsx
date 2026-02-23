@@ -114,6 +114,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
         </div>
 
         <section className="pt-8">
+          <h2 className="sr-only">Nyckeltal</h2>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
               <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
@@ -148,10 +149,10 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
                 <a
                   key={item.id}
                   href={`/artwork/${item.id}`}
-                  className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint]"
+                  className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint] focus-ring"
                 >
                   <div className="relative aspect-[3/4]" style={{ backgroundColor: item.color }}>
-                    <img src={item.imageUrl} alt={item.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                    <img src={item.imageUrl} alt={`${item.title} — ${item.artist}`} loading="lazy" width={400} height={533} className="absolute inset-0 w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
                   </div>
                   <div className="p-3">

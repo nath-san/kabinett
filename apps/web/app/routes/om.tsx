@@ -110,7 +110,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
               <a
                 key={m.name}
                 href={`/samling/${encodeURIComponent(m.name)}`}
-                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink no-underline hover:bg-stone transition-colors"
+                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink no-underline hover:bg-stone transition-colors focus-ring"
               >
                 {m.name}
               </a>

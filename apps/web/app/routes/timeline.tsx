@@ -214,9 +214,9 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             <div key={decade.decade} className="timeline-column">
               <div className="timeline-label font-serif">{decade.decade}</div>
               {decade.samples.map((art) => (
-                <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card">
+                <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card focus-ring">
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                    <img src={art.imageUrl} alt={art.title} loading="lazy" width={400} height={533} />
+                    <img src={art.imageUrl} alt={`${art.title} — ${art.artist}`} loading="lazy" width={400} height={533} />
                   </div>
                   <div className="timeline-card-meta">
                     <span className="text-[0.8rem] font-semibold">{art.title}</span>
@@ -225,7 +225,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                   </div>
                 </a>
               ))}
-              <a className="timeline-expand" href={`/timeline?decade=${decade.decade}#decade-${decade.decade}`}>
+              <a className="timeline-expand focus-ring" href={`/timeline?decade=${decade.decade}#decade-${decade.decade}`}>
                 Visa {decade.count} verk
               </a>
             </div>
@@ -246,7 +246,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             </div>
             <a
               href="#top"
-              className="text-[0.8rem] text-[rgba(245,240,232,0.7)] no-underline"
+              className="text-[0.8rem] text-[rgba(245,240,232,0.7)] no-underline focus-ring"
             >
               Tillbaka upp
             </a>
@@ -258,10 +258,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 <a
                   key={art.id}
                   href={`/artwork/${art.id}`}
-                  className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-[#252019] mb-[0.8rem] no-underline text-inherit"
+                  className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-[#252019] mb-[0.8rem] no-underline text-inherit focus-ring"
                 >
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                    <img src={art.imageUrl} alt={art.title} width={400} height={533} loading="lazy" />
+                    <img src={art.imageUrl} alt={`${art.title} — ${art.artist}`} width={400} height={533} loading="lazy" />
                   </div>
                   <div className="p-[0.6rem]">
                     <p className="text-[0.85rem] font-semibold">{art.title}</p>

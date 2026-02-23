@@ -229,6 +229,8 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     works,
   } = loaderData;
 
+  const altArtist = artistName || "Okänd konstnär";
+
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
@@ -258,12 +260,12 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         {(wikidata || wikipedia) && (
           <div className="flex gap-3 mt-4 flex-wrap">
             {wikidata && (
-              <a href={wikidata} className="text-[0.8rem] text-warm-gray no-underline">
+              <a href={wikidata} className="text-[0.8rem] text-warm-gray no-underline focus-ring">
                 Wikidata
               </a>
             )}
             {wikipedia && (
-              <a href={wikipedia} className="text-[0.8rem] text-warm-gray no-underline">
+              <a href={wikipedia} className="text-[0.8rem] text-warm-gray no-underline focus-ring">
                 Wikipedia
               </a>
             )}
@@ -281,12 +283,12 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
               <a
                 key={w.id}
                 href={`/artwork/${w.id}`}
-                className="no-underline rounded-[0.8rem] overflow-hidden bg-linen snap-start"
+                className="no-underline rounded-[0.8rem] overflow-hidden bg-linen snap-start focus-ring"
               >
                 <div className="aspect-[3/4]" style={{ backgroundColor: w.color }}>
                   <img
                     src={w.imageUrl}
-                    alt={w.title}
+                    alt={`${w.title} — ${altArtist}`}
                     width={400}
                     height={533}
                     loading="lazy"
@@ -316,12 +318,12 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
             <a
               key={w.id}
               href={`/artwork/${w.id}`}
-              className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline"
+              className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline focus-ring"
             >
               <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: w.color }}>
                 <img
                   src={w.imageUrl}
-                  alt={w.title}
+                  alt={`${w.title} — ${altArtist}`}
                   width={400}
                   height={533}
                   loading="lazy"
