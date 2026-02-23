@@ -161,7 +161,8 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const q = url.searchParams.get("q")?.trim() || "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 200);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
 
   if (!q) return Response.json([]);
 
@@ -212,7 +213,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   scored.sort((a, b) => b.score - a.score);
 
-  const results = scored.slice(0, limit).map(({ item, score }) => ({
+  const results = scored.slice(offset, offset + limit).map(({ item, score }) => ({
     id: item.id,
     title: item.title,
     artist: item.artist,

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { Route } from "./+types/search";
 import { getDb } from "../lib/db.server";
 
@@ -146,8 +146,61 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
   );
 }
 
+function ResultCard({ r }: { r: any }) {
+  return (
+    <a key={r.id} href={`/artwork/${r.id}`}
+      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
+      <div
+        style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
+        className="overflow-hidden aspect-[3/4]"
+      >
+        <img src={r.imageUrl || (r.iiif_url?.replace("http://","https://") + "full/400,/0/default.jpg")}
+          alt={r.title || r.title_sv || ""} width={400} height={533}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+      </div>
+      <div className="p-3">
+        <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
+          {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
+        <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
+        {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
+      </div>
+    </a>
+  );
+}
+
+const PAGE_SIZE = 60;
+
 export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, results, total } = loaderData;
+  const { query, results: initialResults, total } = loaderData;
+  const [results, setResults] = useState(initialResults);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(initialResults.length >= PAGE_SIZE);
+
+  // Reset when query changes (SSR navigation)
+  useEffect(() => {
+    setResults(initialResults);
+    setHasMore(initialResults.length >= PAGE_SIZE);
+  }, [initialResults]);
+
+  async function loadMore() {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/clip-search?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&offset=${results.length}`
+      );
+      const data = await res.json();
+      if (data.length === 0) {
+        setHasMore(false);
+      } else {
+        setResults((prev: any[]) => [...prev, ...data]);
+        if (data.length < PAGE_SIZE) setHasMore(false);
+      }
+    } catch {
+      setHasMore(false);
+    }
+    setLoading(false);
+  }
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
@@ -172,29 +225,25 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       {query && (
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <p className="text-sm text-warm-gray mb-6">
-            {total > 0 ? `${total} träffar för "${query}"${total > 60 ? " (visar 60)" : ""}` : `Inga träffar för "${query}"`}
+            {results.length > 0 ? `${results.length} träffar för "${query}"` : `Inga träffar för "${query}"`}
           </p>
           {results.length > 0 && (
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
               {results.map((r: any) => (
-                <a key={r.id} href={`/artwork/${r.id}`}
-                  className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
-                  <div
-                    style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
-                    className="overflow-hidden aspect-[3/4]"
-                  >
-                    <img src={r.imageUrl || (r.iiif_url?.replace("http://","https://") + "full/400,/0/default.jpg")}
-                      alt={r.title || r.title_sv || ""} width={400} height={533}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
-                      {r.title || r.title_sv || r.title_en || "Utan titel"}</p>
-                    <p className="text-xs text-warm-gray mt-1">{r.artist || parseArtist(r.artists)}</p>
-                    {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
-                  </div>
-                </a>
+                <ResultCard key={r.id} r={r} />
               ))}
+            </div>
+          )}
+          {hasMore && (
+            <div className="text-center mt-8">
+              <button
+                onClick={loadMore}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-full bg-linen text-warm-gray text-sm font-medium
+                           hover:bg-stone hover:text-charcoal transition-colors disabled:opacity-50"
+              >
+                {loading ? "Laddar..." : "Visa fler"}
+              </button>
             </div>
           )}
         </div>
