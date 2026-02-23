@@ -45,9 +45,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"DM Sans", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
         <Header />
-        <main className="app-main">{children}</main>
+        <main className="app-main" style={{ paddingBottom: "4.5rem" }}>{children}</main>
+        <BottomNav />
         <ScrollRestoration />
         <Scripts />
+        <script dangerouslySetInnerHTML={{ __html: `
+window.__toast=function(msg){
+  var d=document.createElement('div');
+  d.textContent=msg;
+  d.style.cssText='position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:rgba(10,9,8,0.85);color:#F5F0E8;padding:0.6rem 1.2rem;border-radius:999px;font-size:0.8rem;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.3s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+  document.body.appendChild(d);
+  requestAnimationFrame(function(){d.style.opacity='1'});
+  setTimeout(function(){d.style.opacity='0';setTimeout(function(){d.remove()},300)},2000);
+};
+`}} />
         <script dangerouslySetInnerHTML={{ __html: `
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('img[loading="lazy"]').forEach(function(img){
@@ -76,7 +87,6 @@ document.addEventListener('DOMContentLoaded',function(){
 function Header() {
   const location = useLocation();
   const isHome = location.pathname === "/";
-  const { count } = useFavorites();
 
   return (
     <header
@@ -114,59 +124,161 @@ function Header() {
           Kabinett
         </a>
         <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-          <a
-            href="/favorites"
-            style={{
-              color: isHome ? "#F5F0E8" : "#3D3831",
-              textDecoration: "none",
-              display: "flex",
-              position: "relative",
-            }}
-            aria-label="Favoriter"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
-            </svg>
-            {count > 0 && (
-              <span
-                style={{
+          {/* Icons moved to bottom nav */}
+        </div>
+      </nav>
+    </header>
+  );
+}
+
+function BottomNav() {
+  const location = useLocation();
+  const { count } = useFavorites();
+  const path = location.pathname;
+
+  const isHome = path === "/";
+  const isDark = path === "/" || path === "/timeline";
+
+  const tabs = [
+    {
+      href: "/",
+      label: "Hem",
+      active: path === "/",
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+          <path d="M9 21V12h6v9" />
+        </svg>
+      ),
+    },
+    {
+      href: "/discover",
+      label: "Upptäck",
+      active: path === "/discover",
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill={color} opacity="0.15" stroke={color} />
+        </svg>
+      ),
+    },
+    {
+      href: "/timeline",
+      label: "Tidslinje",
+      active: path === "/timeline",
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <line x1="12" y1="2" x2="12" y2="22" />
+          <circle cx="12" cy="6" r="2" fill={color} opacity="0.2" />
+          <circle cx="12" cy="12" r="2" fill={color} opacity="0.2" />
+          <circle cx="12" cy="18" r="2" fill={color} opacity="0.2" />
+          <line x1="14" y1="6" x2="19" y2="6" />
+          <line x1="5" y1="12" x2="10" y2="12" />
+          <line x1="14" y1="18" x2="19" y2="18" />
+        </svg>
+      ),
+    },
+    {
+      href: "/search",
+      label: "Sök",
+      active: path === "/search",
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+      ),
+    },
+    {
+      href: "/favorites",
+      label: "Sparade",
+      active: path === "/favorites",
+      badge: count,
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <nav
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 60,
+        backgroundColor: isDark ? "rgba(10,9,8,0.85)" : "rgba(250,247,242,0.92)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(212,205,195,0.3)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-around",
+          alignItems: "center",
+          height: "3.2rem",
+          maxWidth: "32rem",
+          margin: "0 auto",
+        }}
+      >
+        {tabs.map((tab) => {
+          const color = tab.active
+            ? (isDark ? "#F5F0E8" : "#3D3831")
+            : (isDark ? "rgba(245,240,232,0.4)" : "rgba(61,56,49,0.35)");
+          return (
+            <a
+              key={tab.href}
+              href={tab.href}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.15rem",
+                textDecoration: "none",
+                position: "relative",
+                padding: "0.25rem 0.5rem",
+              }}
+            >
+              {tab.icon(color)}
+              <span style={{
+                fontSize: "0.6rem",
+                fontWeight: tab.active ? 600 : 400,
+                color,
+                letterSpacing: "0.01em",
+              }}>
+                {tab.label}
+              </span>
+              {tab.badge && tab.badge > 0 ? (
+                <span style={{
                   position: "absolute",
-                  top: "-0.3rem",
-                  right: "-0.45rem",
-                  minWidth: "1rem",
-                  height: "1rem",
-                  padding: "0 0.2rem",
+                  top: "0",
+                  right: "0.15rem",
+                  minWidth: "0.9rem",
+                  height: "0.9rem",
+                  padding: "0 0.15rem",
                   borderRadius: "999px",
                   background: "#C4553A",
                   color: "#fff",
-                  fontSize: "0.6rem",
+                  fontSize: "0.55rem",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 600,
-                }}
-              >
-                {count}
-              </span>
-            )}
-          </a>
-          <a
-            href="/search"
-            style={{
-              color: isHome ? "#F5F0E8" : "#3D3831",
-              textDecoration: "none",
-              display: "flex",
-            }}
-            aria-label="Sök"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </a>
-        </div>
-      </nav>
-    </header>
+                }}>
+                  {tab.badge}
+                </span>
+              ) : null}
+            </a>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 

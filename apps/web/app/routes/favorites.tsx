@@ -62,7 +62,7 @@ export default function Favorites() {
 
         {!loading && items.length === 0 && (
           <div style={{ padding: "2rem 0", color: "#8C8478" }}>
-            Inga favoriter än. Hjärtmarkera verk i flödet.
+            Inga sparade verk än. Tryck på hjärtat för att spara.
           </div>
         )}
 

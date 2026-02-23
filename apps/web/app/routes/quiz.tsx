@@ -291,7 +291,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
       await navigator.share(shareData);
     } else if (navigator.clipboard) {
       await navigator.clipboard.writeText(window.location.origin + shareData.url);
-      alert("Länk kopierad!");
+      (window as any).__toast?.("Länk kopierad");
     }
   }
 

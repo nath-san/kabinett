@@ -1,5 +1,6 @@
 import type { Route } from "./+types/artwork";
 import { getDb, type ArtworkRow } from "../lib/db.server";
+import { loadClipCache, dot } from "../lib/clip-cache.server";
 
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
@@ -20,6 +21,28 @@ export function meta({ data }: Route.MetaArgs) {
     { name: "twitter:description", content: `${artist} — Nationalmuseum` },
     { name: "twitter:image", content: artwork.imageUrl },
   ];
+}
+
+function parseDimensions(json: string | null): string | null {
+  if (!json) return null;
+  try {
+    const arr = JSON.parse(json);
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.map((d: any) => d.dimension).filter(Boolean).join("; ");
+  } catch { return null; }
+}
+
+function parseExhibitions(json: string | null): Array<{ title: string; venue: string; year: string }> {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    if (!Array.isArray(arr)) return [];
+    return arr.map((e: any) => ({
+      title: e.title || "",
+      venue: e.venue || e.organizer || "",
+      year: e.year_start ? String(e.year_start) : "",
+    })).filter((e: any) => e.title || e.venue);
+  } catch { return []; }
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -54,22 +77,49 @@ export async function loader({ params }: Route.LoaderArgs) {
     colorB: row.color_b,
     iiifBase,
     nmUrl: `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${row.id}`,
+    // Extra fields
+    description: row.descriptions_sv || null,
+    dimensions: parseDimensions(row.dimensions_json),
+    signature: row.signature || null,
+    inscription: row.inscription || null,
+    style: row.style_sv || null,
+    objectType: row.object_type_sv || null,
+    motiveCategory: row.motive_category || null,
+    exhibitions: parseExhibitions(row.exhibitions_json),
+    materialTags: row.material_tags || null,
+    techniqueTags: row.technique_tags || null,
   };
 
-  // Similar by color
-  const similar = row.color_r != null
-    ? (db.prepare(
-        `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-         FROM artworks
-         WHERE id != ? AND color_r IS NOT NULL
-         ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
-         LIMIT 8`
-      ).all(row.id, row.color_r, row.color_g, row.color_b) as any[])
-    : [];
+  // Similar by CLIP embedding (semantic/visual similarity)
+  let similar: any[] = [];
+  try {
+    const cache = await loadClipCache();
+    const current = cache.find((c) => c.id === row.id);
+    if (current) {
+      const scored = cache
+        .filter((c) => c.id !== row.id)
+        .map((c) => ({ id: c.id, score: dot(current.embedding, c.embedding) }));
+      scored.sort((a, b) => b.score - a.score);
+      const topIds = scored.slice(0, 8).map((s) => s.id);
+      if (topIds.length > 0) {
+        similar = db
+          .prepare(
+            `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
+             FROM artworks WHERE id IN (${topIds.map(() => "?").join(",")})`)
+          .all(...topIds) as any[];
+        // Preserve similarity order
+        const orderMap = new Map(topIds.map((id, i) => [id, i]));
+        similar.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+      }
+    }
+  } catch {
+    // Fall back to no similar
+  }
 
   // Same artist
   const artistName = artists[0]?.name;
-  const sameArtist = artistName
+  const knownArtist = artistName && !artistName.match(/^(okänd|unknown|anonym)/i);
+  const sameArtist = knownArtist
     ? (db.prepare(
         `SELECT id, title_sv, iiif_url, dominant_color, dating_text
          FROM artworks
@@ -167,8 +217,78 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           {artwork.datingText && <Detail label="Datering" value={artwork.datingText} />}
           {artwork.category && <Detail label="Kategori" value={artwork.category} />}
           {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
+          {artwork.dimensions && <Detail label="Mått" value={artwork.dimensions} />}
           {artwork.acquisitionYear && <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />}
+          {artwork.objectType && <Detail label="Objekttyp" value={artwork.objectType} />}
+          {artwork.style && <Detail label="Stil" value={artwork.style} />}
+          {artwork.motiveCategory && <Detail label="Motiv" value={artwork.motiveCategory} />}
         </div>
+
+        {/* Description */}
+        {artwork.description && (
+          <div style={{
+            marginTop: "1.25rem",
+            paddingTop: "1.25rem",
+            borderTop: "1px solid #F0EBE3",
+          }}>
+            <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>Beskrivning</p>
+            <p style={{ fontSize: "0.85rem", color: "#3D3831", lineHeight: 1.6 }}>
+              {artwork.description}
+            </p>
+          </div>
+        )}
+
+        {/* Signature & Inscription */}
+        {(artwork.signature || artwork.inscription) && (
+          <div style={{
+            marginTop: "1.25rem",
+            paddingTop: "1.25rem",
+            borderTop: "1px solid #F0EBE3",
+            display: "grid",
+            gridTemplateColumns: "1fr",
+            gap: "0.75rem",
+          }}>
+            {artwork.signature && (
+              <div>
+                <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>Signatur</p>
+                <p style={{ fontSize: "0.8rem", color: "#3D3831", marginTop: "0.15rem", fontStyle: "italic" }}>{artwork.signature}</p>
+              </div>
+            )}
+            {artwork.inscription && (
+              <div>
+                <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>Inskription</p>
+                <p style={{ fontSize: "0.8rem", color: "#3D3831", marginTop: "0.15rem", fontStyle: "italic" }}>{artwork.inscription}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Exhibitions */}
+        {artwork.exhibitions.length > 0 && (
+          <div style={{
+            marginTop: "1.25rem",
+            paddingTop: "1.25rem",
+            borderTop: "1px solid #F0EBE3",
+          }}>
+            <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+              Utställningar ({artwork.exhibitions.length})
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {artwork.exhibitions.slice(0, 5).map((ex: any, i: number) => (
+                <div key={i} style={{ fontSize: "0.8rem", color: "#3D3831", lineHeight: 1.4 }}>
+                  <span style={{ fontWeight: 500 }}>{ex.title}</span>
+                  {ex.venue && <span style={{ color: "#8C8478" }}> — {ex.venue}</span>}
+                  {ex.year && <span style={{ color: "#B5AFA6" }}> ({ex.year})</span>}
+                </div>
+              ))}
+              {artwork.exhibitions.length > 5 && (
+                <p style={{ fontSize: "0.7rem", color: "#B5AFA6" }}>
+                  +{artwork.exhibitions.length - 5} till
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Color + link row */}
         <div style={{
@@ -199,7 +319,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   navigator.share({ title: artwork.title, text, url });
                 } else {
                   navigator.clipboard.writeText(url);
-                  alert("Länk kopierad!");
+                  (window as any).__toast?.("Länk kopierad");
                 }
               }}
               style={{
@@ -260,7 +380,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       {similar.length > 0 && (
         <section style={{ padding: "2.5rem 1rem 0", maxWidth: "50rem", margin: "0 auto" }}>
           <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3831" }}>
-            Liknande färger
+            Liknande verk
           </h2>
           <div style={{
             display: "flex",
@@ -297,8 +417,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Back */}
       <div style={{ padding: "2.5rem 1rem 3rem", textAlign: "center" }}>
-        <a href="/explore" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
-          ← Tillbaka
+        <a href="/discover" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
+          ← Utforska mer
         </a>
       </div>
     </div>

@@ -17,8 +17,8 @@ type MatchItem = {
 };
 
 function parseArtist(json: string | null): string {
-  if (!json) return "Okand konstnar";
-  try { return JSON.parse(json)[0]?.name || "Okand konstnar"; } catch { return "Okand konstnar"; }
+  if (!json) return "Okänd konstnär";
+  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
 }
 
 function iiif(url: string, size: number) {

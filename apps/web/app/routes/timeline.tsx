@@ -19,7 +19,7 @@ export function meta({}: Route.MetaArgs) {
     { title: "Tidslinje — Kabinett" },
     {
       name: "description",
-      content: "500 år av svensk konst, decennium för decennium.",
+      content: "800 år av konst, decennium för decennium.",
     },
   ];
 }
@@ -29,7 +29,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const selectedDecade = parseInt(url.searchParams.get("decade") || "0");
 
   const db = getDb();
-  const rangeFrom = 1500;
+  const rangeFrom = 1200;
   const rangeTo = 2000;
 
   const rows = db
@@ -108,7 +108,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   const { decades, selectedDecade, selectedLabel, selectedWorks } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#0B0A09", color: "#F5F0E8" }}>
+    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#1C1916", color: "#F5F0E8" }}>
       <style>{`
         .timeline-scroll {
           display: grid;
@@ -116,33 +116,40 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           grid-auto-columns: minmax(180px, 220px);
           gap: 1rem;
           overflow-x: auto;
-          padding: 1rem 1.25rem 2rem;
+          padding: 1rem 0 2rem;
           scroll-behavior: smooth;
           scroll-snap-type: x mandatory;
+          scroll-padding-inline: 1.25rem;
           -webkit-overflow-scrolling: touch;
         }
         .timeline-column {
           scroll-snap-align: start;
-          background: rgba(255,255,255,0.03);
+          background: rgba(255,255,255,0.04);
           border-radius: 1rem;
           padding: 0.75rem;
           display: grid;
           gap: 0.6rem;
         }
+        .timeline-column:first-child {
+          margin-left: 1.25rem;
+        }
+        .timeline-column:last-child {
+          margin-right: 1.25rem;
+        }
         .timeline-label {
           position: sticky;
           top: 0;
-          padding: 0.35rem 0;
+          padding: 0.35rem 0.25rem;
           font-size: 1rem;
           letter-spacing: 0.08em;
           text-transform: uppercase;
-          background: #0B0A09;
+          background: #1C1916;
           z-index: 2;
         }
         .timeline-card {
           border-radius: 0.7rem;
           overflow: hidden;
-          background: #161412;
+          background: #252019;
           text-decoration: none;
           color: inherit;
           display: grid;
@@ -182,10 +189,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           Tidslinje
         </p>
         <h1 className="font-serif" style={{ fontSize: "2.2rem", marginTop: "0.4rem" }}>
-          500 år av svensk konst
+          800 år av konst
         </h1>
         <p style={{ marginTop: "0.6rem", maxWidth: "36rem", color: "rgba(245,240,232,0.7)" }}>
-          Svep horisontellt och öppna ett decennium för att se hela perioden.
+          Från medeltid till modernism, decennium för decennium.
         </p>
       </header>
 
@@ -247,7 +254,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                     display: "block",
                     borderRadius: "0.8rem",
                     overflow: "hidden",
-                    backgroundColor: "#161412",
+                    backgroundColor: "#252019",
                     marginBottom: "0.8rem",
                     textDecoration: "none",
                     color: "inherit",

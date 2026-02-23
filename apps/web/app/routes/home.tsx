@@ -1,5 +1,6 @@
 import type { Route } from "./+types/home";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+// Search removed — now lives at /search via bottom nav
 import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
 
@@ -24,8 +25,16 @@ type ThemeSection = {
   items: FeedItem[];
 };
 
+type StatsCard = {
+  type: "stats";
+  total: number;
+  paintings: number;
+  artists: number;
+  oldest: number;
+  ceramics: number;
+};
 type ArtCard = { type: "art"; item: FeedItem };
-type FeedEntry = ArtCard | ThemeSection;
+type FeedEntry = ArtCard | ThemeSection | StatsCard;
 
 const THEMES = [
   { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D" },
@@ -43,27 +52,130 @@ const THEMES = [
 export function meta() {
   return [
     { title: "Kabinett — Upptäck svensk konst" },
-    { name: "description", content: "Scrolla genom Nationalmuseums samling." },
+    { name: "description", content: "Upptäck Nationalmuseums samling på ett nytt sätt." },
   ];
 }
 
 export function headers() {
-  return { "Cache-Control": "public, max-age=60" };
+  return { "Cache-Control": "private, no-store" };
 }
+
+// Pool of ~100 iconic artworks — 5 random picked each load
+// Curated for variety: max 2–3 per artist, mix of periods and styles
+const CURATED_POOL = [
+  // Carl Larsson
+  26034, 24215, 25407,
+  // Anders Zorn
+  18693, 24409, 20407,
+  // Bruno Liljefors
+  19423, 18654, 149858, 23703, 18506,
+  // Ernst Josephson
+  19459, 19189, 20173,
+  // Carl Fredrik Hill
+  22514, 32542, 18870, 32544,
+  // Eugène Jansson
+  18703,
+  // Richard Bergh
+  21452, 18510, 25383,
+  // Nils Kreuger
+  18684, 18559, 132606, 19347,
+  // Karl Nordström
+  18899, 19456, 213756,
+  // Hanna Pauli
+  19353, 21632, 137836,
+  // Eva Bonnier
+  132618,
+  // Julia Beck
+  243405,
+  // Alexander Roslin
+  18013, 18402, 40203,
+  // Gustaf Cederström
+  22255, 18743,
+  // Georg von Rosen
+  18157,
+  // Rembrandt
+  17583, 21617, 22374,
+  // Rubens
+  17611, 17603,
+  // Boucher
+  17771, 17775,
+  // Watteau
+  22701,
+  // El Greco
+  23023,
+  // Cranach
+  18131,
+  // Albert Edelfelt
+  19582, 19713,
+  // Jenny Nyström
+  23465,
+  // Isaac Grünewald
+  244352,
+  // Johan Tobias Sergel
+  91112,
+  // David Klöcker Ehrenstrahl
+  14799, 177393,
+  // Carl Larsson (Ett hem-serien)
+  24217, 24219,
+  // Goya
+  22642,
+  // Tiepolo — check if exists
+  // More variety
+  18868, 23281, 18856, 23115, 23843,
+  18876, 18888, 23924, 18887, 23434,
+  24311, 19218, 18633, 23461, 18895,
+  39240, 18486, 21202, 19600, 19198,
+  26295, 24204, 18837, 36992,
+];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
+
+  // Load curated hero artworks first
+  const { getDb } = await import("../lib/db.server");
+  const db = getDb();
+  // Pick 5 random from pool
+  const shuffled = [...CURATED_POOL].sort(() => Math.random() - 0.5);
+  const pickedIds = shuffled.slice(0, 5);
+  const curatedRows = db.prepare(
+    `SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material
+     FROM artworks WHERE id IN (${pickedIds.join(",")})
+     AND id NOT IN (SELECT artwork_id FROM broken_images)`
+  ).all() as any[];
+  const curatedMap = new Map(curatedRows.map((r: any) => [r.id, r]));
+  const curated = pickedIds
+    .map((id) => curatedMap.get(id))
+    .filter(Boolean)
+    .map((r: any) => ({
+      ...r,
+      imageUrl: r.iiif_url.replace("http://", "https://") + "full/800,/0/default.jpg",
+    }));
+
   const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla", origin: url.origin });
 
   // Load first theme section
   const firstTheme = THEMES[0];
   const themeItems = await fetchFeed({ cursor: null, limit: 6, filter: firstTheme.filter, origin: url.origin });
 
+  // Prepend curated, deduplicate
+  const curatedIds = new Set(curated.map((c: any) => c.id));
+  const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id));
+
+  // Stats for the collection card
+  const stats = {
+    total: (db.prepare("SELECT COUNT(*) as c FROM artworks").get() as any).c,
+    paintings: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%'").get() as any).c,
+    artists: (db.prepare("SELECT COUNT(DISTINCT json_extract(artists, '$[0].name')) as c FROM artworks WHERE artists IS NOT NULL").get() as any).c,
+    oldest: (db.prepare("SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0").get() as any).c,
+    ceramics: (db.prepare("SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Keramik%'").get() as any).c,
+  };
+
   return {
-    initialItems: initial.items,
+    initialItems: [...curated, ...restItems],
     initialCursor: initial.nextCursor,
     initialHasMore: initial.hasMore,
     firstTheme: { ...firstTheme, items: themeItems.items },
+    stats,
   };
 }
 
@@ -77,10 +189,6 @@ function iiif(url: string, size: number): string {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<FeedItem[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
@@ -91,7 +199,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (loaderData.firstTheme.items.length > 0) {
       entries.push({ type: "theme", ...loaderData.firstTheme });
     }
-    for (let i = 5; i < initial.length; i++) {
+    // Add a few more artworks then stats
+    for (let i = 5; i < Math.min(8, initial.length); i++) {
+      entries.push({ type: "art", item: initial[i] });
+    }
+    entries.push({ type: "stats", ...loaderData.stats });
+    for (let i = 8; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
     }
     return entries;
@@ -105,59 +218,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Dark mode — use first artwork's color instead of pure black
-  const showingSearch = query.trim().length > 0;
+  // Dark mode — use first artwork's color
   const firstColor = useMemo(() => {
-    if (showingSearch) {
-      return searchResults[0]?.dominant_color || "#1A1815";
-    }
     const firstArt = feed.find((entry) => entry.type === "art") as ArtCard | undefined;
     return firstArt?.item.dominant_color || "#1A1815";
-  }, [feed, searchResults, showingSearch]);
+  }, [feed]);
   useEffect(() => {
     document.body.style.backgroundColor = firstColor;
     document.body.style.color = "#F5F0E8";
     return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        setSearchLoading(true);
-        const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=20`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        const mapped: FeedItem[] = (data || []).map((item: any) => ({
-          id: item.id,
-          title_sv: item.title || item.title_sv || "Utan titel",
-          artists: JSON.stringify([{ name: item.artist || "Okänd konstnär" }]),
-          dating_text: item.year || "",
-          iiif_url: "",
-          dominant_color: item.color || "#1A1815",
-          category: null,
-          technique_material: null,
-          imageUrl: item.heroUrl || item.imageUrl,
-        }));
-        setSearchResults(mapped);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 500);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
 
   async function loadMore() {
     if (loading || !hasMore) return;
@@ -224,94 +294,20 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       minHeight: "100vh",
       overflowX: "hidden",
     }}>
-      {/* Search + Upptäck */}
-      <div style={{
-        position: "fixed", top: "3.5rem", left: 0, right: 0, zIndex: 55,
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.3) 70%, transparent 100%)",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        padding: "0.5rem 1rem 1.2rem",
-        pointerEvents: "none",
-      }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "0.5rem",
-          pointerEvents: "auto",
-        }}>
-          {/* Search */}
-          <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: "0.6rem",
-            padding: "0.65rem 1rem",
-            borderRadius: "12px",
-            background: "rgba(255,255,255,0.08)",
-          }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
-              <circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="search" value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Sök i samlingen"
-              aria-label="Sök"
-              style={{
-                flex: 1, background: "transparent", border: "none",
-                color: "rgba(255,255,255,0.9)", fontSize: "16px",
-                fontWeight: 400, outline: "none",
-              }}
-            />
-            {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label="Rensa"
-                style={{
-                  border: "none", background: "rgba(255,255,255,0.12)",
-                  color: "rgba(255,255,255,0.6)", width: "1.3rem", height: "1.3rem",
-                  borderRadius: "999px", cursor: "pointer", fontSize: "0.7rem",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>×</button>
-            )}
-          </div>
-          {/* Upptäck */}
-          <a href="/discover" style={{
-            padding: "0.65rem 1rem",
-            borderRadius: "12px",
-            background: "rgba(255,255,255,0.08)",
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.78rem", fontWeight: 500,
-            letterSpacing: "0.03em",
-            textDecoration: "none", whiteSpace: "nowrap",
-          }}>Upptäck</a>
+      {feed.map((entry, i) =>
+        entry.type === "art" ? (
+          <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
+        ) : entry.type === "stats" ? (
+          <StatsSection key="stats" stats={entry} />
+        ) : (
+          <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
+        )
+      )}
+      <div ref={sentinelRef} style={{ height: "1px" }} />
+      {loading && (
+        <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
+          Laddar mer konst…
         </div>
-      </div>
-
-      {showingSearch ? (
-        <div>
-          {searchLoading && searchResults.length === 0 && (
-            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
-              Letar i samlingen...
-            </div>
-          )}
-          {!searchLoading && searchResults.length === 0 && (
-            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.35)", fontSize: "0.85rem" }}>
-              Inga träffar än. Prova ett nytt ord.
-            </div>
-          )}
-          {searchResults.map((item, i) => (
-            <ArtworkCard key={`search-${item.id}-${i}`} item={item} index={i} />
-          ))}
-        </div>
-      ) : (
-        <>
-          {feed.map((entry, i) =>
-            entry.type === "art" ? (
-              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
-            ) : (
-              <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
-            )
-          )}
-          <div ref={sentinelRef} style={{ height: "1px" }} />
-          {loading && (
-            <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
-              Laddar mer konst...
-            </div>
-          )}
-        </>
       )}
     </div>
   );
@@ -420,6 +416,67 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   );
 });
 
+function StatsSection({ stats }: { stats: StatsCard }) {
+  const items = [
+    { value: stats.total.toLocaleString("sv"), label: "verk" },
+    { value: stats.artists.toLocaleString("sv"), label: "konstnärer" },
+    { value: String(stats.oldest), label: "äldsta verket" },
+    { value: stats.paintings.toLocaleString("sv"), label: "målningar" },
+    { value: stats.ceramics.toLocaleString("sv"), label: "keramik" },
+  ];
+  return (
+    <div style={{
+      padding: "3rem 1.5rem",
+      background: "linear-gradient(135deg, #1A1815 0%, #2B2520 100%)",
+      textAlign: "center",
+    }}>
+      <p style={{
+        fontSize: "0.65rem", fontWeight: 600,
+        letterSpacing: "0.2em", textTransform: "uppercase",
+        color: "rgba(255,255,255,0.35)",
+      }}>Nationalmuseums samling</p>
+      <h2 style={{
+        fontFamily: "'Instrument Serif', serif",
+        fontSize: "2rem", color: "#F5F0E8",
+        margin: "0.5rem 0 1.5rem", lineHeight: 1.1,
+      }}>Samlingen i siffror</h2>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: "1rem 0.5rem",
+        maxWidth: "22rem",
+        margin: "0 auto",
+      }}>
+        {items.map((item) => (
+          <div key={item.label}>
+            <p style={{
+              fontFamily: "'Instrument Serif', serif",
+              fontSize: "1.6rem", fontWeight: 600,
+              color: "#F5F0E8", margin: 0, lineHeight: 1,
+            }}>{item.value}</p>
+            <p style={{
+              fontSize: "0.6rem", color: "rgba(245,240,232,0.45)",
+              marginTop: "0.25rem", textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}>{item.label}</p>
+          </div>
+        ))}
+      </div>
+      <a href="/discover" style={{
+        display: "inline-block",
+        marginTop: "1.5rem",
+        padding: "0.6rem 1.5rem",
+        borderRadius: "999px",
+        border: "1px solid rgba(255,255,255,0.15)",
+        color: "rgba(255,255,255,0.7)",
+        fontSize: "0.78rem", fontWeight: 500,
+        textDecoration: "none",
+        letterSpacing: "0.02em",
+      }}>Upptäck samlingen →</a>
+    </div>
+  );
+}
+
 function ThemeCard({ section }: { section: ThemeSection }) {
   return (
     <div style={{
@@ -490,7 +547,7 @@ function ThemeCard({ section }: { section: ThemeSection }) {
       </div>
 
       {/* "Visa fler" link */}
-      <a href={`/explore?filter=${encodeURIComponent(section.filter)}`} style={{
+      <a href={`/discover`} style={{
         display: "inline-block", marginTop: "1rem",
         fontSize: "0.8rem", color: "rgba(255,255,255,0.5)",
         textDecoration: "none",
