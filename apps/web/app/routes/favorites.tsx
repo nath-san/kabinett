@@ -47,32 +47,27 @@ export default function Favorites() {
   }, [idsKey]);
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
-      <div style={{ maxWidth: "64rem", margin: "0 auto", padding: "1.5rem" }}>
-        <h1 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "2rem", color: "#3D3831" }}>
+    <div className="min-h-screen pt-[3.5rem] bg-cream">
+      <div className="max-w-[64rem] mx-auto p-6">
+        <h1 className="font-serif text-[2rem] text-charcoal">
           Favoriter
         </h1>
-        <p style={{ marginTop: "0.35rem", color: "#8C8478", fontSize: "0.95rem" }}>
+        <p className="mt-[0.35rem] text-warm-gray text-[0.95rem]">
           Tryck länge eller svep i sidled för att ta bort.
         </p>
 
         {loading && items.length === 0 && (
-          <div style={{ padding: "2rem 0", color: "#8C8478" }}>Hämtar favoriter…</div>
+          <div className="py-8 text-warm-gray">Hämtar favoriter…</div>
         )}
 
         {!loading && items.length === 0 && (
-          <div style={{ padding: "2rem 0", color: "#8C8478" }}>
+          <div className="py-8 text-warm-gray">
             Inga sparade verk än. Tryck på hjärtat för att spara.
           </div>
         )}
 
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: "1rem",
-            marginTop: "1.5rem",
-          }}
+          className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4 mt-6"
         >
           {items.map((item) => (
             <FavoriteCard key={item.id} item={item} onRemove={remove} />
@@ -130,29 +125,24 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           removedRef.current = false;
         }
       }}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        background: "#fff",
-        borderRadius: "0.85rem",
-        overflow: "hidden",
-        boxShadow: "0 10px 24px rgba(0,0,0,0.06)",
-        border: "1px solid rgba(212,205,195,0.3)",
-      }}
+      className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)]"
     >
-      <div style={{ aspectRatio: "3/4", backgroundColor: item.dominant_color || "#D4CDC3" }}>
+      <div
+        className="aspect-[3/4]"
+        style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
+      >
         <img
           src={item.imageUrl}
           alt={item.title}
           loading="lazy"
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          className="w-full h-full object-cover"
         />
       </div>
-      <div style={{ padding: "0.75rem" }}>
-        <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#3D3831", margin: 0 }}>
+      <div className="p-3">
+        <p className="text-[0.9rem] font-semibold text-charcoal m-0">
           {item.title}
         </p>
-        <p style={{ marginTop: "0.2rem", fontSize: "0.75rem", color: "#8C8478" }}>
+        <p className="mt-[0.2rem] text-[0.75rem] text-warm-gray">
           {parseArtist(item.artists)}
         </p>
       </div>

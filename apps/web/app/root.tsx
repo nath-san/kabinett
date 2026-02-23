@@ -43,9 +43,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body style={{ backgroundColor: "#FAF7F2", color: "#1A1815", fontFamily: '"DM Sans", system-ui, sans-serif', WebkitFontSmoothing: "antialiased", margin: 0 }}>
+      <body className="bg-cream text-ink font-sans antialiased m-0">
         <Header />
-        <main className="app-main" style={{ paddingBottom: "4.5rem" }}>{children}</main>
+        <main className="app-main pb-[4.5rem]">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
@@ -90,40 +90,26 @@ function Header() {
 
   return (
     <header
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 60,
-        backgroundColor: isHome ? "rgba(10,9,8,0.35)" : "rgba(250,247,242,0.92)",
-        backdropFilter: isHome ? "blur(8px)" : "blur(12px)",
-        WebkitBackdropFilter: isHome ? "blur(8px)" : "blur(12px)",
-        borderBottom: isHome ? "none" : "1px solid rgba(212,205,195,0.3)",
-      }}
+      className={[
+        "fixed top-0 left-0 right-0 z-[60]",
+        isHome
+          ? "bg-[rgba(10,9,8,0.35)] backdrop-blur-[8px] border-b border-transparent"
+          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[12px] border-b border-[rgba(212,205,195,0.3)]",
+      ].join(" ")}
     >
       <nav
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 1rem",
-          height: "3.5rem",
-        }}
+        className="flex items-center justify-between px-4 h-[3.5rem]"
       >
         <a
           href="/"
-          style={{
-            fontFamily: '"Instrument Serif", Georgia, serif',
-            fontSize: "1.25rem",
-            fontWeight: 600,
-            color: isHome ? "#F5F0E8" : "#3D3831",
-            textDecoration: "none",
-          }}
+          className={[
+            "font-serif text-[1.25rem] font-semibold no-underline",
+            isHome ? "text-[#F5F0E8]" : "text-charcoal",
+          ].join(" ")}
         >
           Kabinett
         </a>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+        <div className="flex items-center gap-[0.85rem]">
           {/* Icons moved to bottom nav */}
         </div>
       </nav>
@@ -204,28 +190,15 @@ function BottomNav() {
 
   return (
     <nav
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 60,
-        backgroundColor: isDark ? "rgba(10,9,8,0.85)" : "rgba(250,247,242,0.92)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(212,205,195,0.3)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
+      className={[
+        "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t",
+        isDark
+          ? "bg-[rgba(10,9,8,0.85)] border-[rgba(255,255,255,0.08)]"
+          : "bg-[rgba(250,247,242,0.92)] border-[rgba(212,205,195,0.3)]",
+      ].join(" ")}
     >
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          alignItems: "center",
-          height: "3.2rem",
-          maxWidth: "32rem",
-          margin: "0 auto",
-        }}
+        className="flex justify-around items-center h-[3.2rem] max-w-[32rem] mx-auto"
       >
         {tabs.map((tab) => {
           const color = tab.active
@@ -235,42 +208,20 @@ function BottomNav() {
             <a
               key={tab.href}
               href={tab.href}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.15rem",
-                textDecoration: "none",
-                position: "relative",
-                padding: "0.25rem 0.5rem",
-              }}
+              className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2"
             >
               {tab.icon(color)}
-              <span style={{
-                fontSize: "0.6rem",
-                fontWeight: tab.active ? 600 : 400,
-                color,
-                letterSpacing: "0.01em",
-              }}>
+              <span
+                className={[
+                  "text-[0.6rem] tracking-[0.01em]",
+                  tab.active ? "font-semibold" : "font-normal",
+                ].join(" ")}
+                style={{ color }}
+              >
                 {tab.label}
               </span>
               {tab.badge && tab.badge > 0 ? (
-                <span style={{
-                  position: "absolute",
-                  top: "0",
-                  right: "0.15rem",
-                  minWidth: "0.9rem",
-                  height: "0.9rem",
-                  padding: "0 0.15rem",
-                  borderRadius: "999px",
-                  background: "#C4553A",
-                  color: "#fff",
-                  fontSize: "0.55rem",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 600,
-                }}>
+                <span className="absolute top-0 right-[0.15rem] min-w-[0.9rem] h-[0.9rem] px-[0.15rem] rounded-full bg-accent text-white text-[0.55rem] inline-flex items-center justify-center font-semibold">
                   {tab.badge}
                 </span>
               ) : null}
@@ -298,10 +249,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     stack = error.stack || "";
   }
   return (
-    <div style={{ padding: "4rem 1rem", textAlign: "center", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-      <h1 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "3rem", fontWeight: "bold", color: "#3D3831" }}>{message}</h1>
-      <p style={{ marginTop: "1rem", color: "#8C8478" }}>{details}</p>
-      {stack && <pre style={{ marginTop: "1rem", fontSize: "0.65rem", color: "#999", textAlign: "left", maxWidth: "90vw", overflow: "auto", whiteSpace: "pre-wrap" }}>{stack}</pre>}
+    <div className="py-[4rem] px-4 text-center min-h-screen flex flex-col items-center justify-center">
+      <h1 className="font-serif text-[3rem] font-bold text-charcoal">{message}</h1>
+      <p className="mt-4 text-warm-gray">{details}</p>
+      {stack && (
+        <pre className="mt-4 text-[0.65rem] text-[#999] text-left max-w-[90vw] overflow-auto whitespace-pre-wrap">
+          {stack}
+        </pre>
+      )}
     </div>
   );
 }

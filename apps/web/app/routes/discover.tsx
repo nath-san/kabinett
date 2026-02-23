@@ -129,93 +129,47 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   const { collections, quizImage, topArtists, stats } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "4rem", background: "#FAF7F2" }}>
+    <div className="min-h-screen pt-16 bg-cream">
 
       {/* Hero — Quiz CTA */}
-      <a href="/quiz" style={{
-        display: "block", position: "relative",
-        margin: "0.75rem", borderRadius: "18px",
-        overflow: "hidden", height: "12rem",
-        textDecoration: "none",
-      }}>
+      <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 no-underline">
         {quizImage && (
-          <img src={quizImage} alt="" style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%", objectFit: "cover",
-          }} />
+          <img src={quizImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to top, rgba(10,9,8,0.9) 0%, rgba(10,9,8,0.35) 55%, rgba(10,9,8,0.1) 100%)",
-        }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "1.2rem 1.3rem" }}>
-          <p style={{
-            fontSize: "0.6rem", fontWeight: 600,
-            letterSpacing: "0.15em", textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)", marginBottom: "0.35rem",
-          }}>Personligt</p>
-          <h2 style={{
-            fontFamily: "'Instrument Serif', serif",
-            fontSize: "1.5rem", color: "#fff",
-            margin: 0, lineHeight: 1.15,
-          }}>Hitta ditt verk</h2>
-          <p style={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: "0.78rem", marginTop: "0.25rem",
-          }}>Fem frågor — ett konstverk som matchar dig</p>
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
+        <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
+          <p className="text-[0.6rem] font-semibold tracking-[0.15em] uppercase text-[rgba(255,255,255,0.45)] mb-[0.35rem]">
+            Personligt
+          </p>
+          <h2 className="font-serif text-[1.5rem] text-white m-0 leading-[1.15]">Hitta ditt verk</h2>
+          <p className="text-[0.78rem] text-[rgba(255,255,255,0.55)] mt-1">
+            Fem frågor — ett konstverk som matchar dig
+          </p>
         </div>
       </a>
 
       {/* Samlingar — 2-column grid */}
-      <section style={{ padding: "1.5rem 0.75rem 0" }}>
-        <h2 style={{
-          fontFamily: "'Instrument Serif', serif",
-          fontSize: "1.3rem", color: "#1A1815",
-          margin: "0 0.25rem 0.75rem",
-        }}>Samlingar</h2>
+      <section className="pt-6 px-3">
+        <h2 className="font-serif text-[1.3rem] text-ink mx-1 mb-3">Samlingar</h2>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "0.6rem",
-        }}>
+        <div className="grid grid-cols-2 gap-[0.6rem]">
           {collections.map((c, i) => (
             <a
               key={c.title}
               href={`/search?q=${encodeURIComponent(c.query.split(" ")[0])}`}
-              style={{
-                position: "relative",
-                borderRadius: "14px",
-                overflow: "hidden",
-                aspectRatio: i < 2 ? "4/3" : "1/1",
-                gridColumn: i < 2 ? "auto" : "auto",
-                textDecoration: "none",
-                backgroundColor: c.color || "#2B2A27",
-              }}
+              className={[
+                "relative rounded-[14px] overflow-hidden no-underline",
+                i < 2 ? "aspect-[4/3]" : "aspect-square",
+              ].join(" ")}
+              style={{ backgroundColor: c.color || "#2B2A27" }}
             >
               {c.imageUrl && (
-                <img src={c.imageUrl} alt="" loading="lazy" style={{
-                  position: "absolute", inset: 0,
-                  width: "100%", height: "100%", objectFit: "cover",
-                }} />
+                <img src={c.imageUrl} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
               )}
-              <div style={{
-                position: "absolute", inset: 0,
-                background: "linear-gradient(to top, rgba(10,9,8,0.75) 0%, rgba(10,9,8,0.1) 60%, transparent 100%)",
-              }} />
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0,
-                padding: "0.7rem 0.8rem",
-              }}>
-                <p style={{
-                  fontFamily: "'Instrument Serif', serif",
-                  fontSize: "0.95rem", color: "#fff",
-                  margin: 0, lineHeight: 1.2,
-                }}>{c.title}</p>
-                <p style={{
-                  fontSize: "0.65rem", color: "rgba(255,255,255,0.5)",
-                  margin: "0.1rem 0 0",
-                }}>{c.subtitle}</p>
+              <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
+              <div className="absolute bottom-0 left-0 right-0 py-[0.7rem] px-[0.8rem]">
+                <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{c.title}</p>
+                <p className="text-[0.65rem] text-[rgba(255,255,255,0.5)] mt-[0.1rem]">{c.subtitle}</p>
               </div>
             </a>
           ))}
@@ -223,83 +177,46 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Top artists */}
-      <section style={{ padding: "2rem 0 0" }}>
-        <h2 style={{
-          fontFamily: "'Instrument Serif', serif",
-          fontSize: "1.3rem", color: "#1A1815",
-          margin: "0 1rem 0.75rem",
-        }}>Formgivare & konstnärer</h2>
+      <section className="pt-8">
+        <h2 className="font-serif text-[1.3rem] text-ink mx-4 mb-3">Formgivare & konstnärer</h2>
 
-        <div style={{
-          display: "flex", gap: "0.75rem",
-          overflowX: "auto", padding: "0 1rem 0.5rem",
-        }} className="no-scrollbar">
+        <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar">
           {topArtists.map((a) => (
             <a
               key={a.name}
               href={`/artist/${encodeURIComponent(a.name)}`}
-              style={{
-                flex: "0 0 auto",
-                width: "5.5rem",
-                textDecoration: "none",
-                textAlign: "center",
-              }}
+              className="shrink-0 w-[5.5rem] no-underline text-center"
             >
-              <div style={{
-                width: "5rem", height: "5rem",
-                borderRadius: "50%",
-                overflow: "hidden",
-                margin: "0 auto",
-                backgroundColor: a.color || "#D4CDC3",
-              }}>
+              <div className="w-20 h-20 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
                 {a.imageUrl && (
-                  <img src={a.imageUrl} alt={a.name} loading="lazy" style={{
-                    width: "100%", height: "100%", objectFit: "cover",
-                  }} />
+                  <img src={a.imageUrl} alt={a.name} loading="lazy" className="w-full h-full object-cover" />
                 )}
               </div>
-              <p style={{
-                fontSize: "0.7rem", fontWeight: 500,
-                color: "#3D3831", marginTop: "0.4rem",
-                lineHeight: 1.2,
-                overflow: "hidden", display: "-webkit-box",
-                WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-              }}>{a.name}</p>
-              <p style={{
-                fontSize: "0.6rem", color: "#8C8478",
-                marginTop: "0.1rem",
-              }}>{a.count.toLocaleString("sv")} verk</p>
+              <p className="text-[0.7rem] font-medium text-charcoal mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
+                {a.name}
+              </p>
+              <p className="text-[0.6rem] text-warm-gray mt-[0.1rem]">
+                {a.count.toLocaleString("sv")} verk
+              </p>
             </a>
           ))}
         </div>
       </section>
 
       {/* Verktyg */}
-      <section style={{ padding: "2rem 1rem 0" }}>
-        <h2 style={{
-          fontFamily: "'Instrument Serif', serif",
-          fontSize: "1.3rem", color: "#1A1815",
-          marginBottom: "0.75rem",
-        }}>Verktyg</h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      <section className="pt-8 px-4">
+        <h2 className="font-serif text-[1.3rem] text-ink mb-3">Verktyg</h2>
+        <div className="flex flex-col gap-2">
           <ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" />
           <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
         </div>
       </section>
 
       {/* Samlingen i siffror */}
-      <section style={{ padding: "2rem 1rem 3rem" }}>
-        <h2 style={{
-          fontFamily: "'Instrument Serif', serif",
-          fontSize: "1.3rem", color: "#1A1815",
-          marginBottom: "1rem",
-        }}>Samlingen i siffror</h2>
+      <section className="pt-8 px-4 pb-12">
+        <h2 className="font-serif text-[1.3rem] text-ink mb-4">Samlingen i siffror</h2>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "0.5rem",
-        }}>
+        <div className="grid grid-cols-3 gap-2">
           <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk totalt" />
           <StatCard number={stats.artists.toLocaleString("sv")} label="konstnärer" />
           <StatCard number={`${stats.oldestYear}`} label="äldsta verket" />
@@ -315,41 +232,21 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
 function ToolLink({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <a href={href} style={{
-      display: "flex", alignItems: "center", gap: "0.8rem",
-      padding: "0.9rem 1rem",
-      borderRadius: "14px",
-      background: "#EDEAE4",
-      textDecoration: "none",
-    }}>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: "0.88rem", fontWeight: 500, color: "#1A1815", margin: 0 }}>{title}</p>
-        <p style={{ fontSize: "0.72rem", color: "#7A7268", margin: "0.1rem 0 0" }}>{desc}</p>
+    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 rounded-[14px] bg-[#EDEAE4] no-underline">
+      <div className="flex-1">
+        <p className="text-[0.88rem] font-medium text-ink m-0">{title}</p>
+        <p className="text-[0.72rem] text-[#7A7268] mt-[0.1rem]">{desc}</p>
       </div>
-      <span style={{ color: "#9C9488", fontSize: "1rem" }}>→</span>
+      <span className="text-[#9C9488] text-[1rem]">→</span>
     </a>
   );
 }
 
 function StatCard({ number, label }: { number: string; label: string }) {
   return (
-    <div style={{
-      padding: "0.8rem 0.7rem",
-      borderRadius: "12px",
-      background: "#EDEAE4",
-      textAlign: "center",
-    }}>
-      <p style={{
-        fontFamily: "'Instrument Serif', serif",
-        fontSize: "1.3rem", fontWeight: 600,
-        color: "#3D3831", margin: 0,
-        lineHeight: 1.1,
-      }}>{number}</p>
-      <p style={{
-        fontSize: "0.6rem", color: "#8C8478",
-        marginTop: "0.2rem", textTransform: "uppercase",
-        letterSpacing: "0.06em",
-      }}>{label}</p>
+    <div className="py-[0.8rem] px-[0.7rem] rounded-[12px] bg-[#EDEAE4] text-center">
+      <p className="font-serif text-[1.3rem] font-semibold text-charcoal m-0 leading-[1.1]">{number}</p>
+      <p className="text-[0.6rem] text-warm-gray mt-[0.2rem] uppercase tracking-[0.06em]">{label}</p>
     </div>
   );
 }

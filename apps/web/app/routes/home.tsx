@@ -290,10 +290,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   }, [hasMore, loading, cursor, themeIndex]);
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      overflowX: "hidden",
-    }}>
+    <div className="min-h-screen overflow-x-hidden">
       {feed.map((entry, i) =>
         entry.type === "art" ? (
           <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
@@ -303,9 +300,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <ThemeCard key={`theme-${entry.title}-${i}`} section={entry} />
         )
       )}
-      <div ref={sentinelRef} style={{ height: "1px" }} />
+      <div ref={sentinelRef} className="h-px" />
       {loading && (
-        <div style={{ textAlign: "center", padding: "2rem", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem" }}>
+        <div className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
           Laddar mer konst…
         </div>
       )}
@@ -321,17 +318,8 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      style={{
-        display: "block",
-        position: "relative",
-        width: "100%",
-        height: "100vh",
-        backgroundColor: item.dominant_color || "#1A1815",
-        textDecoration: "none",
-        color: "inherit",
-        overflow: "hidden",
-        contain: "layout paint",
-      }}
+      className="block relative w-full h-[100vh] no-underline text-inherit overflow-hidden contain-[layout_paint]"
+      style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
         src={item.imageUrl}
@@ -339,39 +327,30 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
         loading={eager ? "eager" : "lazy"}
         decoding={eager ? "sync" : "async"}
         fetchPriority={eager ? "high" : undefined}
-        onLoad={eager ? undefined : (e) => { (e.target as HTMLImageElement).style.opacity = "1"; }}
+        onLoad={eager ? undefined : (e) => {
+          const img = e.currentTarget;
+          img.classList.remove("opacity-0");
+          img.classList.add("opacity-100");
+        }}
         onError={(e) => {
           const card = (e.target as HTMLImageElement).closest("a");
-          if (card) (card as HTMLElement).style.display = "none";
+          if (card) (card as HTMLElement).classList.add("hidden");
         }}
-        style={{
-          position: "absolute", inset: 0,
-          width: "100%", height: "100%",
-          objectFit: "cover",
-          ...(eager ? {} : { opacity: 0, transition: "opacity 0.4s ease" }),
-        }}
+        className={[
+          "absolute inset-0 w-full h-full object-cover",
+          eager ? "" : "opacity-0 transition-opacity duration-[400ms] ease-[ease]",
+        ].join(" ")}
       />
-      <div style={{
-        position: "absolute", inset: 0,
-        background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 35%, transparent 60%)",
-        pointerEvents: "none",
-      }} />
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        padding: "1.5rem",
-      }}>
-        <p style={{
-          fontFamily: '"Instrument Serif", Georgia, serif',
-          fontSize: "1.5rem", fontWeight: 600, color: "#fff",
-          lineHeight: 1.2, marginBottom: "0.35rem",
-        }}>
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 p-6">
+        <p className="font-serif text-[1.5rem] font-semibold text-white leading-[1.2] mb-[0.35rem]">
           {item.title_sv || "Utan titel"}
         </p>
-        <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>
+        <p className="text-[0.85rem] text-[rgba(255,255,255,0.6)]">
           {parseArtist(item.artists)}
         </p>
         {item.dating_text && (
-          <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.35)", marginTop: "0.2rem" }}>
+          <p className="text-[0.75rem] text-[rgba(255,255,255,0.35)] mt-[0.2rem]">
             {item.dating_text}
           </p>
         )}
@@ -388,25 +367,11 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           }
           toggle(item.id);
         }}
-        style={{
-          position: "absolute",
-          right: "1.25rem",
-          bottom: "1.25rem",
-          width: "2.2rem",
-          height: "2.2rem",
-          borderRadius: "999px",
-          border: "1px solid rgba(255,255,255,0.2)",
-          background: saved ? "rgba(196,85,58,0.95)" : "rgba(0,0,0,0.4)",
-          color: "#fff",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
-          transition: "transform 0.15s ease, background 0.2s ease",
-        }}
-        className={pulsing ? "heart-pulse" : undefined}
+        className={[
+          "absolute right-5 bottom-5 w-[2.2rem] h-[2.2rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
+          saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
+          pulsing ? "heart-pulse" : "",
+        ].join(" ")}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
           <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
@@ -425,120 +390,83 @@ function StatsSection({ stats }: { stats: StatsCard }) {
     { value: stats.ceramics.toLocaleString("sv"), label: "keramik" },
   ];
   return (
-    <div style={{
-      padding: "3rem 1.5rem",
-      background: "linear-gradient(135deg, #1A1815 0%, #2B2520 100%)",
-      textAlign: "center",
-    }}>
-      <p style={{
-        fontSize: "0.65rem", fontWeight: 600,
-        letterSpacing: "0.2em", textTransform: "uppercase",
-        color: "rgba(255,255,255,0.35)",
-      }}>Nationalmuseums samling</p>
-      <h2 style={{
-        fontFamily: "'Instrument Serif', serif",
-        fontSize: "2rem", color: "#F5F0E8",
-        margin: "0.5rem 0 1.5rem", lineHeight: 1.1,
-      }}>Samlingen i siffror</h2>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr",
-        gap: "1rem 0.5rem",
-        maxWidth: "22rem",
-        margin: "0 auto",
-      }}>
+    <div className="py-12 px-6 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center">
+      <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
+        Nationalmuseums samling
+      </p>
+      <h2 className="font-serif text-[2rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
+        Samlingen i siffror
+      </h2>
+      <div className="grid grid-cols-3 gap-y-4 gap-x-2 max-w-[22rem] mx-auto">
         {items.map((item) => (
           <div key={item.label}>
-            <p style={{
-              fontFamily: "'Instrument Serif', serif",
-              fontSize: "1.6rem", fontWeight: 600,
-              color: "#F5F0E8", margin: 0, lineHeight: 1,
-            }}>{item.value}</p>
-            <p style={{
-              fontSize: "0.6rem", color: "rgba(245,240,232,0.45)",
-              marginTop: "0.25rem", textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}>{item.label}</p>
+            <p className="font-serif text-[1.6rem] font-semibold text-[#F5F0E8] m-0 leading-none">
+              {item.value}
+            </p>
+            <p className="text-[0.6rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
+              {item.label}
+            </p>
           </div>
         ))}
       </div>
-      <a href="/discover" style={{
-        display: "inline-block",
-        marginTop: "1.5rem",
-        padding: "0.6rem 1.5rem",
-        borderRadius: "999px",
-        border: "1px solid rgba(255,255,255,0.15)",
-        color: "rgba(255,255,255,0.7)",
-        fontSize: "0.78rem", fontWeight: 500,
-        textDecoration: "none",
-        letterSpacing: "0.02em",
-      }}>Upptäck samlingen →</a>
+      <a
+        href="/discover"
+        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em]"
+      >
+        Upptäck samlingen →
+      </a>
     </div>
   );
 }
 
 function ThemeCard({ section }: { section: ThemeSection }) {
   return (
-    <div style={{
-      backgroundColor: section.color,
-      padding: "3rem 1rem 2rem",
-      scrollSnapAlign: "start",
-    }}>
+    <div
+      className="pt-12 px-4 pb-8 snap-start"
+      style={{ backgroundColor: section.color }}
+    >
       {/* Theme header */}
-      <p style={{
-        fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.2em",
-        color: "rgba(255,255,255,0.4)", fontWeight: 500,
-      }}>
+      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.4)] font-medium">
         Tema
       </p>
-      <h2 style={{
-        fontFamily: '"Instrument Serif", Georgia, serif',
-        fontSize: "2rem", fontWeight: 600, color: "#fff",
-        marginTop: "0.5rem", lineHeight: 1.1,
-      }}>
+      <h2 className="font-serif text-[2rem] font-semibold text-white mt-2 leading-[1.1]">
         {section.title}
       </h2>
-      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", marginTop: "0.35rem" }}>
+      <p className="text-[0.85rem] text-[rgba(255,255,255,0.5)] mt-[0.35rem]">
         {section.subtitle}
       </p>
 
       {/* Horizontal scroll of themed artworks */}
-      <div style={{
-        display: "flex", gap: "0.75rem",
-        overflowX: "auto", paddingTop: "1.5rem", paddingBottom: "0.5rem",
-        scrollSnapType: "x mandatory",
-      }} className="no-scrollbar">
+      <div className="flex gap-3 overflow-x-auto pt-6 pb-2 snap-x snap-mandatory no-scrollbar">
         {section.items.map((item: FeedItem) => (
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            style={{
-              flexShrink: 0, width: "70vw", maxWidth: "280px",
-              borderRadius: "0.75rem", overflow: "hidden",
-              backgroundColor: item.dominant_color || "#1A1815",
-              textDecoration: "none", color: "inherit",
-              scrollSnapAlign: "start",
-            }}
+            className="shrink-0 w-[70vw] max-w-[280px] rounded-xl overflow-hidden no-underline text-inherit snap-start"
+            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
-            <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: item.dominant_color || "#1A1815" }}>
+            <div
+              className="aspect-[3/4] overflow-hidden"
+              style={{ backgroundColor: item.dominant_color || "#1A1815" }}
+            >
               <img
                 src={iiif(item.iiif_url, 400)}
                 alt={item.title_sv || ""}
                 loading="lazy"
-                onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = "1"; }}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0, transition: "opacity 0.4s ease" }}
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  img.classList.remove("opacity-0");
+                  img.classList.add("opacity-100");
+                }}
+                onError={(e) => { (e.target as HTMLImageElement).classList.add("hidden"); }}
+                className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
               />
             </div>
-            <div style={{ padding: "0.6rem 0.75rem" }}>
-              <p style={{
-                fontSize: "0.8rem", fontWeight: 500, color: "#fff",
-                lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
-                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-              }}>
+            <div className="py-[0.6rem] px-3">
+              <p className="text-[0.8rem] font-medium text-white leading-[1.3] overflow-hidden line-clamp-2">
                 {item.title_sv || "Utan titel"}
               </p>
-              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginTop: "0.15rem" }}>
+              <p className="text-[0.7rem] text-[rgba(255,255,255,0.5)] mt-[0.15rem]">
                 {parseArtist(item.artists)}
               </p>
             </div>
@@ -547,11 +475,7 @@ function ThemeCard({ section }: { section: ThemeSection }) {
       </div>
 
       {/* "Visa fler" link */}
-      <a href={`/discover`} style={{
-        display: "inline-block", marginTop: "1rem",
-        fontSize: "0.8rem", color: "rgba(255,255,255,0.5)",
-        textDecoration: "none",
-      }}>
+      <a href={`/discover`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
         Visa fler →
       </a>
     </div>

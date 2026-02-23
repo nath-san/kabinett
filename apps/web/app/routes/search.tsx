@@ -61,7 +61,7 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
 
     if (val.length < 2) {
       dropdown.innerHTML = "";
-      dropdown.style.display = "none";
+      dropdown.classList.add("hidden");
       return;
     }
 
@@ -70,11 +70,11 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
         const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
         const data = await r.json();
         if (data.length === 0) {
-          dropdown.style.display = "none";
+          dropdown.classList.add("hidden");
           dropdown.innerHTML = "";
           return;
         }
-        dropdown.style.display = "block";
+        dropdown.classList.remove("hidden");
         dropdown.innerHTML = data.map((s: any, i: number) =>
           `<div class="ac-item px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}">
             <span class="text-charcoal truncate">${s.value}</span>
@@ -82,7 +82,7 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
           </div>`
         ).join("");
       } catch {
-        dropdown.style.display = "none";
+        dropdown.classList.add("hidden");
       }
     }, 200);
   }, []);
@@ -93,7 +93,7 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
     e.preventDefault();
     const val = item.dataset.value || "";
     const dropdown = dropdownRef.current;
-    if (dropdown) { dropdown.style.display = "none"; dropdown.innerHTML = ""; }
+    if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
     if (formRef.current) {
       const inp = formRef.current.querySelector("input[name=q]") as HTMLInputElement;
       if (inp) inp.value = val;
@@ -123,8 +123,7 @@ function AutocompleteSearch({ defaultValue }: { defaultValue: string }) {
       <div
         ref={dropdownRef}
         onPointerDown={handleDropdownClick}
-        style={{ display: "none" }}
-        className="mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
+        className="hidden mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
       />
     </>
   );
@@ -163,8 +162,10 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               {results.map((r: any) => (
                 <a key={r.id} href={`/artwork/${r.id}`}
                   className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group">
-                  <div style={{ backgroundColor: r.dominant_color || "#D4CDC3", aspectRatio: "3/4" }}
-                    className="overflow-hidden">
+                  <div
+                    style={{ backgroundColor: r.dominant_color || "#D4CDC3" }}
+                    className="overflow-hidden aspect-[3/4]"
+                  >
                     <img src={r.iiif_url.replace("http://","https://") + "full/400,/0/default.jpg"}
                       alt={r.title_sv || ""} width={400} height={533}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />

@@ -135,77 +135,51 @@ export default function ColorMatch() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
-      <div style={{ maxWidth: "60rem", margin: "0 auto", padding: "1.5rem" }}>
-        <h1 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "2rem", color: "#3D3831" }}>
+    <div className="min-h-screen pt-[3.5rem] bg-cream">
+      <div className="max-w-[60rem] mx-auto p-6">
+        <h1 className="font-serif text-[2rem] text-charcoal">
           Färg-match
         </h1>
-        <p style={{ marginTop: "0.35rem", color: "#8C8478" }}>
+        <p className="mt-[0.35rem] text-warm-gray">
           Rikta kameran mot en nyans och hitta konst som matchar.
         </p>
 
-        <div style={{ marginTop: "1.5rem", position: "relative", borderRadius: "1.25rem", overflow: "hidden", background: "#1A1815" }}>
-          <video ref={videoRef} playsInline muted style={{ width: "100%", height: "auto", display: "block" }} />
+        <div className="mt-6 relative rounded-[1.25rem] overflow-hidden bg-ink">
+          <video ref={videoRef} playsInline muted className="w-full h-auto block" />
           <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              width: "7rem",
-              height: "7rem",
-              transform: "translate(-50%, -50%)",
-              borderRadius: "999px",
-              border: "2px solid rgba(245,240,232,0.8)",
-              boxShadow: "0 0 0 999px rgba(0,0,0,0.2)",
-              pointerEvents: "none",
-            }}
+            className="absolute top-1/2 left-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[rgba(245,240,232,0.8)] shadow-[0_0_0_999px_rgba(0,0,0,0.2)] pointer-events-none"
           />
           {status && (
             <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#F5F0E8",
-                padding: "2rem",
-                textAlign: "center",
-                background: "rgba(26,24,21,0.75)",
-              }}
+              className="absolute inset-0 flex items-center justify-center text-[#F5F0E8] p-8 text-center bg-[rgba(26,24,21,0.75)]"
             >
               {status}
             </div>
           )}
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem", alignItems: "center" }}>
+        <div className="flex flex-wrap gap-3 mt-4 items-center">
           <button
             type="button"
             onClick={captureColor}
-            style={{
-              padding: "0.75rem 1.5rem",
-              borderRadius: "999px",
-              border: "none",
-              background: "#3D3831",
-              color: "#FAF7F2",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            className="py-3 px-6 rounded-full border-0 bg-charcoal text-cream font-semibold cursor-pointer"
           >
             Matcha färg
           </button>
           {color && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "999px", background: color.hex, border: "1px solid #D4CDC3" }} />
-              <span style={{ fontSize: "0.8rem", color: "#8C8478", fontFamily: "monospace" }}>{color.hex}</span>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-6 h-6 rounded-full border border-stone"
+                style={{ background: color.hex }}
+              />
+              <span className="text-[0.8rem] text-warm-gray font-mono">{color.hex}</span>
             </div>
           )}
         </div>
 
-        <div style={{ marginTop: "1.5rem" }}>
-          <p style={{ fontSize: "0.85rem", color: "#8C8478" }}>Eller välj en palett:</p>
-          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+        <div className="mt-6">
+          <p className="text-[0.85rem] text-warm-gray">Eller välj en palett:</p>
+          <div className="flex gap-[0.6rem] flex-wrap mt-[0.6rem]">
             {palette.map((hex) => (
               <button
                 key={hex}
@@ -216,14 +190,8 @@ export default function ColorMatch() {
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
                 aria-label={`Välj ${hex}`}
-                style={{
-                  width: "2.25rem",
-                  height: "2.25rem",
-                  borderRadius: "999px",
-                  border: "1px solid rgba(26,24,21,0.2)",
-                  background: hex,
-                  cursor: "pointer",
-                }}
+                className="w-9 h-9 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer"
+                style={{ background: hex }}
               />
             ))}
             <input
@@ -235,48 +203,39 @@ export default function ColorMatch() {
                 setColor({ ...rgb, hex });
                 void fetchMatches(rgb.r, rgb.g, rgb.b);
               }}
-              style={{ width: "2.5rem", height: "2.25rem", border: "none", background: "none", padding: 0 }}
+              className="w-10 h-9 border-0 bg-transparent p-0"
             />
           </div>
         </div>
 
-        <div style={{ marginTop: "2rem" }}>
-          <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "#3D3831" }}>Matchar</h2>
-          {loading && <p style={{ color: "#8C8478" }}>Letar efter nyanser…</p>}
+        <div className="mt-8">
+          <h2 className="text-[1.2rem] font-semibold text-charcoal">Matchar</h2>
+          {loading && <p className="text-warm-gray">Letar efter nyanser…</p>}
           <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-              gap: "1rem",
-              marginTop: "1rem",
-            }}
+            className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 mt-4"
           >
             {matches.map((item) => (
               <a
                 key={item.id}
                 href={`/artwork/${item.id}`}
-                style={{
-                  textDecoration: "none",
-                  color: "inherit",
-                  background: "#fff",
-                  borderRadius: "0.85rem",
-                  overflow: "hidden",
-                  border: "1px solid rgba(212,205,195,0.3)",
-                }}
+                className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden border border-[rgba(212,205,195,0.3)]"
               >
-                <div style={{ aspectRatio: "3/4", backgroundColor: item.dominant_color || "#D4CDC3" }}>
+                <div
+                  className="aspect-[3/4]"
+                  style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
+                >
                   <img
                     src={iiif(item.iiif_url, 400)}
                     alt={item.title_sv || ""}
                     loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                <div style={{ padding: "0.65rem" }}>
-                  <p style={{ fontSize: "0.85rem", fontWeight: 600, margin: 0, color: "#3D3831" }}>
+                <div className="p-[0.65rem]">
+                  <p className="text-[0.85rem] font-semibold m-0 text-charcoal">
                     {item.title_sv || "Utan titel"}
                   </p>
-                  <p style={{ fontSize: "0.7rem", marginTop: "0.2rem", color: "#8C8478" }}>
+                  <p className="text-[0.7rem] mt-[0.2rem] text-warm-gray">
                     {parseArtist(item.artists)}
                   </p>
                 </div>
@@ -285,7 +244,7 @@ export default function ColorMatch() {
           </div>
         </div>
       </div>
-      <canvas ref={canvasRef} style={{ display: "none" }} />
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }

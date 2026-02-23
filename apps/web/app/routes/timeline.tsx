@@ -108,7 +108,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   const { decades, selectedDecade, selectedLabel, selectedWorks } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#1C1916", color: "#F5F0E8" }}>
+    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
       <style>{`
         .timeline-scroll {
           display: grid;
@@ -184,14 +184,14 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         }
       `}</style>
 
-      <header id="top" style={{ padding: "2.5rem 1.25rem 0" }}>
-        <p style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(245,240,232,0.55)" }}>
+      <header id="top" className="pt-10 px-5 pb-0">
+        <p className="text-[0.75rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.55)]">
           Tidslinje
         </p>
-        <h1 className="font-serif" style={{ fontSize: "2.2rem", marginTop: "0.4rem" }}>
+        <h1 className="font-serif text-[2.2rem] mt-[0.4rem]">
           800 år av konst
         </h1>
-        <p style={{ marginTop: "0.6rem", maxWidth: "36rem", color: "rgba(245,240,232,0.7)" }}>
+        <p className="mt-[0.6rem] max-w-[36rem] text-[rgba(245,240,232,0.7)]">
           Från medeltid till modernism, decennium för decennium.
         </p>
       </header>
@@ -201,19 +201,19 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           <div key={decade.decade} className="timeline-column">
             <div className="timeline-label font-serif">{decade.decade}</div>
             {decade.samples.length === 0 && (
-              <div style={{ fontSize: "0.75rem", color: "rgba(245,240,232,0.45)" }}>
+              <div className="text-[0.75rem] text-[rgba(245,240,232,0.45)]">
                 Inga verk hittades
               </div>
             )}
             {decade.samples.map((art) => (
               <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card">
-                <div style={{ backgroundColor: art.color, aspectRatio: "3/4" }}>
+                <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
                   <img src={art.imageUrl} alt={art.title} loading="lazy" width={400} height={533} />
                 </div>
                 <div className="timeline-card-meta">
-                  <span style={{ fontSize: "0.8rem", fontWeight: 600 }}>{art.title}</span>
-                  <span style={{ fontSize: "0.7rem", color: "rgba(245,240,232,0.6)" }}>{art.artist}</span>
-                  <span style={{ fontSize: "0.65rem", color: "rgba(245,240,232,0.45)" }}>{art.year}</span>
+                  <span className="text-[0.8rem] font-semibold">{art.title}</span>
+                  <span className="text-[0.7rem] text-[rgba(245,240,232,0.6)]">{art.artist}</span>
+                  <span className="text-[0.65rem] text-[rgba(245,240,232,0.45)]">{art.year}</span>
                 </div>
               </a>
             ))}
@@ -225,50 +225,41 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
       </div>
 
       {selectedDecade > 0 && (
-        <section id={`decade-${selectedDecade}`} style={{ padding: "1rem 1.25rem 4rem" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+        <section id={`decade-${selectedDecade}`} className="pt-4 px-5 pb-16">
+          <div className="flex items-baseline justify-between flex-wrap gap-4">
             <div>
-              <h2 className="font-serif" style={{ fontSize: "1.7rem" }}>
+              <h2 className="font-serif text-[1.7rem]">
                 {selectedLabel}
               </h2>
-              <p style={{ color: "rgba(245,240,232,0.6)", fontSize: "0.8rem" }}>
+              <p className="text-[0.8rem] text-[rgba(245,240,232,0.6)]">
                 {selectedWorks.length} verk i urvalet
               </p>
             </div>
             <a
               href="#top"
-              style={{ fontSize: "0.8rem", color: "rgba(245,240,232,0.7)", textDecoration: "none" }}
+              className="text-[0.8rem] text-[rgba(245,240,232,0.7)] no-underline"
             >
               Tillbaka upp
             </a>
           </div>
 
           {selectedWorks.length > 0 ? (
-            <div className="timeline-grid" style={{ marginTop: "1.2rem" }}>
+            <div className="timeline-grid mt-[1.2rem]">
               {selectedWorks.map((art) => (
                 <a
                   key={art.id}
                   href={`/artwork/${art.id}`}
-                  style={{
-                    breakInside: "avoid",
-                    display: "block",
-                    borderRadius: "0.8rem",
-                    overflow: "hidden",
-                    backgroundColor: "#252019",
-                    marginBottom: "0.8rem",
-                    textDecoration: "none",
-                    color: "inherit",
-                  }}
+                  className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-[#252019] mb-[0.8rem] no-underline text-inherit"
                 >
-                  <div style={{ backgroundColor: art.color, aspectRatio: "3/4" }}>
+                  <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
                     <img src={art.imageUrl} alt={art.title} width={400} height={533} loading="lazy" />
                   </div>
-                  <div style={{ padding: "0.6rem" }}>
-                    <p style={{ fontSize: "0.85rem", fontWeight: 600 }}>{art.title}</p>
-                    <p style={{ fontSize: "0.7rem", color: "rgba(245,240,232,0.6)", marginTop: "0.2rem" }}>
+                  <div className="p-[0.6rem]">
+                    <p className="text-[0.85rem] font-semibold">{art.title}</p>
+                    <p className="text-[0.7rem] text-[rgba(245,240,232,0.6)] mt-[0.2rem]">
                       {art.artist}
                     </p>
-                    <p style={{ fontSize: "0.65rem", color: "rgba(245,240,232,0.4)", marginTop: "0.15rem" }}>
+                    <p className="text-[0.65rem] text-[rgba(245,240,232,0.4)] mt-[0.15rem]">
                       {art.year}
                     </p>
                   </div>
@@ -276,7 +267,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               ))}
             </div>
           ) : (
-            <p style={{ padding: "2rem 0", color: "rgba(245,240,232,0.55)" }}>
+            <p className="py-8 text-[rgba(245,240,232,0.55)]">
               Inga verk från denna period.
             </p>
           )}

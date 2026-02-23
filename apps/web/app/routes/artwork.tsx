@@ -141,64 +141,38 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
   const { artwork, similar, sameArtist, artistName } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
+    <div className="min-h-screen pt-[3.5rem] bg-cream">
       {/* Hero image with color bg */}
-      <div style={{
-        backgroundColor: artwork.color,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "1.5rem 1rem",
-        minHeight: "50vh",
-      }}>
+      <div
+        className="flex justify-center items-center py-6 px-4 min-h-[50vh]"
+        style={{ backgroundColor: artwork.color }}
+      >
         <img
           src={artwork.imageUrl}
           alt={artwork.title}
-          style={{
-            maxHeight: "70vh",
-            maxWidth: "100%",
-            objectFit: "contain",
-            borderRadius: "0.25rem",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.3)",
-          }}
+          className="max-h-[70vh] max-w-full object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
 
       {/* Info card — overlapping the image slightly */}
-      <div style={{
-        margin: "-2rem 1rem 0",
-        padding: "1.5rem",
-        backgroundColor: "#fff",
-        borderRadius: "1rem",
-        position: "relative",
-        zIndex: 10,
-        boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
-        maxWidth: "40rem",
-        marginLeft: "auto",
-        marginRight: "auto",
-      }}>
-        <h1 className="font-serif" style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
-          color: "#3D3831",
-          lineHeight: 1.3,
-        }}>
+      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-[40rem] mx-auto">
+        <h1 className="font-serif text-[1.5rem] font-bold text-charcoal leading-[1.3]">
           {artwork.title}
         </h1>
 
         {artwork.artists.length > 0 && (
-          <p style={{ marginTop: "0.5rem", fontSize: "1rem" }}>
+          <p className="mt-2 text-base">
             {artwork.artists.map((a: any, i: number) => (
               <span key={i}>
                 {i > 0 && ", "}
                 <a href={"/artist/" + encodeURIComponent(a.name)}
-                  style={{ color: "#8C8478", textDecoration: "none", borderBottom: "1px solid #D4CDC3" }}>
+                  className="text-warm-gray no-underline border-b border-stone">
                   {a.name}
                 </a>
               </span>
             ))}
             {artwork.artists[0]?.nationality && (
-              <span style={{ fontSize: "0.875rem", color: "#D4CDC3" }}>
+              <span className="text-sm text-stone">
                 {" "}· {artwork.artists[0].nationality}
               </span>
             )}
@@ -206,14 +180,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Details grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "1rem",
-          marginTop: "1.25rem",
-          paddingTop: "1.25rem",
-          borderTop: "1px solid #F0EBE3",
-        }}>
+        <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-linen">
           {artwork.datingText && <Detail label="Datering" value={artwork.datingText} />}
           {artwork.category && <Detail label="Kategori" value={artwork.category} />}
           {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
@@ -226,13 +193,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Description */}
         {artwork.description && (
-          <div style={{
-            marginTop: "1.25rem",
-            paddingTop: "1.25rem",
-            borderTop: "1px solid #F0EBE3",
-          }}>
-            <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.4rem" }}>Beskrivning</p>
-            <p style={{ fontSize: "0.85rem", color: "#3D3831", lineHeight: 1.6 }}>
+          <div className="mt-5 pt-5 border-t border-linen">
+            <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
+            <p className="text-[0.85rem] text-charcoal leading-[1.6]">
               {artwork.description}
             </p>
           </div>
@@ -240,24 +203,17 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Signature & Inscription */}
         {(artwork.signature || artwork.inscription) && (
-          <div style={{
-            marginTop: "1.25rem",
-            paddingTop: "1.25rem",
-            borderTop: "1px solid #F0EBE3",
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: "0.75rem",
-          }}>
+          <div className="mt-5 pt-5 border-t border-linen grid grid-cols-1 gap-3">
             {artwork.signature && (
               <div>
-                <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>Signatur</p>
-                <p style={{ fontSize: "0.8rem", color: "#3D3831", marginTop: "0.15rem", fontStyle: "italic" }}>{artwork.signature}</p>
+                <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">Signatur</p>
+                <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.signature}</p>
               </div>
             )}
             {artwork.inscription && (
               <div>
-                <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>Inskription</p>
-                <p style={{ fontSize: "0.8rem", color: "#3D3831", marginTop: "0.15rem", fontStyle: "italic" }}>{artwork.inscription}</p>
+                <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">Inskription</p>
+                <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.inscription}</p>
               </div>
             )}
           </div>
@@ -265,24 +221,20 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Exhibitions */}
         {artwork.exhibitions.length > 0 && (
-          <div style={{
-            marginTop: "1.25rem",
-            paddingTop: "1.25rem",
-            borderTop: "1px solid #F0EBE3",
-          }}>
-            <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
+          <div className="mt-5 pt-5 border-t border-linen">
+            <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-2">
               Utställningar ({artwork.exhibitions.length})
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            <div className="flex flex-col gap-[0.4rem]">
               {artwork.exhibitions.slice(0, 5).map((ex: any, i: number) => (
-                <div key={i} style={{ fontSize: "0.8rem", color: "#3D3831", lineHeight: 1.4 }}>
-                  <span style={{ fontWeight: 500 }}>{ex.title}</span>
-                  {ex.venue && <span style={{ color: "#8C8478" }}> — {ex.venue}</span>}
-                  {ex.year && <span style={{ color: "#B5AFA6" }}> ({ex.year})</span>}
+                <div key={i} className="text-[0.8rem] text-charcoal leading-[1.4]">
+                  <span className="font-medium">{ex.title}</span>
+                  {ex.venue && <span className="text-warm-gray"> — {ex.venue}</span>}
+                  {ex.year && <span className="text-[#B5AFA6]"> ({ex.year})</span>}
                 </div>
               ))}
               {artwork.exhibitions.length > 5 && (
-                <p style={{ fontSize: "0.7rem", color: "#B5AFA6" }}>
+                <p className="text-[0.7rem] text-[#B5AFA6]">
                   +{artwork.exhibitions.length - 5} till
                 </p>
               )}
@@ -291,25 +243,15 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Color + link row */}
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginTop: "1.25rem",
-          paddingTop: "1.25rem",
-          borderTop: "1px solid #F0EBE3",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{
-              width: "1.5rem",
-              height: "1.5rem",
-              borderRadius: "50%",
-              backgroundColor: artwork.color,
-              border: "1px solid rgba(212,205,195,0.4)",
-            }} />
-            <span style={{ fontSize: "0.75rem", color: "#D4CDC3", fontFamily: "monospace" }}>{artwork.color}</span>
+        <div className="flex justify-between items-center mt-5 pt-5 border-t border-linen">
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full border border-[rgba(212,205,195,0.4)]"
+              style={{ backgroundColor: artwork.color }}
+            />
+            <span className="text-[0.75rem] text-stone font-mono">{artwork.color}</span>
           </div>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <div className="flex gap-3 items-center">
             <button
               onClick={() => {
                 const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
@@ -322,16 +264,12 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   (window as any).__toast?.("Länk kopierad");
                 }
               }}
-              style={{
-                padding: "0.5rem 1rem", borderRadius: "999px",
-                border: "1px solid #F0EBE3", backgroundColor: "#fff",
-                fontSize: "0.8rem", color: "#3D3831", cursor: "pointer",
-                fontWeight: 500,
-              }}>
+              className="py-2 px-4 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium"
+            >
               Dela
             </button>
             <a href={artwork.nmUrl} target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: "0.8rem", color: "#8C8478", textDecoration: "none" }}>
+              className="text-[0.8rem] text-warm-gray no-underline">
               Nationalmuseum →
             </a>
           </div>
@@ -340,33 +278,23 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Same artist section */}
       {sameArtist.length > 0 && (
-        <section style={{ padding: "2.5rem 1rem 0", maxWidth: "50rem", margin: "0 auto" }}>
-          <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3831" }}>
+        <section className="pt-10 px-4 max-w-[50rem] mx-auto">
+          <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Mer av {artistName}
           </h2>
-          <div style={{
-            display: "flex",
-            gap: "0.75rem",
-            overflowX: "auto",
-            paddingTop: "1rem",
-            paddingBottom: "0.5rem",
-          }} className="no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar">
             {sameArtist.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} style={{
-                flexShrink: 0,
-                width: "8rem",
-                borderRadius: "0.75rem",
-                overflow: "hidden",
-                backgroundColor: "#F0EBE3",
-                textDecoration: "none",
-              }}>
-                <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: s.dominant_color || "#D4CDC3" }}>
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 rounded-xl overflow-hidden bg-linen no-underline">
+                <div
+                  className="aspect-[3/4] overflow-hidden"
+                  style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
+                >
                   <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
                     alt={s.title_sv || ""} width={200} height={267}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    className="w-full h-full object-cover" />
                 </div>
-                <div style={{ padding: "0.5rem" }}>
-                  <p style={{ fontSize: "0.75rem", color: "#3D3831", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                <div className="p-2">
+                  <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
                     {s.title_sv || "Utan titel"}
                   </p>
                 </div>
@@ -378,36 +306,26 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Similar colors */}
       {similar.length > 0 && (
-        <section style={{ padding: "2.5rem 1rem 0", maxWidth: "50rem", margin: "0 auto" }}>
-          <h2 className="font-serif" style={{ fontSize: "1.25rem", fontWeight: 600, color: "#3D3831" }}>
+        <section className="pt-10 px-4 max-w-[50rem] mx-auto">
+          <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Liknande verk
           </h2>
-          <div style={{
-            display: "flex",
-            gap: "0.75rem",
-            overflowX: "auto",
-            paddingTop: "1rem",
-            paddingBottom: "0.5rem",
-          }} className="no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar">
             {similar.map((s: any) => (
-              <a key={s.id} href={"/artwork/" + s.id} style={{
-                flexShrink: 0,
-                width: "8rem",
-                borderRadius: "0.75rem",
-                overflow: "hidden",
-                backgroundColor: "#F0EBE3",
-                textDecoration: "none",
-              }}>
-                <div style={{ aspectRatio: "3/4", overflow: "hidden", backgroundColor: s.dominant_color || "#D4CDC3" }}>
+              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 rounded-xl overflow-hidden bg-linen no-underline">
+                <div
+                  className="aspect-[3/4] overflow-hidden"
+                  style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
+                >
                   <img src={s.iiif_url.replace("http://", "https://") + "full/200,/0/default.jpg"}
                     alt={s.title_sv || ""} width={200} height={267}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    className="w-full h-full object-cover" />
                 </div>
-                <div style={{ padding: "0.5rem" }}>
-                  <p style={{ fontSize: "0.75rem", color: "#3D3831", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                <div className="p-2">
+                  <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
                     {s.title_sv || "Utan titel"}
                   </p>
-                  <p style={{ fontSize: "0.65rem", color: "#8C8478", marginTop: "0.125rem" }}>{parseArtist(s.artists)}</p>
+                  <p className="text-[0.65rem] text-warm-gray mt-[0.125rem]">{parseArtist(s.artists)}</p>
                 </div>
               </a>
             ))}
@@ -416,8 +334,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Back */}
-      <div style={{ padding: "2.5rem 1rem 3rem", textAlign: "center" }}>
-        <a href="/discover" style={{ fontSize: "0.875rem", color: "#8C8478", textDecoration: "none" }}>
+      <div className="pt-10 pb-12 px-4 text-center">
+        <a href="/discover" className="text-[0.875rem] text-warm-gray no-underline">
           ← Utforska mer
         </a>
       </div>
@@ -428,8 +346,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p style={{ fontSize: "0.65rem", color: "#8C8478", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
-      <p style={{ fontSize: "0.875rem", color: "#3D3831", marginTop: "0.125rem" }}>{value}</p>
+      <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">{label}</p>
+      <p className="text-[0.875rem] text-charcoal mt-[0.125rem]">{value}</p>
     </div>
   );
 }

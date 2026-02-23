@@ -227,40 +227,40 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
   } = loaderData;
 
   return (
-    <div style={{ minHeight: "100vh", paddingTop: "3.5rem", backgroundColor: "#FAF7F2" }}>
-      <div style={{ padding: "2.75rem 1.25rem 1.5rem" }}>
-        <p style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.2em", color: "#8C8478" }}>
+    <div className="min-h-screen pt-[3.5rem] bg-cream">
+      <div className="pt-[2.75rem] px-5 pb-6">
+        <p className="text-[0.75rem] uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>
-        <h1 className="font-serif" style={{ fontSize: "2.4rem", fontWeight: 700, color: "#3D3831", lineHeight: 1.1, marginTop: "0.5rem" }}>
+        <h1 className="font-serif text-[2.4rem] font-bold text-charcoal leading-[1.1] mt-2">
           {artistName}
         </h1>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem", fontSize: "0.85rem", color: "#8C8478" }}>
+        <div className="flex flex-wrap gap-2 mt-3 text-[0.85rem] text-warm-gray">
           {nationality && <span>{nationality}</span>}
-          {nationality && (birth || death) && <span style={{ color: "#D4CDC3" }}>·</span>}
+          {nationality && (birth || death) && <span className="text-stone">·</span>}
           {(birth || death) && (
             <span>
               {birth || "?"}
               {death ? `–${death}` : birth ? "–" : ""}
             </span>
           )}
-          {(nationality || birth || death) && <span style={{ color: "#D4CDC3" }}>·</span>}
+          {(nationality || birth || death) && <span className="text-stone">·</span>}
           <span>{total} verk</span>
         </div>
         {(wikiDescription || wikiExtract || biography) && (
-          <p style={{ marginTop: "0.9rem", fontSize: "0.95rem", color: "#3D3831", maxWidth: "46rem" }}>
+          <p className="mt-[0.9rem] text-[0.95rem] text-charcoal max-w-[46rem]">
             {wikiExtract || biography || wikiDescription}
           </p>
         )}
         {(wikidata || wikipedia) && (
-          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
+          <div className="flex gap-3 mt-4 flex-wrap">
             {wikidata && (
-              <a href={wikidata} style={{ fontSize: "0.8rem", color: "#8C8478", textDecoration: "none" }}>
+              <a href={wikidata} className="text-[0.8rem] text-warm-gray no-underline">
                 Wikidata
               </a>
             )}
             {wikipedia && (
-              <a href={wikipedia} style={{ fontSize: "0.8rem", color: "#8C8478", textDecoration: "none" }}>
+              <a href={wikipedia} className="text-[0.8rem] text-warm-gray no-underline">
                 Wikipedia
               </a>
             )}
@@ -269,49 +269,32 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       </div>
 
       {timelineWorks.length > 0 && (
-        <section style={{ padding: "0 1.25rem 2rem" }}>
-          <h2 className="font-serif" style={{ fontSize: "1.35rem", color: "#3D3831", marginBottom: "0.75rem" }}>
+        <section className="px-5 pb-8">
+          <h2 className="font-serif text-[1.35rem] text-charcoal mb-3">
             Verk över tid
           </h2>
-          <div
-            className="no-scrollbar"
-            style={{
-              display: "grid",
-              gridAutoFlow: "column",
-              gridAutoColumns: "minmax(140px, 180px)",
-              gap: "0.75rem",
-              overflowX: "auto",
-              paddingBottom: "0.5rem",
-              scrollSnapType: "x mandatory",
-            }}
-          >
+          <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar">
             {timelineWorks.map((w) => (
               <a
                 key={w.id}
                 href={`/artwork/${w.id}`}
-                style={{
-                  textDecoration: "none",
-                  borderRadius: "0.8rem",
-                  overflow: "hidden",
-                  backgroundColor: "#F0EBE3",
-                  scrollSnapAlign: "start",
-                }}
+                className="no-underline rounded-[0.8rem] overflow-hidden bg-linen snap-start"
               >
-                <div style={{ backgroundColor: w.color, aspectRatio: "3/4" }}>
+                <div className="aspect-[3/4]" style={{ backgroundColor: w.color }}>
                   <img
                     src={w.imageUrl}
                     alt={w.title}
                     width={400}
                     height={533}
                     loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                <div style={{ padding: "0.6rem" }}>
-                  <p style={{ fontSize: "0.78rem", color: "#3D3831", fontWeight: 600 }}>
+                <div className="p-[0.6rem]">
+                  <p className="text-[0.78rem] text-charcoal font-semibold">
                     {w.year}
                   </p>
-                  <p style={{ fontSize: "0.72rem", color: "#8C8478", marginTop: "0.2rem", lineHeight: 1.3 }}>
+                  <p className="text-[0.72rem] text-warm-gray mt-[0.2rem] leading-[1.3]">
                     {w.title}
                   </p>
                 </div>
@@ -321,52 +304,33 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <section style={{ padding: "0 1.25rem 4rem" }}>
-        <h2 className="font-serif" style={{ fontSize: "1.35rem", color: "#3D3831", marginBottom: "1rem" }}>
+      <section className="px-5 pb-16">
+        <h2 className="font-serif text-[1.35rem] text-charcoal mb-4">
           Alla verk
         </h2>
-        <div style={{ columnCount: 2, columnGap: "0.8rem" }}>
+        <div className="columns-2 [column-gap:0.8rem]">
           {works.map((w: any) => (
             <a
               key={w.id}
               href={`/artwork/${w.id}`}
-              style={{
-                breakInside: "avoid",
-                display: "block",
-                borderRadius: "0.8rem",
-                overflow: "hidden",
-                backgroundColor: "#F0EBE3",
-                marginBottom: "0.8rem",
-                textDecoration: "none",
-              }}
+              className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline"
             >
-              <div style={{ backgroundColor: w.color, aspectRatio: "3/4", overflow: "hidden" }}>
+              <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: w.color }}>
                 <img
                   src={w.imageUrl}
                   alt={w.title}
                   width={400}
                   height={533}
                   loading="lazy"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  className="w-full h-full object-cover"
                 />
               </div>
-              <div style={{ padding: "0.65rem" }}>
-                <p
-                  style={{
-                    fontSize: "0.8rem",
-                    fontWeight: 500,
-                    color: "#3D3831",
-                    lineHeight: 1.3,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                  }}
-                >
+              <div className="p-[0.65rem]">
+                <p className="text-[0.8rem] font-medium text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
                   {w.title}
                 </p>
                 {w.year && (
-                  <p style={{ fontSize: "0.65rem", color: "#D4CDC3", marginTop: "0.25rem" }}>
+                  <p className="text-[0.65rem] text-stone mt-1">
                     {w.year}
                   </p>
                 )}
