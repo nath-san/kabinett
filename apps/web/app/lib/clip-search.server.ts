@@ -51,7 +51,38 @@ const SV_EN_LOOKUP: Record<string, string> = {
   vågor: "waves", snö: "snow", is: "ice", eld: "fire",
 };
 
-function translateQuery(query: string): string {
+// Cache translations to avoid repeated API calls
+const translationCache = new Map<string, string>();
+
+async function translateToEnglish(text: string): Promise<string> {
+  const cached = translationCache.get(text.toLowerCase());
+  if (cached) return cached;
+  
+  try {
+    // Use MyMemory free translation API (no key needed, 5000 chars/day)
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=sv|en`
+    );
+    const data = await res.json();
+    if (data.responseStatus === 200 && data.responseData?.translatedText) {
+      const translated = data.responseData.translatedText.toLowerCase();
+      translationCache.set(text.toLowerCase(), translated);
+      return translated;
+    }
+  } catch {
+    // Fall through to lookup
+  }
+  
+  // Fallback to lookup table
+  const words = text.toLowerCase().split(/\s+/);
+  const translated = words.map((w) => {
+    const en = SV_EN_LOOKUP[w];
+    return en ? en : w;
+  });
+  return translated.join(" ");
+}
+
+function translateQuerySync(query: string): string {
   const words = query.toLowerCase().split(/\s+/);
   const translated = words.map((w) => {
     const en = SV_EN_LOOKUP[w];
@@ -166,7 +197,13 @@ export async function clipSearch(q: string, limit = 60, offset = 0): Promise<Cli
 
   if (cache.length === 0) return [];
 
-  const translatedQuery = translateQuery(q);
+  // Try async translation first, fallback to sync lookup
+  let translatedQuery: string;
+  try {
+    translatedQuery = await translateToEnglish(q);
+  } catch {
+    translatedQuery = translateQuerySync(q);
+  }
   const textInputs = tokenizer(translatedQuery, { padding: true, truncation: true });
   const { text_embeds } = await textModel(textInputs);
   const queryEmbedding = normalize(new Float32Array(text_embeds.data));
