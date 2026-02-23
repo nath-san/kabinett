@@ -181,7 +181,7 @@ export async function fetchFeed(options: {
     )`);
     // Boost non-nationalmuseum sources so they appear ~30% of the time
     // despite having fewer items (5k vs 74k)
-    orderBy = "CASE WHEN a.source != 'nationalmuseum' THEN RANDOM() % 100 ELSE RANDOM() % 1000 END";
+    orderBy = "CASE WHEN a.source = 'nationalmuseum' THEN RANDOM() % 3 ELSE RANDOM() % 7 END, RANDOM()";
     mode = "offset";
   }
 

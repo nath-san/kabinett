@@ -6,7 +6,7 @@ import { sourceFilter } from "../lib/museums.server";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Vandringar — Kabinett" },
-    { name: "description", content: "Curaterade vandringar genom svenska museers samlingar." },
+    { name: "description", content: "Curaterade vandringar genom Sveriges kulturarv." },
   ];
 }
 

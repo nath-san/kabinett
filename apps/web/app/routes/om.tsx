@@ -62,7 +62,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
         <div className="pt-6">
           <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0">Om Kabinett</h1>
           <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-warm-gray">
-            Kabinett samlar Sveriges kulturarv på ett ställe. Utforska verk från Nationalmuseum, Statens historiska museer och Nordiska museet — allt med semantisk sökning som förstår vad du letar efter.
+            Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över en miljon verk från Nationalmuseum, Livrustkammaren, Hallwylska museet, Nordiska museet och fler — med semantisk sökning som förstår vad du letar efter.
           </p>
         </div>
 

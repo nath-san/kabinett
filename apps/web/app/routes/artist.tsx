@@ -124,7 +124,7 @@ export function meta({ data }: Route.MetaArgs) {
     { title: `${name} — Kabinett` },
     {
       name: "description",
-      content: `Verk av ${name} ur svenska museers samlingar.`,
+      content: `Verk av ${name} i Kabinett.`,
     },
     { property: "og:title", content: name },
     { property: "og:description", content: `Utforska verk av ${name}` },

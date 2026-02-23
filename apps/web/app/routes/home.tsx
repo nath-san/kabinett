@@ -53,7 +53,7 @@ const THEMES = [
 
 export function meta({ data }: Route.MetaArgs) {
   const title = "Kabinett — Utforska Sveriges kulturarv";
-  const description = "Upptäck svenska museers samlingar på ett nytt sätt.";
+  const description = "Upptäck över en miljon verk från nio svenska samlingar.";
   const tags = [
     { title },
     { name: "description", content: description },
@@ -443,7 +443,7 @@ function StatsSection({ stats }: { stats: StatsCard }) {
   return (
     <div className="py-12 md:py-16 lg:py-20 px-6 md:px-8 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center lg:rounded-[1.5rem]">
       <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
-        Museernas samling
+        Sveriges kulturarv
       </p>
       <h2 className="font-serif text-[2rem] lg:text-[2.6rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
         Samlingen i siffror

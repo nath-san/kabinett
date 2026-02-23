@@ -6,7 +6,7 @@ import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 export function meta() {
   return [
     { title: "Upptäck — Kabinett" },
-    { name: "description", content: "Utforska svenska museers samlingar på nya sätt." },
+    { name: "description", content: "Utforska över en miljon verk från nio svenska samlingar." },
   ];
 }
 
