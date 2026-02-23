@@ -130,9 +130,9 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-cream">
-      <div className="md:max-w-4xl md:mx-auto md:px-4">
+      <div className="md:max-w-4xl lg:max-w-5xl md:mx-auto md:px-4 lg:px-6">
         {/* Hero — Quiz CTA */}
-        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 no-underline">
+        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline">
           {quizImage && (
             <img src={quizImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
           )}
@@ -152,7 +152,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <section className="pt-6 px-3">
           <h2 className="font-serif text-[1.3rem] text-ink mx-1 mb-3">Samlingar</h2>
 
-          <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
             {collections.map((c, i) => (
               <a
                 key={c.title}
@@ -180,7 +180,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <section className="pt-8">
           <h2 className="font-serif text-[1.3rem] text-ink mx-4 mb-3">Formgivare & konstnärer</h2>
 
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible">
+          <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
             {topArtists.map((a) => (
               <a
                 key={a.name}
@@ -216,7 +216,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <section className="pt-8 px-4 pb-12">
           <h2 className="font-serif text-[1.3rem] text-ink mb-4">Samlingen i siffror</h2>
 
-          <div className="grid grid-cols-3 gap-2 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-2 lg:grid-cols-5 lg:gap-4">
             <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk totalt" />
             <StatCard number={stats.artists.toLocaleString("sv")} label="konstnärer" />
             <StatCard number={`${stats.oldestYear}`} label="äldsta verket" />

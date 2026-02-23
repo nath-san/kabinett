@@ -117,7 +117,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       {/* Header */}
       {!selected && (
-        <div className="pt-10 px-4 pb-6 md:max-w-5xl md:mx-auto md:px-6">
+        <div className="pt-10 px-4 pb-6 md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-6 lg:px-8">
           <h1 className="font-serif text-[2rem] font-bold text-charcoal">
             Vandringar
           </h1>
@@ -129,7 +129,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
       {/* Walk cards */}
       {!selected && (
-        <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-5xl md:mx-auto md:px-6 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/walks?walk=" + w.slug}
               className="block relative overflow-hidden rounded-2xl h-40 no-underline"
@@ -165,7 +165,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 className="absolute inset-0 w-full h-full object-cover opacity-25"
               />
             )}
-            <div className="relative md:max-w-5xl md:mx-auto">
+            <div className="relative md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-0 lg:px-0">
               <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
                 ← Alla vandringar
               </a>
@@ -185,7 +185,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
           </div>
 
           {/* Walk artworks — large, one per row for immersive feel */}
-          <div className="pt-6 px-4 pb-16 md:max-w-5xl md:mx-auto md:px-6">
+          <div className="pt-6 px-4 pb-16 md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-6 lg:px-8">
             {artworks.map((a: WalkArtwork, i: number) => (
               <div key={a.id}>
                 <a href={"/artwork/" + a.id}

@@ -134,7 +134,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-14 bg-cream">
-      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6">
+      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
         <AutocompleteSearch defaultValue={query} />
 
@@ -153,7 +153,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       </div>
 
       {query && (
-        <div className="px-(--spacing-page) pb-24 md:max-w-6xl md:mx-auto md:px-6">
+        <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <p className="text-sm text-warm-gray mb-6">
             {total > 0 ? `${total} träffar för "${query}"${total > 60 ? " (visar 60)" : ""}` : `Inga träffar för "${query}"`}
           </p>

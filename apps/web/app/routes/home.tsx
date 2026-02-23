@@ -292,16 +292,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <div className="md:max-w-3xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-4">
           {feed.map((entry, i) =>
             entry.type === "art" ? (
               <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
             ) : entry.type === "stats" ? (
-              <div key="stats" className="lg:col-span-2">
+              <div key="stats" className="lg:col-span-3">
                 <StatsSection stats={entry} />
               </div>
             ) : (
-              <div key={`theme-${entry.title}-${i}`} className="lg:col-span-2">
+              <div key={`theme-${entry.title}-${i}`} className="lg:col-span-3">
                 <ThemeCard section={entry} />
               </div>
             )
@@ -326,7 +326,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-[34rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-[2rem]"
+      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-[2rem]"
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -402,16 +402,16 @@ function StatsSection({ stats }: { stats: StatsCard }) {
       <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
         Nationalmuseums samling
       </p>
-      <h2 className="font-serif text-[2rem] lg:text-[2.4rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
+      <h2 className="font-serif text-[2rem] lg:text-[2.6rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
         Samlingen i siffror
       </h2>
-      <div className="grid grid-cols-3 gap-y-4 gap-x-2 max-w-[22rem] md:max-w-[30rem] lg:max-w-[42rem] mx-auto">
+      <div className="grid grid-cols-3 lg:grid-cols-5 gap-y-4 gap-x-2 lg:gap-x-6 lg:gap-y-6 max-w-[22rem] md:max-w-[30rem] lg:max-w-5xl mx-auto">
         {items.map((item) => (
           <div key={item.label}>
-            <p className="font-serif text-[1.6rem] md:text-[2rem] lg:text-[2.4rem] font-semibold text-[#F5F0E8] m-0 leading-none">
+            <p className="font-serif text-[1.6rem] md:text-[2rem] lg:text-[2.7rem] font-semibold text-[#F5F0E8] m-0 leading-none">
               {item.value}
             </p>
-            <p className="text-[0.6rem] md:text-[0.65rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
+            <p className="text-[0.6rem] md:text-[0.65rem] lg:text-[0.7rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
               {item.label}
             </p>
           </div>
@@ -445,12 +445,12 @@ function ThemeCard({ section }: { section: ThemeSection }) {
       </p>
 
       {/* Horizontal scroll of themed artworks */}
-      <div className="flex gap-3 md:gap-4 lg:gap-5 overflow-x-auto pt-6 pb-2 snap-x snap-mandatory no-scrollbar">
+      <div className="flex gap-3 md:gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 overflow-x-auto lg:overflow-visible pt-6 pb-2 lg:pb-0 snap-x snap-mandatory lg:snap-none no-scrollbar">
         {section.items.map((item: FeedItem) => (
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-[240px] lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start lg:snap-none"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div

@@ -144,24 +144,24 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       {/* Hero image with color bg */}
       <div
-        className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh]"
+        className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
         style={{ backgroundColor: artwork.color }}
       >
         <img
           src={artwork.imageUrl}
           alt={artwork.title}
-          className="max-h-[70vh] lg:max-h-[60vh] max-w-full lg:max-w-[64rem] object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
+          className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
 
       {/* Info card — overlapping the image slightly */}
-      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-[40rem] mx-auto lg:mx-auto lg:px-8">
-        <h1 className="font-serif text-[1.5rem] font-bold text-charcoal leading-[1.3]">
+      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-3xl mx-auto lg:mx-auto lg:px-8">
+        <h1 className="font-serif text-[1.5rem] lg:text-[2rem] font-bold text-charcoal leading-[1.3]">
           {artwork.title}
         </h1>
 
         {artwork.artists.length > 0 && (
-          <p className="mt-2 text-base">
+          <p className="mt-2 text-base lg:text-[1.05rem]">
             {artwork.artists.map((a: any, i: number) => (
               <span key={i}>
                 {i > 0 && ", "}
@@ -195,7 +195,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {artwork.description && (
           <div className="mt-5 pt-5 border-t border-linen">
             <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
-            <p className="text-[0.85rem] text-charcoal leading-[1.6]">
+            <p className="text-[0.85rem] lg:text-[0.95rem] text-charcoal leading-[1.6]">
               {artwork.description}
             </p>
           </div>
@@ -278,7 +278,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Same artist section */}
       {sameArtist.length > 0 && (
-        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-[70rem] mx-auto">
+        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Mer av {artistName}
           </h2>
@@ -306,7 +306,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Similar colors */}
       {similar.length > 0 && (
-        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-[70rem] mx-auto">
+        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Liknande verk
           </h2>

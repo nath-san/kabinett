@@ -179,8 +179,8 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         }
         @media (min-width: 1024px) {
           .timeline-scroll {
-            grid-auto-columns: minmax(220px, 260px);
-            padding: 1.5rem 0 2.5rem;
+            grid-auto-columns: minmax(220px, 280px);
+            padding: 1.75rem 0 2.75rem;
           }
           .timeline-column {
             padding: 0.9rem;
@@ -193,7 +193,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         }
       `}</style>
 
-      <header id="top" className="pt-10 px-5 pb-0 md:max-w-6xl md:mx-auto md:px-6">
+      <header id="top" className="pt-10 px-5 pb-0 md:max-w-4xl md:mx-auto md:px-6 lg:pt-14 lg:px-8">
         <p className="text-[0.75rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.55)]">
           Tidslinje
         </p>
@@ -205,7 +205,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         </p>
       </header>
 
-      <div className="md:max-w-6xl md:mx-auto md:px-6">
+      <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
           {decades.map((decade) => (
             <div key={decade.decade} className="timeline-column">
