@@ -73,7 +73,8 @@ export function meta({ data }: Route.MetaArgs) {
   return tags;
 }
 
-export const links: Route.LinksFunction = ({ data }) => {
+export const links: Route.LinksFunction = (args: any) => {
+  const data = args?.data;
   if (!data?.canonicalUrl) return [];
   return [{ rel: "canonical", href: data.canonicalUrl }];
 };
