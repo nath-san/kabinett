@@ -298,7 +298,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {feed.map((entry, i) =>
             entry.type === "art" ? (
               <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} />
@@ -351,8 +351,8 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           if (card) (card as HTMLElement).classList.add("hidden");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out lg:group-hover:scale-105",
-          eager ? "" : "opacity-0 transition-opacity duration-[400ms] ease-[ease]",
+          "absolute inset-0 w-full h-full object-cover transition-[transform,opacity] duration-500 ease-out lg:group-hover:scale-105",
+          eager ? "" : "opacity-0",
         ].join(" ")}
       />
       <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none" />
