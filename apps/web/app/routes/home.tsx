@@ -351,8 +351,8 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           if (card) (card as HTMLElement).classList.add("hidden");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover transition-[transform,opacity] duration-700 ease-out will-change-transform lg:group-hover:scale-[1.03]",
-          eager ? "" : "opacity-0",
+          "absolute inset-0 w-full h-full object-cover will-change-transform lg:group-hover:scale-[1.03]",
+          eager ? "transition-transform duration-700 ease-out" : "opacity-0 transition-all duration-700 ease-out",
         ].join(" ")}
       />
       <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none" />
