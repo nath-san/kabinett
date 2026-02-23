@@ -19,7 +19,7 @@ export function meta({}: Route.MetaArgs) {
     { title: "Tidslinje — Kabinett" },
     {
       name: "description",
-      content: "500 år av konst, decennium för decennium.",
+      content: "800 år av konst, decennium för decennium.",
     },
   ];
 }
@@ -29,7 +29,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const selectedDecade = parseInt(url.searchParams.get("decade") || "0");
 
   const db = getDb();
-  const rangeFrom = 1500;
+  const rangeFrom = 1200;
   const rangeTo = 2000;
 
   const rows = db
@@ -201,10 +201,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           Tidslinje
         </p>
         <h1 className="font-serif text-[2.2rem] mt-[0.4rem]">
-          500 år av konst
+          800 år av konst
         </h1>
         <p className="mt-[0.6rem] max-w-[36rem] text-[rgba(245,240,232,0.7)]">
-          Från renässans till modernism, decennium för decennium.
+          Från medeltid till modernism, decennium för decennium.
         </p>
       </header>
 
@@ -213,11 +213,6 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           {decades.map((decade) => (
             <div key={decade.decade} className="timeline-column">
               <div className="timeline-label font-serif">{decade.decade}</div>
-              {decade.samples.length === 0 && (
-                <div className="text-[0.75rem] text-[rgba(245,240,232,0.45)]">
-                  Inga verk hittades
-                </div>
-              )}
               {decade.samples.map((art) => (
                 <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card">
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
