@@ -332,7 +332,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
+      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -355,7 +355,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           eager ? "" : "opacity-0 lg:opacity-100",
         ].join(" ")}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_35%,transparent_60%)] pointer-events-none lg:opacity-70 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
       <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-7">
         <p className="font-serif text-[1.5rem] lg:text-[1.7rem] font-semibold text-white leading-[1.2] mb-[0.35rem]">
           {item.title_sv || "Utan titel"}
