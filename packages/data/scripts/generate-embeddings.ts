@@ -130,10 +130,15 @@ async function main() {
     for (const row of rows) {
       lastId = row.id;
       const iiifBase = row.iiif_url.replace("http://", "https://");
-      // SHM images are direct URLs (not IIIF), Nationalmuseum uses IIIF
-      const imageUrl = iiifBase.includes("media.samlingar.shm.se")
-        ? iiifBase
-        : `${iiifBase}full/400,/0/default.jpg`;
+      // SHM = direct URLs, Nordiska = ems.dimu.org, NM = IIIF
+      let imageUrl: string;
+      if (iiifBase.includes("media.samlingar.shm.se")) {
+        imageUrl = iiifBase;
+      } else if (iiifBase.includes("ems.dimu.org")) {
+        imageUrl = iiifBase.replace(/dimension=\d+x\d+/, "dimension=400x400");
+      } else {
+        imageUrl = `${iiifBase}full/400,/0/default.jpg`;
+      }
 
       try {
         const image = await fetchAndPrepImage(imageUrl);
