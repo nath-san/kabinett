@@ -156,7 +156,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
             {collections.map((c, i) => (
               <a
                 key={c.title}
-                href={`/search?q=${encodeURIComponent(c.query.split(" ")[0])}`}
+                href={`/search?q=${encodeURIComponent(c.query)}`}
                 className={[
                   "relative rounded-[14px] overflow-hidden no-underline",
                   i < 2 ? "aspect-[4/3]" : "aspect-square",

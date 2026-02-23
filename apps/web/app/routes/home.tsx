@@ -489,7 +489,7 @@ function ThemeCard({ section }: { section: ThemeSection }) {
       </div>
 
       {/* "Visa fler" link */}
-      <a href={`/discover`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
+      <a href={`/search?q=${encodeURIComponent(section.filter || section.title)}`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline">
         Visa fler →
       </a>
     </div>
