@@ -119,7 +119,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           grid-auto-columns: minmax(180px, 220px);
           gap: 1rem;
           overflow-x: auto;
-          padding: 1rem 0 2rem;
+          padding: 1rem 1.25rem 2rem;
           scroll-behavior: smooth;
           scroll-snap-type: x mandatory;
           scroll-padding-inline: 1.25rem;
@@ -134,12 +134,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           gap: 0.35rem;
           align-content: start;
         }
-        .timeline-column:first-child {
-          margin-left: 1.25rem;
-        }
-        .timeline-column:last-child {
-          margin-right: 1.25rem;
-        }
+        /* first/last margin removed — handled by scroll container padding */
         .timeline-label {
           position: sticky;
           top: 0;
