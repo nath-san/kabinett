@@ -40,7 +40,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        FROM artworks
        WHERE year_start BETWEEN ? AND ?
          AND iiif_url IS NOT NULL
-         AND LENGTH(iiif_url) > 90
+         AND LENGTH(iiif_url) > 40
          AND ${sourceFilter()}
        ORDER BY year_start ASC`
     )
@@ -88,7 +88,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          FROM artworks
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
            AND ${sourceFilter()}
          ORDER BY year_start ASC`
       )

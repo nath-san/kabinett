@@ -141,7 +141,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     .prepare(
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, dating_text, year_start, year_end, category, actors_json
        FROM artworks
-       WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+       WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
          AND ${sourceFilter()}
        ORDER BY year_start ASC NULLS LAST`
     )

@@ -138,7 +138,7 @@ export async function fetchFeed(options: {
          FROM artworks_fts f
          JOIN artworks a ON a.id = f.rowid
          LEFT JOIN museums m ON m.id = a.source
-         WHERE f MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+         WHERE f MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
            AND ${sourceFilter("a")}
          ORDER BY bm25(f)
          LIMIT ? OFFSET ?`
@@ -155,7 +155,7 @@ export async function fetchFeed(options: {
 
   const conditions: string[] = [
     "a.iiif_url IS NOT NULL",
-    "LENGTH(a.iiif_url) > 90",
+    "LENGTH(a.iiif_url) > 40",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
     sourceFilter("a"),
   ];

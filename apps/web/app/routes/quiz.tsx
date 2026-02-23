@@ -24,7 +24,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE (color_r + color_g + color_b) / 3 < 90
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
            AND id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -36,7 +36,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE (color_r + color_g + color_b) / 3 > 170
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -48,7 +48,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) > 80
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -60,7 +60,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -75,7 +75,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE year_start BETWEEN 1500 AND 1599
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -87,7 +87,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE year_start BETWEEN 1600 AND 1699
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -99,7 +99,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE year_start BETWEEN 1700 AND 1799
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -111,7 +111,7 @@ export async function loader({}: Route.LoaderArgs) {
         `SELECT id, iiif_url FROM artworks
          WHERE year_start BETWEEN 1800 AND 1899
            AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 90
+           AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
          ORDER BY RANDOM()
@@ -126,7 +126,7 @@ export async function loader({}: Route.LoaderArgs) {
        JOIN artworks a ON a.id = f.rowid
        WHERE artworks_fts MATCH ?
          AND a.iiif_url IS NOT NULL
-         AND LENGTH(a.iiif_url) > 90
+         AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
        ORDER BY RANDOM()

@@ -26,7 +26,7 @@ export async function loader({ request }: Route.LoaderArgs) {
               m.name as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
-       WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+       WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND ${sourceFilter("a")}
          AND a.source = ?
        ORDER BY RANDOM() LIMIT 60`
@@ -51,7 +51,7 @@ export async function loader({ request }: Route.LoaderArgs) {
               m.name as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
-       WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+       WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)

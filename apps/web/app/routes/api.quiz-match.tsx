@@ -62,7 +62,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const db = getDb();
 
-  let where = `iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90 AND id NOT IN (SELECT artwork_id FROM broken_images)
+  let where = `iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40 AND id NOT IN (SELECT artwork_id FROM broken_images)
                AND ${sourceFilter()}`;
   const params: any[] = [];
 

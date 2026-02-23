@@ -54,7 +54,7 @@ export async function loader() {
         SELECT a.iiif_url, a.dominant_color FROM artworks_fts f
         JOIN artworks a ON a.id = f.rowid
         WHERE artworks_fts MATCH ?
-          AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+          AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
           AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
           AND ${sourceFilter("a")}
@@ -70,7 +70,7 @@ export async function loader() {
   // Quiz image
   const quizImg = db.prepare(`
     SELECT iiif_url FROM artworks
-    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
       AND ${sourceFilter()}
@@ -86,7 +86,7 @@ export async function loader() {
       AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
       AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
       AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
-      AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+      AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND ${sourceFilter()}
     GROUP BY name
     HAVING cnt >= 20
@@ -99,7 +99,7 @@ export async function loader() {
     const row = db.prepare(`
       SELECT id, iiif_url, dominant_color FROM artworks
       WHERE json_extract(artists, '$[0].name') = ?
-        AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+        AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
         AND id NOT IN (SELECT artwork_id FROM broken_images)
         AND ${sourceFilter()}
       ORDER BY RANDOM() LIMIT 1
