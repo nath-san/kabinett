@@ -166,8 +166,10 @@ export async function fetchFeed(options: {
 
   if (filter === "Alla") {
     // Weight towards paintings, drawings, sculpture — deprioritize ceramics
+    // Include non-Nationalmuseum sources (SHM etc) that may have different categories
     conditions.push(`(
-      a.category LIKE '%Måleri%'
+      a.source != 'nationalmuseum'
+      OR a.category LIKE '%Måleri%'
       OR a.category LIKE '%Teckningar%'
       OR a.category LIKE '%Skulptur%'
       OR a.category LIKE '%Grafik%'
