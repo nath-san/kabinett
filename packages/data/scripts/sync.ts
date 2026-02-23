@@ -1,12 +1,14 @@
 /**
- * Kabinett Data Sync
+ * Kabinett Incremental Sync
  *
- * Crawls Nationalmuseum's API and builds a local SQLite database
- * of all artworks with IIIF images.
+ * Fetches only new/updated artworks from Nationalmuseum's API.
+ * Sorts by last_updated desc and stops when reaching already-synced items.
+ * Also detects removed artworks by checking a sample of existing IDs.
  *
  * Usage:
- *   pnpm sync          # Full sync (~2084 pages)
- *   pnpm sync:test     # Test mode (2 pages)
+ *   pnpm sync:incremental          # Incremental update
+ *   pnpm sync:incremental --full   # Force full re-sync
+ *   pnpm sync:incremental --check-removed  # Also check for removed artworks
  */
 
 import Database from "better-sqlite3";
@@ -18,206 +20,225 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
 const API_BASE = "https://api.nationalmuseum.se/api/objects";
 const LIMIT = 100;
-const TEST_MODE = process.argv.includes("--test");
-const MAX_PAGES = TEST_MODE ? 2 : 2085;
+const FULL_MODE = process.argv.includes("--full");
+const CHECK_REMOVED = process.argv.includes("--check-removed");
 
-// --- Types ---
+const db = new Database(DB_PATH);
+db.pragma("journal_mode = WAL");
 
-interface ApiObject {
-  id: number;
-  inventory_number: string | null;
-  iiif: string | null;
-  title: { sv: string | null; en: string | null };
-  technique_material: { sv: string | null; en: string | null };
-  category: { sv: string | null; en: string | null };
-  acquisition_year: number | null;
-  dating: Array<{
-    date_type: string;
-    date: { sv: string | null; en: string | null };
-    start_date: number | null;
-    end_date: number | null;
-  }>;
-  artists?: Array<{
-    name: string | null;
-    nationality: string | null;
-    role: { sv: string | null; en: string | null };
-  }>;
-  actors?: Array<{
-    actor_full_name: string | null;
-    actor_nationality: string | null;
-    actor_role: string | null;
-  }>;
-  dimensions: Array<{
-    type: string;
-    value_1: number;
-    value_2: number;
-    unit: string;
-  }>;
+// Ensure last_updated column exists
+try {
+  db.exec("ALTER TABLE artworks ADD COLUMN last_updated INTEGER");
+} catch {
+  // Column already exists
 }
 
-// --- Database Setup ---
+// Get our latest last_updated timestamp
+const latestRow = db.prepare("SELECT MAX(last_updated) as latest FROM artworks").get() as any;
+const latestTimestamp: number = FULL_MODE ? 0 : (latestRow?.latest || 0);
 
-function initDb(): Database.Database {
-  const db = new Database(DB_PATH);
-  db.pragma("journal_mode = WAL");
-  db.pragma("synchronous = NORMAL");
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS artworks (
-      id INTEGER PRIMARY KEY,
-      inventory_number TEXT,
-      title_sv TEXT,
-      title_en TEXT,
-      category TEXT,
-      technique_material TEXT,
-      artists TEXT,
-      dating_text TEXT,
-      year_start INTEGER,
-      year_end INTEGER,
-      acquisition_year INTEGER,
-      iiif_url TEXT NOT NULL,
-      dominant_color TEXT,
-      color_r INTEGER,
-      color_g INTEGER,
-      color_b INTEGER,
-      synced_at TEXT DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_artworks_category ON artworks(category);
-    CREATE INDEX IF NOT EXISTS idx_artworks_year ON artworks(year_start);
-    CREATE INDEX IF NOT EXISTS idx_artworks_color ON artworks(color_r, color_g, color_b);
-
-    CREATE VIRTUAL TABLE IF NOT EXISTS artworks_fts USING fts5(
-      title_sv, title_en, artists, technique_material, category,
-      content='artworks', content_rowid='id',
-      tokenize='unicode61 remove_diacritics 2'
-    );
-  `);
-
-  return db;
+console.log(`🔄 Incremental sync — latest stored timestamp: ${latestTimestamp}`);
+if (latestTimestamp > 0) {
+  console.log(`   (${new Date(latestTimestamp * 1000).toISOString()})`);
 }
+if (FULL_MODE) console.log("   ⚠️  Full mode — re-syncing everything");
 
-// --- API Fetching ---
+// --- Helpers ---
 
-async function fetchPage(page: number): Promise<ApiObject[]> {
-  const url = `${API_BASE}?page=${page}&limit=${LIMIT}`;
+async function fetchPage(page: number): Promise<{ items: any[]; totalPages: number }> {
+  const url = `${API_BASE}?limit=${LIMIT}&page=${page}&sort=last_updated&order=desc`;
   const res = await fetch(url);
-  const text = await res.text();
-
-  // API returns JSON with control characters — clean them
-  const cleaned = text.replace(/[\x00-\x1f\x7f]/g, (ch) =>
-    ch === "\n" || ch === "\r" || ch === "\t" ? ch : ""
-  );
-
-  const data = JSON.parse(cleaned);
-  return data?.data?.items ?? [];
+  if (!res.ok) throw new Error(`API error ${res.status} on page ${page}`);
+  const json = await res.json();
+  return {
+    items: json.data.items,
+    totalPages: json.data.paging.total_pages,
+  };
 }
 
-// --- Color Extraction ---
-
-async function extractDominantColor(
-  iiifUrl: string
-): Promise<{ r: number; g: number; b: number; hex: string } | null> {
+async function extractDominantColor(iiifUrl: string): Promise<{ hex: string; r: number; g: number; b: number } | null> {
   try {
-    const thumbUrl = `${iiifUrl}full/64,/0/default.jpg`;
-    const res = await fetch(thumbUrl);
+    const imgUrl = iiifUrl.replace("http://", "https://") + "full/100,/0/default.jpg";
+    const res = await fetch(imgUrl);
     if (!res.ok) return null;
-
     const buffer = Buffer.from(await res.arrayBuffer());
-    const { dominant } = await sharp(buffer).stats();
-
-    const hex =
-      "#" +
-      [dominant.r, dominant.g, dominant.b]
-        .map((c) => Math.round(c).toString(16).padStart(2, "0"))
-        .join("");
-
-    return { r: Math.round(dominant.r), g: Math.round(dominant.g), b: Math.round(dominant.b), hex };
+    const { dominant } = await sharp(buffer).resize(1, 1).stats();
+    if (!dominant) return null;
+    const hex = `#${dominant.r.toString(16).padStart(2, "0")}${dominant.g.toString(16).padStart(2, "0")}${dominant.b.toString(16).padStart(2, "0")}`.toUpperCase();
+    return { hex, r: dominant.r, g: dominant.g, b: dominant.b };
   } catch {
     return null;
   }
 }
 
+// --- Upsert ---
+
+const upsertStmt = db.prepare(`
+  INSERT OR REPLACE INTO artworks (
+    id, inventory_number, title_sv, title_en, category, technique_material,
+    artists, dating_text, year_start, year_end, acquisition_year,
+    iiif_url, dominant_color, color_r, color_g, color_b,
+    descriptions_sv, descriptions_en, acquisition_sv, object_type_sv,
+    style_sv, signature, inscription, motive_category, loan,
+    material_tags, technique_tags, dimensions_json, actors_json,
+    exhibitions_json, last_updated, synced_at
+  ) VALUES (
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, ?, ?, ?,
+    ?, ?, ?, ?,
+    ?, ?, datetime('now')
+  )
+`);
+
+function parseItem(item: any) {
+  const dating = item.dating?.[0];
+  const artists = (item.actors || []).map((a: any) => ({
+    name: a.actor_full_name || null,
+    nationality: a.actor_nationality || null,
+    role: a.actor_role || null,
+  }));
+
+  return {
+    id: item.id,
+    inventory_number: item.inventory_number || null,
+    title_sv: item.title?.sv || null,
+    title_en: item.title?.en || null,
+    category: item.category?.sv || null,
+    technique_material: item.technique_material?.sv || null,
+    artists: JSON.stringify(artists),
+    dating_text: dating?.date?.sv || null,
+    year_start: dating?.start_date || null,
+    year_end: dating?.end_date || null,
+    acquisition_year: item.acquisition_year || null,
+    iiif_url: item.iiif || null,
+    descriptions_sv: item.descriptions?.sv || null,
+    descriptions_en: item.descriptions?.en || null,
+    acquisition_sv: item.acquisition?.sv || null,
+    object_type_sv: item.object_type?.sv || null,
+    style_sv: item.style?.sv || null,
+    signature: item.signature || null,
+    inscription: item.inscription || null,
+    motive_category: item.motive_category || null,
+    loan: item.loan ? 1 : 0,
+    material_tags: (item.material_tags || []).join(", "),
+    technique_tags: (item.technique_tags || []).join(", "),
+    dimensions_json: JSON.stringify(item.dimensions || []),
+    actors_json: JSON.stringify(item.actors || []),
+    exhibitions_json: JSON.stringify(item.exhibitions || []),
+    last_updated: item.last_updated || null,
+  };
+}
+
 // --- Main ---
 
 async function main() {
-  console.log(`\n🏛️  Kabinett Data Sync`);
-  console.log(`   Mode: ${TEST_MODE ? "TEST (2 pages)" : "FULL"}`);
-  console.log(`   Database: ${DB_PATH}\n`);
+  let page = 1;
+  let totalNew = 0;
+  let totalUpdated = 0;
+  let done = false;
 
-  const db = initDb();
+  while (!done) {
+    const { items, totalPages } = await fetchPage(page);
+    if (items.length === 0) break;
 
-  const insert = db.prepare(`
-    INSERT OR REPLACE INTO artworks
-    (id, inventory_number, title_sv, title_en, category, technique_material,
-     artists, dating_text, year_start, year_end, acquisition_year,
-     iiif_url, dominant_color, color_r, color_g, color_b)
-    VALUES
-    (@id, @inventory_number, @title_sv, @title_en, @category, @technique_material,
-     @artists, @dating_text, @year_start, @year_end, @acquisition_year,
-     @iiif_url, @dominant_color, @color_r, @color_g, @color_b)
-  `);
+    for (const item of items) {
+      const itemTimestamp = item.last_updated || 0;
 
-  let totalSynced = 0;
-  let totalSkipped = 0;
+      // If not full mode, stop when we reach already-synced items
+      if (!FULL_MODE && itemTimestamp <= latestTimestamp) {
+        done = true;
+        break;
+      }
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const items = await fetchPage(page);
-    if (items.length === 0) {
-      console.log(`   Page ${page}: empty — done.`);
-      break;
-    }
+      const parsed = parseItem(item);
 
-    const withImages = items.filter((item) => item.iiif);
+      // Check if exists
+      const existing = db.prepare("SELECT id, last_updated FROM artworks WHERE id = ?").get(item.id) as any;
 
-    for (const item of withImages) {
-      const color = await extractDominantColor(item.iiif!);
-      const dating = item.dating?.[0];
+      // Extract color for new items with images
+      let color = null;
+      if (parsed.iiif_url && (!existing || !existing.last_updated)) {
+        color = await extractDominantColor(parsed.iiif_url);
+      }
 
-      insert.run({
-        id: item.id,
-        inventory_number: item.inventory_number,
-        title_sv: item.title?.sv || null,
-        title_en: item.title?.en || null,
-        category: item.category?.sv || null,
-        technique_material: item.technique_material?.sv || null,
-        artists: JSON.stringify(
-          (item.actors || [])
-            .filter((a: any) => a.actor_full_name && a.actor_full_name !== "Ingen uppgift")
-            .map((a: any) => ({ name: a.actor_full_name, nationality: a.actor_nationality || null }))
-        ),
-        dating_text: dating?.date?.sv || null,
-        year_start: dating?.start_date || null,
-        year_end: dating?.end_date || null,
-        acquisition_year: item.acquisition_year,
-        iiif_url: item.iiif,
-        dominant_color: color?.hex || null,
-        color_r: color?.r ?? null,
-        color_g: color?.g ?? null,
-        color_b: color?.b ?? null,
-      });
+      // Skip items without IIIF (NOT NULL constraint)
+      if (!parsed.iiif_url) continue;
 
-      totalSynced++;
-    }
-
-    totalSkipped += items.length - withImages.length;
-
-    if (page % 50 === 0 || page <= 2) {
-      console.log(
-        `   Page ${page}/${MAX_PAGES}: ${withImages.length} artworks synced (${totalSynced} total)`
+      upsertStmt.run(
+        parsed.id, parsed.inventory_number, parsed.title_sv, parsed.title_en,
+        parsed.category, parsed.technique_material, parsed.artists,
+        parsed.dating_text, parsed.year_start, parsed.year_end,
+        parsed.acquisition_year, parsed.iiif_url,
+        color?.hex ?? null,
+        color?.r ?? null, color?.g ?? null, color?.b ?? null,
+        parsed.descriptions_sv, parsed.descriptions_en, parsed.acquisition_sv,
+        parsed.object_type_sv, parsed.style_sv, parsed.signature,
+        parsed.inscription, parsed.motive_category, parsed.loan,
+        parsed.material_tags, parsed.technique_tags, parsed.dimensions_json,
+        parsed.actors_json, parsed.exhibitions_json, parsed.last_updated,
       );
+
+      if (existing) {
+        totalUpdated++;
+      } else {
+        totalNew++;
+      }
+    }
+
+    if (!done) {
+      console.log(`   Page ${page}/${totalPages} — ${totalNew} new, ${totalUpdated} updated`);
+      page++;
+
+      // Rate limit
+      await new Promise((r) => setTimeout(r, 200));
     }
   }
 
-  console.log(`\n✅ Sync complete!`);
-  console.log(`   Synced: ${totalSynced} artworks with images`);
-  console.log(`   Skipped: ${totalSkipped} without images`);
-  console.log(`   Database: ${DB_PATH}\n`);
+  console.log(`\n✅ Sync complete: ${totalNew} new, ${totalUpdated} updated artworks`);
+
+  // Check for removed artworks
+  if (CHECK_REMOVED) {
+    console.log("\n🔍 Checking for removed artworks...");
+    const sampleIds = (db.prepare(
+      "SELECT id FROM artworks ORDER BY RANDOM() LIMIT 500"
+    ).all() as any[]).map((r) => r.id);
+
+    let removed = 0;
+    for (const id of sampleIds) {
+      try {
+        const res = await fetch(`${API_BASE}/${id}`);
+        if (res.status === 404) {
+          db.prepare("DELETE FROM artworks WHERE id = ?").run(id);
+          db.prepare("DELETE FROM clip_embeddings WHERE artwork_id = ?").run(id);
+          removed++;
+          console.log(`   Removed: ${id}`);
+        }
+        await new Promise((r) => setTimeout(r, 100));
+      } catch {
+        // Skip network errors
+      }
+    }
+    console.log(`✅ Removed ${removed} artworks no longer in API`);
+  }
+
+  // Report new artworks needing embeddings
+  const needEmbeddings = (db.prepare(`
+    SELECT COUNT(*) as c FROM artworks
+    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+    AND id NOT IN (SELECT artwork_id FROM clip_embeddings)
+  `).get() as any).c;
+
+  if (needEmbeddings > 0) {
+    console.log(`\n⚠️  ${needEmbeddings} artworks need CLIP embeddings — run: pnpm embeddings`);
+  }
 
   db.close();
 }
 
 main().catch((err) => {
-  console.error("Sync failed:", err);
+  console.error("❌ Sync failed:", err);
   process.exit(1);
 });
