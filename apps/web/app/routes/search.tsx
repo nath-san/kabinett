@@ -22,7 +22,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     if (clipResults.length > 0) {
       return { query, results: clipResults, total: clipResults.length };
     }
-  } catch {
+  } catch (err) {
+    console.error("[CLIP search error]", err);
     // Fall through to FTS
   }
 
