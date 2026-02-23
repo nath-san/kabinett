@@ -102,7 +102,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   // Filter out empty decades
-  const decades = allDecades.filter((d) => d.count > 0);
+  const decades = allDecades.filter((d) => d.samples.length > 0);
 
   return { decades, selectedDecade, selectedLabel, selectedWorks };
 }
