@@ -16,6 +16,28 @@ export async function loader({ request }: Route.LoaderArgs) {
   const query = url.searchParams.get("q")?.trim() || "";
   if (!query) return { query, results: [], total: 0 };
 
+  // Color queries — match dominant_color RGB
+  const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
+    "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
+    "blått": { r: 40, g: 70, b: 150 }, "blå": { r: 40, g: 70, b: 150 }, "blåa": { r: 40, g: 70, b: 150 },
+    "grönt": { r: 50, g: 130, b: 60 }, "grön": { r: 50, g: 130, b: 60 }, "gröna": { r: 50, g: 130, b: 60 },
+    "gult": { r: 200, g: 180, b: 50 }, "gul": { r: 200, g: 180, b: 50 }, "gula": { r: 200, g: 180, b: 50 },
+    "svart": { r: 20, g: 20, b: 20 }, "svarta": { r: 20, g: 20, b: 20 },
+    "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
+  };
+  const colorTarget = COLOR_TERMS[query.toLowerCase()];
+  if (colorTarget) {
+    const db = getDb();
+    const rows = db.prepare(
+      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
+       FROM artworks
+       WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+       ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
+       LIMIT 120`
+    ).all(colorTarget.r, colorTarget.g, colorTarget.b) as any[];
+    return { query, results: rows, total: rows.length };
+  }
+
   // Use CLIP semantic search directly
   try {
     const clipResults = await clipSearch(query, 60, 0);
