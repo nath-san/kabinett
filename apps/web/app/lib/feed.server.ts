@@ -179,7 +179,9 @@ export async function fetchFeed(options: {
       OR (a.category LIKE '%Keramik%' AND RANDOM() % 8 = 0)
       OR (a.category LIKE '%Konsthtv%' AND RANDOM() % 6 = 0)
     )`);
-    orderBy = "RANDOM()";
+    // Boost non-nationalmuseum sources so they appear ~30% of the time
+    // despite having fewer items (5k vs 74k)
+    orderBy = "CASE WHEN a.source != 'nationalmuseum' THEN RANDOM() % 100 ELSE RANDOM() % 1000 END";
     mode = "offset";
   }
 
