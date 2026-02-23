@@ -51,11 +51,45 @@ const SV_EN_LOOKUP: Record<string, string> = {
   vågor: "waves", snö: "snow", is: "ice", eld: "fire",
 };
 
+// Rich prompt expansions for common Swedish search terms
+const RICH_PROMPTS: Record<string, string> = {
+  "djur": "animals, horses, dogs, cats, birds in paintings",
+  "djuren": "animals, horses, dogs, cats, birds in paintings",
+  "djur i konsten": "animals, horses, dogs, cats, birds in paintings",
+  "havet": "seascape, ocean, coast, ships, water, maritime painting",
+  "hav": "seascape, ocean, coast, ships, water, maritime painting",
+  "havslandskap": "seascape, ocean, coast, ships, water, maritime painting",
+  "blommor": "flowers, floral still life, roses, botanical painting",
+  "blommorna": "flowers, floral still life, roses, botanical painting",
+  "natt": "night scene, moonlight, dark atmosphere, nocturnal painting",
+  "nattscener": "night scene, moonlight, dark atmosphere, nocturnal painting",
+  "porträtt": "portrait, face, person, bust painting",
+  "landskap": "landscape, scenery, countryside, nature painting",
+  "stilleben": "still life, table, fruit, flowers, objects painting",
+  "vinter": "winter, snow, cold, ice, frozen landscape painting",
+  "sommar": "summer, warm, sunny, meadow, bright landscape painting",
+  "hästar": "horses, equestrian, riding painting",
+  "hundar": "dogs, hounds, hunting dogs painting",
+  "barn": "children, kids, boys, girls, playing painting",
+  "krig": "war, battle, soldiers, military painting",
+  "dans": "dance, dancing, ball, music painting",
+  "musik": "music, musicians, instruments, concert painting",
+  "religion": "religious, biblical, church, saints, angels painting",
+  "skulptur": "sculpture, statue, bust, marble, bronze",
+  "abstrakt": "abstract art, geometric, modern, non-figurative",
+};
+
 // Cache translations to avoid repeated API calls
 const translationCache = new Map<string, string>();
 
 async function translateToEnglish(text: string): Promise<string> {
-  const cached = translationCache.get(text.toLowerCase());
+  const lower = text.toLowerCase().trim();
+  
+  // Check rich prompts first (curated, best quality)
+  const rich = RICH_PROMPTS[lower];
+  if (rich) return rich;
+  
+  const cached = translationCache.get(lower);
   if (cached) return cached;
   
   try {
