@@ -192,19 +192,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
-    // First 5 artworks, then first theme, then rest
-    for (let i = 0; i < Math.min(5, initial.length); i++) {
+    // First 6 artworks (fills 2 rows of 3 on desktop), then theme, then rest
+    for (let i = 0; i < Math.min(6, initial.length); i++) {
       entries.push({ type: "art", item: initial[i] });
     }
     if (loaderData.firstTheme.items.length > 0) {
       entries.push({ type: "theme", ...loaderData.firstTheme });
     }
-    // Add a few more artworks then stats
-    for (let i = 5; i < Math.min(8, initial.length); i++) {
+    // Add more artworks then stats (9 = 3 rows of 3)
+    for (let i = 6; i < Math.min(9, initial.length); i++) {
       entries.push({ type: "art", item: initial[i] });
     }
     entries.push({ type: "stats", ...loaderData.stats });
-    for (let i = 8; i < initial.length; i++) {
+    for (let i = 9; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
     }
     return entries;
@@ -332,7 +332,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl"
+      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -351,7 +351,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
           if (card) (card as HTMLElement).classList.add("hidden");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover",
+          "absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out lg:group-hover:scale-105",
           eager ? "" : "opacity-0 transition-opacity duration-[400ms] ease-[ease]",
         ].join(" ")}
       />
