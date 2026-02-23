@@ -339,7 +339,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index }: { item: Fee
         src={item.imageUrl}
         alt={item.title_sv || ""}
         loading={eager ? "eager" : "lazy"}
-        decoding={eager ? "sync" : "async"}
+        decoding="auto"
         fetchPriority={eager ? "high" : undefined}
         onLoad={eager ? undefined : (e) => {
           const img = e.currentTarget;
