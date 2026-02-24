@@ -86,17 +86,27 @@ export async function fetchFeed(options: {
     const offset = Math.max(0, cursor || 0);
     const rows = db
       .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                m.name as museum_name
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE artworks_fts MATCH ?
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter("a")}
-         ORDER BY bm25(artworks_fts)
+        `WITH ranked AS (
+           SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                  m.name as museum_name,
+                  bm25(artworks_fts) as relevance,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY a.iiif_url
+                    ORDER BY bm25(artworks_fts) ASC, a.id DESC
+                  ) as dedupe_rank
+           FROM artworks_fts
+           JOIN artworks a ON a.id = artworks_fts.rowid
+           LEFT JOIN museums m ON m.id = a.source
+           WHERE artworks_fts MATCH ?
+             AND a.iiif_url IS NOT NULL
+             AND LENGTH(a.iiif_url) > 40
+             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+             AND ${sourceFilter("a")}
+         )
+         SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material, museum_name
+         FROM ranked
+         WHERE dedupe_rank = 1
+         ORDER BY relevance ASC, id DESC
          LIMIT ? OFFSET ?`
       )
       .all(mood.fts, limit, offset) as FeedItemRow[];
@@ -109,62 +119,83 @@ export async function fetchFeed(options: {
     };
   }
 
-  const conditions: string[] = [
+  const baseConditions: string[] = [
     "a.iiif_url IS NOT NULL",
     "LENGTH(a.iiif_url) > 40",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
     sourceFilter("a"),
   ];
-  const params: Array<string | number> = [];
-  let orderBy = "a.id ASC";
+  const baseParams: Array<string | number> = [];
+  const cursorConditions: string[] = [];
+  const cursorParams: Array<string | number> = [];
   let mode: "cursor" | "cursor_desc" = "cursor";
   const tablePrefix = "artworks a";
+  let dedupeOrderBy = "a.id ASC";
+  let finalOrderBy = "id ASC";
+  let computedOrderSelect = "NULL as color_distance";
 
   if (filter === "Alla") {
-    orderBy = "a.id DESC";
     mode = "cursor_desc";
+    dedupeOrderBy = "a.id DESC";
+    finalOrderBy = "id DESC";
   }
 
   if (CATEGORY_FILTERS.has(filter)) {
-    conditions.push("a.category LIKE ?");
-    params.push(`%${filter}%`);
+    baseConditions.push("a.category LIKE ?");
+    baseParams.push(`%${filter}%`);
   }
 
   if (filter === "Rött" || filter === "Blått") {
     const colorKey = filter === "Rött" ? "red" : "blue";
     const color = COLOR_TARGETS[colorKey];
-    conditions.push("a.color_r IS NOT NULL");
-    orderBy = `ABS(a.color_r - ${color.r}) + ABS(a.color_g - ${color.g}) + ABS(a.color_b - ${color.b})`;
+    const colorDistance = `ABS(a.color_r - ${color.r}) + ABS(a.color_g - ${color.g}) + ABS(a.color_b - ${color.b})`;
+    baseConditions.push("a.color_r IS NOT NULL");
+    dedupeOrderBy = `${colorDistance} ASC, a.id DESC`;
+    finalOrderBy = "color_distance ASC, id ASC";
+    computedOrderSelect = `${colorDistance} as color_distance`;
   }
 
   const century = CENTURIES[filter];
   if (century) {
-    conditions.push("a.year_start >= ? AND a.year_start <= ?");
-    params.push(century.from, century.to);
+    baseConditions.push("a.year_start >= ? AND a.year_start <= ?");
+    baseParams.push(century.from, century.to);
   }
 
   if (mode === "cursor" && cursor) {
-    conditions.push("a.id > ?");
-    params.push(cursor);
+    cursorConditions.push("id > ?");
+    cursorParams.push(cursor);
   }
 
   if (mode === "cursor_desc" && cursor) {
-    conditions.push("a.id < ?");
-    params.push(cursor);
+    cursorConditions.push("id < ?");
+    cursorParams.push(cursor);
   }
 
-  const where = conditions.join(" AND ");
+  const baseWhere = baseConditions.join(" AND ");
   const fromClause = mode === "cursor_desc" ? "artworks a NOT INDEXED" : tablePrefix;
+  const cursorWhere = cursorConditions.length > 0 ? ` AND ${cursorConditions.join(" AND ")}` : "";
 
   const rows = db
     .prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-              m.name as museum_name
-       FROM ${fromClause}
-       LEFT JOIN museums m ON m.id = a.source
-       WHERE ${where} ORDER BY ${orderBy} LIMIT ?`
+      `WITH ranked AS (
+         SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                m.name as museum_name,
+                ${computedOrderSelect},
+                ROW_NUMBER() OVER (
+                  PARTITION BY a.iiif_url
+                  ORDER BY ${dedupeOrderBy}
+                ) as dedupe_rank
+         FROM ${fromClause}
+         LEFT JOIN museums m ON m.id = a.source
+         WHERE ${baseWhere}
+       )
+       SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material, museum_name
+       FROM ranked
+       WHERE dedupe_rank = 1${cursorWhere}
+       ORDER BY ${finalOrderBy}
+       LIMIT ?`
     )
-    .all(...params, limit) as FeedItemRow[];
+    .all(...baseParams, ...cursorParams, limit) as FeedItemRow[];
 
   const nextCursor = rows.length > 0 ? rows[rows.length - 1].id : cursor;
 

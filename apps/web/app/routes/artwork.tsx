@@ -1,4 +1,5 @@
 import type { Route } from "./+types/artwork";
+import { useMemo, useState } from "react";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { loadClipCache, dot } from "../lib/clip-cache.server";
 import { buildImageUrl } from "../lib/images";
@@ -55,6 +56,64 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
       year: exhibition.year_start ? String(exhibition.year_start) : "",
     })).filter((exhibition) => exhibition.title || exhibition.venue);
   } catch { return []; }
+}
+
+type DescriptionSection = {
+  heading: "Beskrivning" | "Proveniens" | "Utställningar" | "Litteratur";
+  content: string;
+};
+
+const DESCRIPTION_PREFIX = /^Beskrivning i inventariet:\s*/i;
+const DESCRIPTION_MARKERS = /(Proveniens:|Utställningar:|Litteratur:|Beskrivning:?)/g;
+
+function normalizeDescriptionHeading(marker: string): DescriptionSection["heading"] {
+  const normalized = marker.replace(":", "").trim();
+  if (normalized === "Proveniens") return "Proveniens";
+  if (normalized === "Utställningar") return "Utställningar";
+  if (normalized === "Litteratur") return "Litteratur";
+  return "Beskrivning";
+}
+
+function parseDescriptionSections(raw: string | null): DescriptionSection[] {
+  if (!raw) return [];
+
+  const cleaned = raw
+    .replace(/\r\n/g, "\n")
+    .replace(DESCRIPTION_PREFIX, "")
+    .trim();
+
+  if (!cleaned) return [];
+
+  const matches = Array.from(cleaned.matchAll(DESCRIPTION_MARKERS));
+  if (matches.length === 0) {
+    return [{ heading: "Beskrivning", content: cleaned }];
+  }
+
+  const sections: DescriptionSection[] = [];
+  const firstIndex = matches[0]?.index ?? 0;
+  const intro = cleaned.slice(0, firstIndex).trim();
+  if (intro) {
+    sections.push({ heading: "Beskrivning", content: intro });
+  }
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const current = matches[index];
+    const next = matches[index + 1];
+    if (!current) continue;
+
+    const marker = current[0];
+    const start = (current.index ?? 0) + marker.length;
+    const end = next?.index ?? cleaned.length;
+    const content = cleaned.slice(start, end).trim();
+
+    if (!content) continue;
+    sections.push({
+      heading: normalizeDescriptionHeading(marker),
+      content,
+    });
+  }
+
+  return sections.length > 0 ? sections : [{ heading: "Beskrivning", content: cleaned }];
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
@@ -188,6 +247,12 @@ function parseArtist(json: string | null): string {
 export default function Artwork({ loaderData }: Route.ComponentProps) {
   const { artwork, similar, sameArtist, artistName } = loaderData;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const descriptionSections = useMemo(() => parseDescriptionSections(artwork.description), [artwork.description]);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const canExpandDescription =
+    descriptionSections.some((section) => section.content.length > 360) ||
+    descriptionSections.reduce((sum, section) => sum + section.content.length, 0) > 700;
+
   const artworkJsonLd = {
     "@context": "https://schema.org",
     "@type": "VisualArtwork",
@@ -277,12 +342,37 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </div>
 
         {/* Description */}
-        {artwork.description && (
+        {descriptionSections.length > 0 && (
           <div className="mt-5 pt-5 border-t border-linen">
             <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
-            <p className="text-[0.85rem] lg:text-[0.95rem] text-charcoal leading-[1.6]">
-              {artwork.description}
-            </p>
+            <div className={[
+              "relative",
+              canExpandDescription && !isDescriptionExpanded ? "max-h-[20rem] overflow-hidden" : "",
+            ].join(" ")}>
+              <div className="space-y-4">
+                {descriptionSections.map((section, index) => (
+                  <section key={`${section.heading}-${index}`}>
+                    <h3 className="text-[0.72rem] text-warm-gray uppercase tracking-[0.05em] mb-1">
+                      {section.heading}
+                    </h3>
+                    <p className="text-[0.85rem] lg:text-[0.95rem] text-charcoal leading-[1.6] whitespace-pre-line">
+                      {section.content}
+                    </p>
+                  </section>
+                ))}
+              </div>
+              {canExpandDescription && !isDescriptionExpanded && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent" />
+              )}
+            </div>
+            {canExpandDescription && (
+              <button
+                onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+                className="mt-3 text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors focus-ring"
+              >
+                {isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
+              </button>
+            )}
           </div>
         )}
 

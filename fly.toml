@@ -7,7 +7,7 @@ primary_region = "arn"
   DATABASE_PATH = "/data/kabinett.db"
   NODE_ENV = "production"
   HOST = "0.0.0.0"
-  MUSEUMS = "nationalmuseum,shm,nordiska"
+  MUSEUMS = "nationalmuseum,nordiska"
 
 [http_service]
   internal_port = 3000
