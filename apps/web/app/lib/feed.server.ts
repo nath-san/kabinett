@@ -1,5 +1,4 @@
 import { getDb } from "./db.server";
-import { clipSearch } from "./clip-search.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
 
@@ -42,21 +41,17 @@ const CENTURIES: Record<string, { from: number; to: number }> = {
 
 const CATEGORY_FILTERS = new Set(["Målningar", "Skulptur", "Porträtt", "Landskap"]);
 
-const MOOD_QUERIES: Record<string, { clip: string; fts: string }> = {
+const MOOD_QUERIES: Record<string, { fts: string }> = {
   Djur: {
-    clip: "animals, horses, dogs, cats, birds in paintings",
     fts: "djur OR hund OR katt OR fågel OR häst",
   },
   Havet: {
-    clip: "seascape, ocean, coast, ships, water, maritime painting",
     fts: "hav OR sjö OR vatten OR kust OR strand OR flod",
   },
   Blommor: {
-    clip: "flowers, floral still life, roses, botanical painting",
     fts: "blom* OR ros OR tulpan OR växt",
   },
   Natt: {
-    clip: "night scene, moonlight, dark atmosphere, nocturnal painting",
     fts: "natt OR måne OR kväll OR skymning",
   },
 };
@@ -76,15 +71,6 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
   }));
 }
 
-async function hasClipEmbeddings(db: ReturnType<typeof getDb>) {
-  try {
-    const row = db.prepare("SELECT COUNT(*) as count FROM clip_embeddings").get() as any;
-    return (row?.count || 0) > 0;
-  } catch {
-    return false;
-  }
-}
-
 export async function fetchFeed(options: {
   cursor?: number | null;
   limit: number;
@@ -98,39 +84,6 @@ export async function fetchFeed(options: {
   if (MOOD_QUERIES[filter]) {
     const mood = MOOD_QUERIES[filter];
     const offset = Math.max(0, cursor || 0);
-    const useClip = await hasClipEmbeddings(db);
-
-    if (useClip) {
-      const cap = Math.min(offset + limit, 50);
-      const data = await clipSearch(mood.clip, cap, 0);
-      const slice = data.slice(offset, offset + limit);
-      const ids = slice.map((item) => item.id).filter(Boolean);
-
-      if (ids.length === 0) {
-        return { items: [], nextCursor: offset, hasMore: false, mode: "offset" as const };
-      }
-
-      const order = `CASE a.id ${ids.map((id, index) => `WHEN ${id} THEN ${index}`).join(" ")} END`;
-      const rows = db
-        .prepare(
-          `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                  m.name as museum_name
-           FROM artworks a
-           LEFT JOIN museums m ON m.id = a.source
-           WHERE a.id IN (${ids.map(() => "?").join(",")})
-             AND ${sourceFilter("a")}
-           ORDER BY ${order}`
-        )
-        .all(...ids) as FeedItemRow[];
-
-      return {
-        items: mapRows(rows),
-        nextCursor: offset + slice.length,
-        hasMore: data.length > offset + slice.length,
-        mode: "offset" as const,
-      };
-    }
-
     const rows = db
       .prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
@@ -138,7 +91,10 @@ export async function fetchFeed(options: {
          FROM artworks_fts
          JOIN artworks a ON a.id = artworks_fts.rowid
          LEFT JOIN museums m ON m.id = a.source
-         WHERE artworks_fts MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+         WHERE artworks_fts MATCH ?
+           AND a.iiif_url IS NOT NULL
+           AND LENGTH(a.iiif_url) > 40
+           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceFilter("a")}
          ORDER BY bm25(artworks_fts)
          LIMIT ? OFFSET ?`
@@ -161,28 +117,12 @@ export async function fetchFeed(options: {
   ];
   const params: Array<string | number> = [];
   let orderBy = "a.id ASC";
-  let mode: "cursor" | "offset" = "cursor";
+  let mode: "cursor" | "cursor_desc" = "cursor";
   const tablePrefix = "artworks a";
 
   if (filter === "Alla") {
-    // Weight towards paintings, drawings, sculpture — deprioritize ceramics
-    // Include non-Nationalmuseum sources (SHM etc) that may have different categories
-    conditions.push(`(
-      a.source != 'nationalmuseum'
-      OR a.category LIKE '%Måleri%'
-      OR a.category LIKE '%Teckningar%'
-      OR a.category LIKE '%Skulptur%'
-      OR a.category LIKE '%Grafik%'
-      OR a.category LIKE '%Fotografier%'
-      OR a.category LIKE '%Miniatyrer%'
-      OR a.category LIKE '%Textil%'
-      OR (a.category LIKE '%Keramik%' AND RANDOM() % 8 = 0)
-      OR (a.category LIKE '%Konsthtv%' AND RANDOM() % 6 = 0)
-    )`);
-    // Boost non-nationalmuseum sources so they appear ~30% of the time
-    // despite having fewer items (5k vs 74k)
-    orderBy = "CASE WHEN a.source = 'nationalmuseum' THEN RANDOM() % 3 ELSE RANDOM() % 7 END, RANDOM()";
-    mode = "offset";
+    orderBy = "a.id DESC";
+    mode = "cursor_desc";
   }
 
   if (CATEGORY_FILTERS.has(filter)) {
@@ -208,34 +148,19 @@ export async function fetchFeed(options: {
     params.push(cursor);
   }
 
-  const where = conditions.join(" AND ");
-
-  let rows: FeedItemRow[] = [];
-  if (mode === "offset") {
-    const offset = Math.max(0, cursor || 0);
-    rows = db
-      .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                m.name as museum_name
-         FROM ${tablePrefix}
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
-      )
-      .all(...params, limit, offset) as FeedItemRow[];
-
-    return {
-      items: mapRows(rows),
-      nextCursor: offset + rows.length,
-      hasMore: rows.length === limit,
-      mode: "offset" as const,
-    };
+  if (mode === "cursor_desc" && cursor) {
+    conditions.push("a.id < ?");
+    params.push(cursor);
   }
 
-  rows = db
+  const where = conditions.join(" AND ");
+  const fromClause = mode === "cursor_desc" ? "artworks a NOT INDEXED" : tablePrefix;
+
+  const rows = db
     .prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
               m.name as museum_name
-       FROM ${tablePrefix}
+       FROM ${fromClause}
        LEFT JOIN museums m ON m.id = a.source
        WHERE ${where} ORDER BY ${orderBy} LIMIT ?`
     )

@@ -243,6 +243,9 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                       loading="lazy"
                       width={400}
                       height={533}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />

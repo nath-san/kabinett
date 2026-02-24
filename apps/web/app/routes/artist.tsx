@@ -146,6 +146,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, dating_text, year_start, year_end, category, actors_json
        FROM artworks
        WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
        ORDER BY year_start ASC NULLS LAST`
     )
@@ -296,6 +297,9 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
                     width={400}
                     height={533}
                     loading="lazy"
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -331,6 +335,9 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
                   width={400}
                   height={533}
                   loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.classList.add("is-broken");
+                  }}
                   className="w-full h-full object-cover"
                 />
               </div>

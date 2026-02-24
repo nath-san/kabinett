@@ -156,7 +156,17 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
                   className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint] focus-ring"
                 >
                   <div className="relative aspect-[3/4]" style={{ backgroundColor: item.color }}>
-                    <img src={item.imageUrl} alt={`${item.title} — ${item.artist}`} loading="lazy" width={400} height={533} className="absolute inset-0 w-full h-full object-cover" />
+                    <img
+                      src={item.imageUrl}
+                      alt={`${item.title} — ${item.artist}`}
+                      loading="lazy"
+                      width={400}
+                      height={533}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
                   </div>
                   <div className="p-3">

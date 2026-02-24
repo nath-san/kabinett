@@ -38,11 +38,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#FAF7F2" />
+        <meta property="og:locale" content="sv_SE" />
+        <meta property="og:site_name" content="Kabinett" />
+        <meta name="robots" content="index,follow" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" type="image/png" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <script dangerouslySetInnerHTML={{ __html: `
+window.addEventListener('error',function(event){
+  var target=event&&event.target;
+  if(target&&target.tagName==='IMG'){
+    target.classList.add('is-broken');
+  }
+},true);
+`}} />
         <Meta />
         <Links />
       </head>
@@ -73,6 +84,7 @@ document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('img[loading="lazy"]').forEach(function(img){
     if(img.complete){img.classList.add('loaded')}
     else{img.addEventListener('load',function(){img.classList.add('loaded')})}
+    img.addEventListener('error',function(){img.classList.add('is-broken')})
   });
   new MutationObserver(function(mutations){
     mutations.forEach(function(m){
@@ -81,6 +93,7 @@ document.addEventListener('DOMContentLoaded',function(){
           n.querySelectorAll('img[loading="lazy"]').forEach(function(img){
             if(img.complete){img.classList.add('loaded')}
             else{img.addEventListener('load',function(){img.classList.add('loaded')})}
+            img.addEventListener('error',function(){img.classList.add('is-broken')})
           });
         }
       });
@@ -95,7 +108,8 @@ document.addEventListener('DOMContentLoaded',function(){
 
 function Header() {
   const location = useLocation();
-  const isHome = location.pathname === "/";
+  const path = location.pathname;
+  const isHome = path === "/";
 
   return (
     <header
@@ -112,6 +126,7 @@ function Header() {
       >
         <a
           href="/"
+          aria-current={path === "/" ? "page" : undefined}
           className={[
             "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline focus-ring",
             isHome ? "text-[#F5F0E8]" : "text-charcoal",
@@ -125,19 +140,39 @@ function Header() {
             isHome ? "text-[rgba(245,240,232,0.85)]" : "text-warm-gray",
           ].join(" ")}
         >
-          <a href="/discover" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
+          <a
+            href="/discover"
+            aria-current={path === "/discover" ? "page" : undefined}
+            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          >
             Upptäck
           </a>
-          <a href="/timeline" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
+          <a
+            href="/timeline"
+            aria-current={path === "/timeline" ? "page" : undefined}
+            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          >
             Tidslinje
           </a>
-          <a href="/search" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
+          <a
+            href="/search"
+            aria-current={path === "/search" ? "page" : undefined}
+            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          >
             Sök
           </a>
-          <a href="/favorites" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
+          <a
+            href="/favorites"
+            aria-current={path === "/favorites" ? "page" : undefined}
+            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          >
             Sparade
           </a>
-          <a href="/om" className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}>
+          <a
+            href="/om"
+            aria-current={path === "/om" ? "page" : undefined}
+            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          >
             Om
           </a>
         </div>
@@ -253,6 +288,7 @@ function BottomNav() {
             <a
               key={tab.href}
               href={tab.href}
+              aria-current={tab.active ? "page" : undefined}
               aria-label={tab.label}
               className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2 focus-ring"
             >

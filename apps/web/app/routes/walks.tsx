@@ -101,6 +101,7 @@ export async function loader({ request }: Route.LoaderArgs) {
           FROM walk_items wi
           JOIN artworks a ON a.id = wi.artwork_id
           WHERE wi.walk_id = ?
+            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
             AND ${sourceFilter("a")}
           ORDER BY wi.position ASC`
         )
@@ -149,6 +150,9 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 <img src={w.previewUrl} alt="" role="presentation"
                   loading="lazy"
                   decoding="async"
+                  onError={(event) => {
+                    event.currentTarget.classList.add("is-broken");
+                  }}
                   className="absolute inset-0 w-full h-full object-cover opacity-60" />
               )}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
@@ -177,6 +181,9 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   role="presentation"
                   loading="eager"
                   fetchPriority="high"
+                  onError={(event) => {
+                    event.currentTarget.classList.add("is-broken");
+                  }}
                   className="absolute inset-0 w-full h-full object-cover opacity-25"
                 />
             )}
@@ -209,7 +216,9 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
                     <img src={buildImageUrl(a.iiif_url, 800)}
                       alt={`${a.title_sv || a.title_en || "Utan titel"} — ${parseArtist(a.artists)}`} width={800} height={600}
-                      onError={(e) => { e.currentTarget.classList.add("hidden"); }}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
                       loading="lazy"
                       decoding="async"
                       className="w-full block" />

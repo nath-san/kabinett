@@ -35,65 +35,136 @@ export async function loader({ request }: Route.LoaderArgs) {
   const rangeFrom = 1200;
   const rangeTo = 2000;
 
-  const rows = db
+  const countRows = db
     .prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start
+      `SELECT (year_start / 10) * 10 as decade, COUNT(*) as count
        FROM artworks
+       INDEXED BY idx_artworks_year
        WHERE year_start BETWEEN ? AND ?
          AND iiif_url IS NOT NULL
          AND LENGTH(iiif_url) > 40
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
-       ORDER BY year_start ASC`
+       GROUP BY decade
+       ORDER BY decade ASC`
     )
-    .all(rangeFrom, rangeTo) as any[];
+    .all(rangeFrom, rangeTo) as Array<{ decade: number; count: number }>;
 
-  const byDecade = new Map<number, any[]>();
-  const counts = new Map<number, number>();
+  const sampleRows = db
+    .prepare(
+      `WITH ranked AS (
+         SELECT
+           id,
+           title_sv,
+           title_en,
+           iiif_url,
+           dominant_color,
+           artists,
+           dating_text,
+           year_start,
+           (year_start / 10) * 10 as decade,
+           ROW_NUMBER() OVER (PARTITION BY (year_start / 10) * 10 ORDER BY id DESC) as rn
+         FROM artworks
+         INDEXED BY idx_artworks_year
+         WHERE year_start BETWEEN ? AND ?
+           AND iiif_url IS NOT NULL
+           AND LENGTH(iiif_url) > 40
+           AND id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceFilter()}
+       )
+       SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start, decade
+       FROM ranked
+       WHERE rn <= 5
+       ORDER BY decade ASC, year_start ASC`
+    )
+    .all(rangeFrom, rangeTo) as Array<{
+      id: number;
+      title_sv: string | null;
+      title_en: string | null;
+      iiif_url: string;
+      dominant_color: string | null;
+      artists: string | null;
+      dating_text: string | null;
+      year_start: number | null;
+      decade: number;
+    }>;
 
-  for (const row of rows) {
-    if (!row.year_start) continue;
-    const decade = Math.floor(row.year_start / 10) * 10;
-    if (decade < rangeFrom || decade > rangeTo) continue;
+  const samplesByDecade = new Map<number, Array<{
+    id: number;
+    title: string;
+    imageUrl: string;
+    color: string;
+    artist: string;
+    year: string | number;
+  }>>();
 
-    counts.set(decade, (counts.get(decade) || 0) + 1);
-    const list = byDecade.get(decade) || [];
-    if (list.length < 5) {
-      list.push(row);
-      byDecade.set(decade, list);
-    }
+  for (const row of sampleRows) {
+    const list = samplesByDecade.get(row.decade) || [];
+    list.push({
+      id: row.id,
+      title: row.title_sv || row.title_en || "Utan titel",
+      imageUrl: buildIiif(row.iiif_url, 400),
+      color: row.dominant_color || "#2B2A27",
+      artist: parseArtist(row.artists),
+      year: row.dating_text ?? (row.year_start ? String(row.year_start) : ""),
+    });
+    samplesByDecade.set(row.decade, list);
   }
 
-  const allDecades = Array.from({ length: (rangeTo - rangeFrom) / 10 + 1 }, (_, i) => {
-    const decade = rangeFrom + i * 10;
-    return {
-      decade,
-      label: `${decade}s`,
-      count: counts.get(decade) || 0,
-      samples: (byDecade.get(decade) || []).map((r) => ({
-        id: r.id,
-        title: r.title_sv || r.title_en || "Utan titel",
-        imageUrl: buildIiif(r.iiif_url, 400),
-        color: r.dominant_color || "#2B2A27",
-        artist: parseArtist(r.artists),
-        year: r.dating_text || r.year_start,
-      })),
-    };
-  });
+  const decades = countRows.map((row) => ({
+    decade: row.decade,
+    label: `${row.decade}s`,
+    count: row.count,
+    samples: samplesByDecade.get(row.decade) || [],
+  }));
 
-  let selectedWorks: any[] = [];
+  let selectedWorks: Array<{
+    id: number;
+    title: string;
+    imageUrl: string;
+    color: string;
+    artist: string;
+    year: string | number;
+  }> = [];
   let selectedLabel = "";
+  let selectedTotal = 0;
   if (selectedDecade >= rangeFrom && selectedDecade <= rangeTo) {
+    selectedTotal = (
+      db.prepare(
+        `SELECT COUNT(*) as count
+         FROM artworks
+         INDEXED BY idx_artworks_year
+         WHERE year_start BETWEEN ? AND ?
+           AND iiif_url IS NOT NULL
+           AND LENGTH(iiif_url) > 40
+           AND id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceFilter()}`
+      ).get(selectedDecade, selectedDecade + 9) as { count: number }
+    ).count;
+
     const selectedRows = db
       .prepare(
         `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start
          FROM artworks
+         INDEXED BY idx_artworks_year
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
+           AND id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceFilter()}
-         ORDER BY year_start ASC`
+         ORDER BY year_start ASC
+         LIMIT 240`
       )
-      .all(selectedDecade, selectedDecade + 9) as any[];
+      .all(selectedDecade, selectedDecade + 9) as Array<{
+        id: number;
+        title_sv: string | null;
+        title_en: string | null;
+        iiif_url: string;
+        dominant_color: string | null;
+        artists: string | null;
+        dating_text: string | null;
+        year_start: number | null;
+      }>;
 
     selectedLabel = `${selectedDecade}–${selectedDecade + 9}`;
     selectedWorks = selectedRows.map((r) => ({
@@ -102,18 +173,15 @@ export async function loader({ request }: Route.LoaderArgs) {
       imageUrl: buildIiif(r.iiif_url, 400),
       color: r.dominant_color || "#2B2A27",
       artist: parseArtist(r.artists),
-      year: r.dating_text || r.year_start,
+      year: r.dating_text ?? (r.year_start ? String(r.year_start) : ""),
     }));
   }
 
-  // Filter out empty decades
-  const decades = allDecades.filter((d) => d.samples.length > 0);
-
-  return { decades, selectedDecade, selectedLabel, selectedWorks };
+  return { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal };
 }
 
 export default function Timeline({ loaderData }: Route.ComponentProps) {
-  const { decades, selectedDecade, selectedLabel, selectedWorks } = loaderData;
+  const { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal } = loaderData;
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
@@ -217,7 +285,16 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               {decade.samples.map((art) => (
                 <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card focus-ring">
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                    <img src={art.imageUrl} alt={`${art.title} — ${art.artist}`} loading="lazy" width={400} height={533} />
+                    <img
+                      src={art.imageUrl}
+                      alt={`${art.title} — ${art.artist}`}
+                      loading="lazy"
+                      width={400}
+                      height={533}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
+                    />
                   </div>
                   <div className="timeline-card-meta">
                     <span className="text-[0.8rem] font-semibold">{art.title}</span>
@@ -242,7 +319,9 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 {selectedLabel}
               </h2>
               <p className="text-[0.8rem] text-[rgba(245,240,232,0.6)]">
-                {selectedWorks.length} verk i urvalet
+                {selectedTotal > selectedWorks.length
+                  ? `${selectedTotal} verk i urvalet · visar första ${selectedWorks.length}`
+                  : `${selectedWorks.length} verk i urvalet`}
               </p>
             </div>
             <a
@@ -262,7 +341,16 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                   className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-[#252019] mb-[0.8rem] no-underline text-inherit focus-ring"
                 >
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                    <img src={art.imageUrl} alt={`${art.title} — ${art.artist}`} width={400} height={533} loading="lazy" />
+                    <img
+                      src={art.imageUrl}
+                      alt={`${art.title} — ${art.artist}`}
+                      width={400}
+                      height={533}
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
+                    />
                   </div>
                   <div className="p-[0.6rem]">
                     <p className="text-[0.85rem] font-semibold">{art.title}</p>

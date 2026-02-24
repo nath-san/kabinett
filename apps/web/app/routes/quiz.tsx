@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Route } from "./+types/quiz";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -240,6 +240,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
   const [reveal, setReveal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lastResult, setLastResult] = useState<StoredResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("kabinett-quiz-result");
@@ -250,18 +251,6 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
     }
   }, []);
 
-  const canSubmit = useMemo(
-    () =>
-      Boolean(
-        answers.mood &&
-          answers.color &&
-          answers.epoch &&
-          answers.subject &&
-          answers.size
-      ),
-    [answers]
-  );
-
   const answersRef = useRef(answers);
   answersRef.current = answers;
 
@@ -269,6 +258,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
     const a = answersRef.current;
     if (!a.mood || !a.color || !a.epoch || !a.subject || !a.size) return;
     setLoading(true);
+    setErrorMessage("");
     const params = new URLSearchParams({
       mood: a.mood,
       color: a.color,
@@ -279,6 +269,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
 
     try {
       const res = await fetch(`/api/quiz-match?${params.toString()}`);
+      if (!res.ok) throw new Error("Kunde inte hämta ett verk");
       const data = await res.json();
       if (data?.result) {
         setResult(data.result);
@@ -286,7 +277,11 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
         const stored = { ...data.result, timestamp: Date.now() } as StoredResult;
         localStorage.setItem("kabinett-quiz-result", JSON.stringify(stored));
         setLastResult(stored);
+      } else {
+        setErrorMessage("Vi hittade inget verk för kombinationen. Prova andra val.");
       }
+    } catch {
+      setErrorMessage("Kunde inte hämta ditt verk just nu. Försök igen.");
     } finally {
       setLoading(false);
     }
@@ -311,7 +306,7 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
       await navigator.share(shareData);
     } else if (navigator.clipboard) {
       await navigator.clipboard.writeText(window.location.origin + shareData.url);
-      (window as any).__toast?.("Länk kopierad");
+      window.__toast?.("Länk kopierad");
     }
   }
 
@@ -331,7 +326,17 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
         <div className="px-(--spacing-page) pb-6">
           <div className="bg-linen rounded-3xl p-4 flex flex-col md:flex-row gap-4 items-center">
             <div className="w-full md:w-32 aspect-[3/4] rounded-2xl overflow-hidden" style={{ backgroundColor: lastResult.color }}>
-              <img src={lastResult.imageUrl} alt={`${lastResult.title} — ${lastResult.artist}`} className="w-full h-full object-cover" loading="lazy" width={400} height={533} />
+              <img
+                src={lastResult.imageUrl}
+                alt={`${lastResult.title} — ${lastResult.artist}`}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                width={400}
+                height={533}
+                onError={(event) => {
+                  event.currentTarget.classList.add("is-broken");
+                }}
+              />
             </div>
             <div className="flex-1">
               <p className="text-xs uppercase tracking-[0.2em] text-stone">Ditt senaste</p>
@@ -349,6 +354,11 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
         {!result && (
           <div className="bg-linen rounded-[32px] p-5 md:p-8">
             <QuizProgress step={step} />
+            {errorMessage && (
+              <p aria-live="polite" className="text-[0.8rem] text-accent mb-4">
+                {errorMessage}
+              </p>
+            )}
 
             {step === 0 && (
               <Question
@@ -468,7 +478,14 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
             <h2 className="font-serif text-4xl md:text-5xl text-cream mt-3">{result.title}</h2>
             <p className="text-sm text-stone mt-2">{result.artist}</p>
             <div className="mt-6 w-full max-w-sm rounded-3xl overflow-hidden" style={{ backgroundColor: result.color }}>
-              <img src={result.imageUrl} alt={`${result.title} — ${result.artist}`} className="w-full h-[60vh] object-cover" />
+              <img
+                src={result.imageUrl}
+                alt={`${result.title} — ${result.artist}`}
+                className="w-full h-[60vh] object-cover"
+                onError={(event) => {
+                  event.currentTarget.classList.add("is-broken");
+                }}
+              />
             </div>
             <div className="mt-6 flex flex-col md:flex-row gap-3">
               <button
@@ -535,18 +552,15 @@ function Question({ title, subtitle, options, selected, onSelect, footer }: Ques
                   loading="lazy"
                   width={400}
                   height={533}
+                  onError={(event) => {
+                    event.currentTarget.classList.add("is-broken");
+                  }}
                 />
               ) : option.color ? (
                 <div className="w-full h-full" style={{ backgroundColor: option.color }} />
               ) : option.size ? (
                 <div className="w-full h-full bg-cream flex items-center justify-center">
-                  <div
-                    className="rounded-2xl bg-charcoal/80"
-                    style={{
-                      width: option.size === "large" ? "70%" : "35%",
-                      height: option.size === "large" ? "70%" : "35%",
-                    }}
-                  />
+                  <div className={`rounded-2xl bg-charcoal/80 ${option.size === "large" ? "w-[70%] h-[70%]" : "w-[35%] h-[35%]"}`} />
                 </div>
               ) : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -571,38 +585,6 @@ function QuizProgress({ step }: { step: number }) {
           className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-charcoal" : "bg-cream"}`}
         />
       ))}
-    </div>
-  );
-}
-
-function Confetti() {
-  return (
-    <div className="confetti">
-      {Array.from({ length: 18 }).map((_, i) => (
-        <span key={i} style={{ left: `${(i / 18) * 100}%`, animationDelay: `${i * 0.15}s` }} />
-      ))}
-      <style>{`
-        .confetti span {
-          position: absolute;
-          top: -10%;
-          width: 10px;
-          height: 18px;
-          background: linear-gradient(180deg, #E8987F, #C4553A);
-          opacity: 0.8;
-          border-radius: 6px;
-          animation: confettiFall 3.5s linear infinite;
-        }
-        .confetti span:nth-child(2n) {
-          background: linear-gradient(180deg, #F2E9D8, #D4CDC3);
-        }
-        .confetti span:nth-child(3n) {
-          background: linear-gradient(180deg, #8FA9C5, #5A6E86);
-        }
-        @keyframes confettiFall {
-          0% { transform: translateY(0) rotate(0deg); }
-          100% { transform: translateY(120vh) rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

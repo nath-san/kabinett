@@ -76,6 +76,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          AND a.source = ?
        ORDER BY RANDOM() LIMIT 60`
@@ -100,6 +101,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
@@ -123,7 +125,17 @@ export async function loader({ request }: Route.LoaderArgs) {
   let results: SearchResult[];
   let total: number;
   try {
-    const ftsQuery = query.split(/\s+/).map(w => `"${w}"*`).join(" ");
+    const ftsQuery = query
+      .split(/\s+/)
+      .map((word) => word.replace(/"/g, "").trim())
+      .filter(Boolean)
+      .map((word) => `"${word}"*`)
+      .join(" ");
+
+    if (!ftsQuery) {
+      return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge };
+    }
+
     results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
@@ -131,6 +143,9 @@ export async function loader({ request }: Route.LoaderArgs) {
        JOIN artworks a ON a.id = artworks_fts.rowid
        LEFT JOIN museums m ON m.id = a.source
        WHERE artworks_fts MATCH ?
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY rank LIMIT 60`
@@ -139,6 +154,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       `SELECT COUNT(*) as count
        FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
        WHERE artworks_fts MATCH ?
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}`
     ).get(ftsQuery, ...(museum ? [museum] : [])) as { count: number }).count;
@@ -150,6 +168,9 @@ export async function loader({ request }: Route.LoaderArgs) {
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
        WHERE (a.title_sv LIKE ? OR a.artists LIKE ?)
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        LIMIT 60`
@@ -168,6 +189,15 @@ function parseArtist(json: string | null): string {
 const TYPE_LABELS: Record<string, string> = {
   artist: "Konstnär", title: "Verk", category: "Kategori",
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; museum?: string }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -195,12 +225,15 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
           return;
         }
         dropdown.classList.remove("hidden");
-        dropdown.innerHTML = data.map((s, i) =>
-          `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}" role="button" tabindex="0">
-            <span class="text-charcoal truncate">${s.value}</span>
-            <span class="text-xs text-stone ml-2 shrink-0">${TYPE_LABELS[s.type] || ""}</span>
+        dropdown.innerHTML = data.map((s, i) => {
+          const encodedValue = encodeURIComponent(s.value);
+          const safeValue = escapeHtml(s.value);
+          const safeType = escapeHtml(TYPE_LABELS[s.type] || "");
+          return `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? "border-t border-stone/5" : ""}" data-value="${encodedValue}" role="button" tabindex="0">
+            <span class="text-charcoal truncate">${safeValue}</span>
+            <span class="text-xs text-stone ml-2 shrink-0">${safeType}</span>
           </div>`
-        ).join("");
+        }).join("");
       } catch {
         dropdown.classList.add("hidden");
       }
@@ -211,7 +244,7 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
     const item = (e.target as HTMLElement).closest(".ac-item") as HTMLElement;
     if (!item) return;
     e.preventDefault();
-    const val = item.dataset.value || "";
+    const val = decodeURIComponent(item.dataset.value || "");
     const dropdown = dropdownRef.current;
     if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
     if (formRef.current) {
@@ -226,7 +259,7 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
     if (!target.classList.contains("ac-item")) return;
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
-    const val = target.dataset.value || "";
+    const val = decodeURIComponent(target.dataset.value || "");
     const dropdown = dropdownRef.current;
     if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
     if (formRef.current) {
@@ -283,6 +316,9 @@ function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: 
           loading="lazy"
           decoding="async"
           alt={`${title} — ${artist}`} width={400} height={533}
+          onError={(event) => {
+            event.currentTarget.classList.add("is-broken");
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       </div>
       <div className="p-3">
@@ -368,7 +404,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               <a
                 href={buildSearchUrl()}
                 className={[
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
                   "focus-ring",
                   museum
                     ? "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal"
@@ -382,7 +418,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   key={option.id}
                   href={buildSearchUrl(option.id)}
                   className={[
-                    "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                    "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
                     "focus-ring",
                     museum === option.id
                       ? "bg-charcoal text-cream"
@@ -402,7 +438,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             <div className="flex flex-wrap gap-2">
               {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
                 <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
-                  className="px-3 py-1.5 rounded-full bg-linen text-warm-gray text-sm font-medium
+                  className="px-3 py-1.5 min-h-11 inline-flex items-center rounded-full bg-linen text-warm-gray text-sm font-medium
                              hover:bg-stone hover:text-charcoal transition-colors focus-ring">{s}</a>
               ))}
             </div>
@@ -412,7 +448,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
       {showResults && (
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <p className="text-sm text-warm-gray mb-6">
+          <p aria-live="polite" className="text-sm text-warm-gray mb-6">
             {results.length > 0
               ? `${results.length} träffar${query ? ` för "${query}"` : ""}`
               : `Inga träffar${query ? ` för "${query}"` : ""}`}
@@ -426,7 +462,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           )}
           {hasMore && (
             <div ref={sentinelRef} className="text-center mt-8 py-4">
-              {loading && <p className="text-sm text-warm-gray">Laddar fler…</p>}
+              {loading && <p aria-live="polite" className="text-sm text-warm-gray">Laddar fler…</p>}
             </div>
           )}
         </div>

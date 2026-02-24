@@ -191,7 +191,7 @@ export default function ColorMatch() {
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
                 aria-label={`Välj ${hex}`}
-                className="w-9 h-9 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
+                className="w-11 h-11 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
                 style={{ background: hex }}
               />
             ))}
@@ -204,7 +204,7 @@ export default function ColorMatch() {
                 setColor({ ...rgb, hex });
                 void fetchMatches(rgb.r, rgb.g, rgb.b);
               }}
-              className="w-10 h-9 border-0 bg-transparent p-0 focus-ring"
+              className="w-11 h-11 border-0 bg-transparent p-0 focus-ring"
             />
           </div>
         </div>
@@ -231,6 +231,9 @@ export default function ColorMatch() {
                     loading="lazy"
                     width={400}
                     height={533}
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </div>

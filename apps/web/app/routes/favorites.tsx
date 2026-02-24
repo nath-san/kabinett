@@ -57,11 +57,11 @@ export default function Favorites() {
         </p>
 
         {loading && items.length === 0 && (
-          <div className="py-8 text-warm-gray">Hämtar favoriter…</div>
+          <div aria-live="polite" className="py-8 text-warm-gray">Hämtar favoriter…</div>
         )}
 
         {!loading && items.length === 0 && (
-          <div className="py-8 text-warm-gray">
+          <div aria-live="polite" className="py-8 text-warm-gray">
             Inga sparade verk än. Tryck på hjärtat för att spara.
           </div>
         )}
@@ -137,6 +137,9 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           loading="lazy"
           width={400}
           height={533}
+          onError={(event) => {
+            event.currentTarget.classList.add("is-broken");
+          }}
           className="w-full h-full object-cover"
         />
       </div>

@@ -21,7 +21,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     const results = db.prepare(
       `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
        FROM artworks
-       WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL
+       WHERE color_r IS NOT NULL
+         AND iiif_url IS NOT NULL
+         AND LENGTH(iiif_url) > 40
+         AND id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter()}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT ?`

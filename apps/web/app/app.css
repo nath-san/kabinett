@@ -121,6 +121,10 @@ img[loading="lazy"].loaded {
   opacity: 1;
 }
 
+img.is-broken {
+  display: none !important;
+}
+
 /* Hide scrollbar for filter chips */
 .no-scrollbar {
   scrollbar-width: none;

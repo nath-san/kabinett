@@ -1,6 +1,7 @@
 import type { Route } from "./+types/home";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 // Search removed — now lives at /search via bottom nav
+import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
@@ -178,7 +179,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   const enabledMuseums = getEnabledMuseums();
 
   // Load curated hero artworks first
-  const { getDb } = await import("../lib/db.server");
   const db = getDb();
   // Pick 5 random from pool
   const shuffled = [...CURATED_POOL].sort(() => Math.random() - 0.5);
@@ -202,11 +202,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     }));
   const ogImageUrl = curated[0]?.imageUrl || null;
 
-  const initial = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
-
-  // Load first theme section
+  // Load first rows in parallel
   const firstTheme = THEMES[0];
-  const themeItems = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
+  const [initial, themeItems] = await Promise.all([
+    fetchFeed({ cursor: null, limit: 15, filter: "Alla" }),
+    fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter }),
+  ]);
 
   // Prepend curated, deduplicate
   const curatedIds = new Set(curated.map((c: any) => c.id));
@@ -231,10 +232,6 @@ export async function loader({ request }: Route.LoaderArgs) {
 function parseArtist(json: string | null): string {
   if (!json) return "Okänd konstnär";
   try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
-}
-
-function iiif(url: string, size: number): string {
-  return buildImageUrl(url, size);
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -274,6 +271,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [cursor, setCursor] = useState<number | null>(loaderData.initialCursor ?? null);
   const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [themeIndex, setThemeIndex] = useState(1); // already loaded index 0
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
 
@@ -299,9 +297,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   async function loadMore() {
     if (loading || !hasMore) return;
     setLoading(true);
+    setLoadError("");
     try {
       // Fetch next batch of artworks
       const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursor ?? ""}`);
+      if (!res.ok) throw new Error("Kunde inte hämta fler verk");
       const data = await res.json();
       const nextItems: FeedItem[] = (data.items || []).filter((item: FeedItem) => !loadedIds.has(item.id));
 
@@ -315,6 +315,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         const theme = THEMES[themeIndex];
         try {
           const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
+          if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
           const themeData = await themeRes.json();
           if (themeData.items?.length > 0) {
             // Insert theme after ~5 artworks
@@ -339,6 +340,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setHasMore(Boolean(data.hasMore));
     } catch {
       setHasMore(false);
+      setLoadError("Kunde inte ladda fler verk just nu.");
     } finally {
       setLoading(false);
     }
@@ -380,8 +382,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
         <div ref={sentinelRef} className="h-px" />
         {loading && (
-          <div className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
+          <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
             Laddar mer konst…
+          </div>
+        )}
+        {loadError && !loading && (
+          <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.45)] text-[0.8rem]">
+            {loadError}
           </div>
         )}
       </div>
@@ -412,8 +419,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
           img.classList.add("opacity-100");
         }}
         onError={(e) => {
-          const card = (e.target as HTMLImageElement).closest("a");
-          if (card) (card as HTMLElement).classList.add("hidden");
+          e.currentTarget.classList.add("is-broken");
         }}
         className={[
           "absolute inset-0 w-full h-full object-cover",
@@ -452,7 +458,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
           toggle(item.id);
         }}
         className={[
-          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-[2.2rem] h-[2.2rem] lg:w-[2.5rem] lg:h-[2.5rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
+          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-11 h-11 lg:w-[2.75rem] lg:h-[2.75rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
           "focus-ring",
           saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
           pulsing ? "heart-pulse" : "",
@@ -534,7 +540,7 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
               style={{ backgroundColor: item.dominant_color || "#1A1815" }}
             >
               <img
-                src={iiif(item.iiif_url, 400)}
+                src={buildImageUrl(item.iiif_url, 400)}
                 alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
                 loading="lazy"
                 width={400}
@@ -544,7 +550,9 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
                   img.classList.remove("opacity-0");
                   img.classList.add("opacity-100");
                 }}
-                onError={(e) => { (e.target as HTMLImageElement).classList.add("hidden"); }}
+                onError={(e) => {
+                  e.currentTarget.classList.add("is-broken");
+                }}
                 className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
               />
             </div>

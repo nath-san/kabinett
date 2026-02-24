@@ -14,7 +14,16 @@ export async function loader({ request }: Route.LoaderArgs) {
   const db = getDb();
 
   try {
-    const ftsQuery = q.split(/\s+/).map(w => `"${w}"*`).join(" ");
+    const ftsQuery = q
+      .split(/\s+/)
+      .map((word) => word.replace(/"/g, "").trim())
+      .filter(Boolean)
+      .map((word) => `"${word}"*`)
+      .join(" ");
+
+    if (!ftsQuery) {
+      return Response.json([]);
+    }
 
     // Get matching artworks with context
     const rows = db

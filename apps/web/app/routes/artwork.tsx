@@ -59,6 +59,11 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const url = new URL(request.url);
+  const artworkId = Number.parseInt(params.id || "", 10);
+  if (!Number.isFinite(artworkId) || artworkId <= 0) {
+    throw new Response("Ogiltigt id", { status: 400 });
+  }
+
   const db = getDb();
   const row = db
     .prepare(
@@ -67,7 +72,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.id = ? AND ${sourceFilter("a")}`
     )
-    .get(params.id) as (ArtworkRow & { museum_name: string | null; museum_url: string | null }) | undefined;
+    .get(artworkId) as (ArtworkRow & { museum_name: string | null; museum_url: string | null }) | undefined;
 
   if (!row) throw new Response("Inte hittat", { status: 404 });
 
@@ -145,6 +150,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
             `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
              FROM artworks
              WHERE id IN (${topIds.map(() => "?").join(",")})
+               AND id NOT IN (SELECT artwork_id FROM broken_images)
                AND ${sourceFilter()}`)
           .all(...topIds) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
         // Preserve similarity order
@@ -164,6 +170,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         `SELECT id, title_sv, iiif_url, dominant_color, dating_text
          FROM artworks
          WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
+           AND id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceFilter()}
          ORDER BY RANDOM() LIMIT 6`
       ).all(row.id, `%${artistName}%`) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null }>)
@@ -210,6 +217,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           alt={`${artwork.title} — ${artist}`}
           loading="eager"
           fetchPriority="high"
+          onError={(event) => {
+            event.currentTarget.classList.add("is-broken");
+          }}
           className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
@@ -339,7 +349,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   window.__toast?.("Länk kopierad");
                 }
               }}
-              className="py-2 px-4 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium focus-ring"
+              className="py-2 px-4 min-h-11 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium focus-ring"
             >
               Dela
             </button>
@@ -370,6 +380,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                     alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={200} height={267}
                     loading="lazy"
                     decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">
@@ -400,6 +413,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                     alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={200} height={267}
                     loading="lazy"
                     decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">

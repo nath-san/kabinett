@@ -81,7 +81,6 @@ const RICH_PROMPTS: Record<string, string> = {
   "abstrakt": "abstract art, geometric, modern, non-figurative",
 };
 
-// Cache translations to avoid repeated API calls
 const translationCache = new Map<string, string>();
 
 async function translateToEnglish(text: string): Promise<string> {
@@ -93,29 +92,15 @@ async function translateToEnglish(text: string): Promise<string> {
   
   const cached = translationCache.get(lower);
   if (cached) return cached;
-  
-  try {
-    // Use MyMemory free translation API (no key needed, 5000 chars/day)
-    const res = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=sv|en`
-    );
-    const data = await res.json();
-    if (data.responseStatus === 200 && data.responseData?.translatedText) {
-      const translated = data.responseData.translatedText.toLowerCase();
-      translationCache.set(text.toLowerCase(), translated);
-      return translated;
-    }
-  } catch {
-    // Fall through to lookup
-  }
-  
+
   // Fallback to lookup table
-  const words = text.toLowerCase().split(/\s+/);
+  const words = lower.split(/\s+/);
   const translated = words.map((w) => {
     const en = SV_EN_LOOKUP[w];
     return en ? en : w;
-  });
-  return translated.join(" ");
+  }).join(" ");
+  translationCache.set(lower, translated);
+  return translated;
 }
 
 function translateQuerySync(query: string): string {
@@ -206,7 +191,8 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
        FROM clip_embeddings c
        JOIN artworks a ON a.id = c.artwork_id
        LEFT JOIN museums m ON m.id = a.source
-       WHERE ${sourceFilter("a")}`
+       WHERE ${sourceFilter("a")}
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)`
     ).all() as any[];
 
     const mapped = rows.map((r) => {

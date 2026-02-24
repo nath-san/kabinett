@@ -27,29 +27,51 @@ type Collection = {
   title: string;
   subtitle: string;
   query: string;
-  clipQuery: string;
   imageUrl?: string;
   imageTitle?: string;
   imageArtist?: string;
   color?: string;
 };
 
+type TopArtist = {
+  name: string;
+  count: number;
+  imageUrl?: string;
+  imageTitle: string;
+  imageArtist: string;
+  color: string;
+};
+
+type MuseumSummary = {
+  id: string;
+  name: string;
+  count: number;
+};
+
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga", clipQuery: "dark dramatic painting shadows chiaroscuro" },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng", clipQuery: "bright calm peaceful summer meadow painting" },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö", clipQuery: "stormy sea waves ocean maritime painting" },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", clipQuery: "flowers floral still life roses botanical" },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur", clipQuery: "animals horses dogs birds painting" },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", clipQuery: "portrait face person painting" },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", clipQuery: "landscape forest mountain scenic painting" },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", clipQuery: "mythology gods venus mars classical" },
-  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", clipQuery: "winter snow ice cold landscape" },
-  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt", clipQuery: "nude figure painting human body" },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", clipQuery: "children child girl boy painting" },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", clipQuery: "architecture castle church building" },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga" },
+  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng" },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö" },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros" },
+  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur" },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt" },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg" },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus" },
+  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is" },
+  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt" },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke" },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad" },
 ];
 
+let discoverCache: { expiresAt: number; data: any } | null = null;
+const DISCOVER_CACHE_TTL_MS = 60 * 1000;
+
 export async function loader() {
+  const now = Date.now();
+  if (discoverCache && discoverCache.expiresAt > now) {
+    return discoverCache.data;
+  }
+
   const db = getDb();
 
   // Collection images
@@ -137,7 +159,7 @@ export async function loader() {
     artists: string | null;
   }>;
 
-  const mappedArtists = artistsWithImages.map((artistRow) => ({
+  const mappedArtists: TopArtist[] = artistsWithImages.map((artistRow) => ({
     name: artistRow.name,
     count: artistRow.cnt,
     imageUrl: artistRow.iiif_url ? buildIiif(artistRow.iiif_url, 300) : undefined,
@@ -173,13 +195,13 @@ export async function loader() {
     GROUP BY coll_name
     ORDER BY count DESC
   `).all() as Array<{ coll_name: string; count: number }>;
-  const museumList = museums.map((row: any) => ({
+  const museumList: MuseumSummary[] = museums.map((row: any) => ({
     id: row.coll_name,
     name: row.coll_name,
     count: row.count as number,
   }));
 
-  return {
+  const payload = {
     collections,
     quizImage: quizImg?.iiif_url
       ? {
@@ -192,6 +214,13 @@ export async function loader() {
     stats: { ...stats, yearsSpan },
     museums: museumList,
   };
+
+  discoverCache = {
+    expiresAt: now + DISCOVER_CACHE_TTL_MS,
+    data: payload,
+  };
+
+  return payload;
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
@@ -222,7 +251,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-ink mx-1 mb-3">Samlingar</h2>
 
           <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
-            {collections.map((c, i) => (
+            {collections.map((c: Collection, i: number) => (
               <a
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(c.query)}`}
@@ -239,6 +268,9 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     loading="lazy"
                     width={400}
                     height={i < 2 ? 300 : 400}
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 )}
@@ -257,7 +289,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-ink mx-4 mb-3">Formgivare & konstnärer</h2>
 
           <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
-            {topArtists.map((a) => (
+            {topArtists.map((a: TopArtist) => (
               <a
                 key={a.name}
                 href={`/artist/${encodeURIComponent(a.name)}`}
@@ -271,6 +303,9 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                       loading="lazy"
                       width={300}
                       height={300}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
                       className="w-full h-full object-cover"
                     />
                   )}
@@ -300,7 +335,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <section className="pt-8 px-4">
             <h2 className="font-serif text-[1.3rem] text-ink mb-3">Samlingar</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {museums.map((museum) => (
+              {museums.map((museum: MuseumSummary) => (
                 <a
                   key={museum.id}
                   href={`/samling/${encodeURIComponent(museum.name)}`}
@@ -334,7 +369,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
 function ToolLink({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 rounded-[14px] bg-[#EDEAE4] no-underline focus-ring">
+    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 min-h-11 rounded-[14px] bg-[#EDEAE4] no-underline focus-ring">
       <div className="flex-1">
         <p className="text-[0.88rem] font-medium text-ink m-0">{title}</p>
         <p className="text-[0.72rem] text-[#7A7268] mt-[0.1rem]">{desc}</p>
