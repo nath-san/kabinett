@@ -12,4 +12,10 @@ if [ ! -f /data/kabinett.db ]; then
     while [ ! -f /data/kabinett.db ]; do sleep 5; done
   fi
 fi
-exec node apps/web/build/server/index.js
+echo "DB exists: $(ls -la /data/kabinett.db)"
+echo "Starting node..."
+node apps/web/build/server/index.js 2>&1 || {
+  echo "Node exited with code $?"
+  echo "Keeping container alive for debugging..."
+  sleep 3600
+}
