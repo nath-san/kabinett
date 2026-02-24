@@ -37,6 +37,9 @@ COPY --from=base /app/apps/web/build apps/web/build
 COPY --from=base /app/apps/web/public apps/web/public
 
 # DB will be mounted as a volume at /data/kabinett.db
+# Fallback test DB (replaced by volume mount in production)
+COPY test-kabinett.db /app/test-kabinett.db
+
 ENV DATABASE_PATH=/data/kabinett.db
 ENV NODE_ENV=production
 ENV PORT=3000
