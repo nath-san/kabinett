@@ -43,4 +43,7 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "apps/web/build/server/index.js"]
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+CMD ["/app/entrypoint.sh"]
