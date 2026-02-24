@@ -118,6 +118,10 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
   return data;
 }
 
+export function headers() {
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+}
+
 export function meta({ data }: Route.MetaArgs) {
   const name = data?.artistName || "Konstnär";
   return [

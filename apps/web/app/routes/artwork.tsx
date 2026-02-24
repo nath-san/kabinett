@@ -4,6 +4,10 @@ import { loadClipCache, dot } from "../lib/clip-cache.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 
+export function headers() {
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+}
+
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
   const { artwork } = data;

@@ -18,6 +18,10 @@ function formatRange(minYear: number | null, maxYear: number | null): string {
   return `${minYear}–${maxYear}`;
 }
 
+export function headers() {
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+}
+
 export function meta({ data }: Route.MetaArgs) {
   if (!data?.name) return [{ title: "Samling — Kabinett" }];
   const title = `${data.name} — Kabinett`;

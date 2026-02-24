@@ -14,6 +14,9 @@ export function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH, { readonly: true });
     db.pragma("journal_mode = WAL");
+    db.pragma("cache_size = -64000"); // 64MB cache
+    db.pragma("mmap_size = 268435456"); // 256MB mmap
+    db.pragma("temp_store = memory");
   }
   return db;
 }

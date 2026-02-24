@@ -80,7 +80,7 @@ export const links: Route.LinksFunction = (args: any) => {
 };
 
 export function headers() {
-  return { "Cache-Control": "private, no-store" };
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
 
 // Pool of ~100 iconic artworks — 5 random picked each load

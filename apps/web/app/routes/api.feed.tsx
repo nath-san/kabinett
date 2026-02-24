@@ -16,5 +16,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   });
 
-  return Response.json(result);
+  return Response.json(result, {
+    headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=120" },
+  });
 }

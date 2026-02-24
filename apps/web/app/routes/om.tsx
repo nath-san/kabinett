@@ -2,6 +2,10 @@ import type { Route } from "./+types/om";
 import { getDb } from "../lib/db.server";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 
+export function headers() {
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+}
+
 export function meta() {
   return [
     { title: "Om Kabinett — Kabinett" },

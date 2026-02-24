@@ -5,6 +5,10 @@ import { clipSearch } from "../lib/clip-search.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
 
+export function headers() {
+  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+}
+
 export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
   return [
