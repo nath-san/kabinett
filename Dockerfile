@@ -38,7 +38,9 @@ COPY --from=base /app/apps/web/public apps/web/public
 
 # DB will be mounted as a volume at /data/kabinett.db
 # Create minimal fallback DB
-RUN node -e "const D=require('better-sqlite3');const d=new D('/app/test-kabinett.db');d.exec('CREATE TABLE museums(id TEXT PRIMARY KEY,name TEXT,enabled INTEGER DEFAULT 1,description TEXT,url TEXT)');d.exec('CREATE TABLE artworks(id INTEGER PRIMARY KEY,title_sv TEXT,title_en TEXT,source TEXT,category TEXT,technique_material TEXT,artists TEXT,dating_text TEXT,year_start INTEGER,acquisition_year INTEGER,iiif_url TEXT,dominant_color TEXT,color_r INTEGER,color_g INTEGER,color_b INTEGER,sub_museum TEXT,inventory_number TEXT,year_end INTEGER,description TEXT)');d.exec('CREATE TABLE clip_embeddings(artwork_id INTEGER PRIMARY KEY,embedding BLOB)');d.exec('CREATE TABLE broken_images(artwork_id INTEGER PRIMARY KEY)');d.close()"
+RUN apt-get update -qq && apt-get install -y -qq sqlite3 > /dev/null 2>&1 && \
+    sqlite3 /app/test-kabinett.db "CREATE TABLE museums(id TEXT PRIMARY KEY,name TEXT,enabled INTEGER DEFAULT 1,description TEXT,url TEXT); CREATE TABLE artworks(id INTEGER PRIMARY KEY,title_sv TEXT,title_en TEXT,source TEXT,category TEXT,technique_material TEXT,artists TEXT,dating_text TEXT,year_start INTEGER,acquisition_year INTEGER,iiif_url TEXT,dominant_color TEXT,color_r INTEGER,color_g INTEGER,color_b INTEGER,sub_museum TEXT,inventory_number TEXT,year_end INTEGER,description TEXT); CREATE TABLE clip_embeddings(artwork_id INTEGER PRIMARY KEY,embedding BLOB); CREATE TABLE broken_images(artwork_id INTEGER PRIMARY KEY);" && \
+    apt-get remove -y sqlite3 && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 ENV DATABASE_PATH=/data/kabinett.db
 ENV NODE_ENV=production
