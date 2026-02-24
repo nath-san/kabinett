@@ -177,7 +177,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     .filter(Boolean)
     .map((r: any) => ({
       ...r,
-      imageUrl: buildImageUrl(r.iiif_url, 800),
+      imageUrl: buildImageUrl(r.iiif_url, 400),
     }));
   const ogImageUrl = curated[0]?.imageUrl || null;
 
