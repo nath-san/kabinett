@@ -12,9 +12,19 @@ if [ ! -f /data/kabinett.db ]; then
   fi
 fi
 echo "DB exists: $(ls -la /data/kabinett.db)"
+echo "Build contents:"
+ls -la apps/web/build/server/ 2>&1 || echo "No server build found!"
 echo "Starting node on port ${PORT:-3000}..."
-PORT=${PORT:-3000} node apps/web/build/server/index.js 2>&1
-EXIT_CODE=$?
-echo "Node exited with code $EXIT_CODE"
+PORT=${PORT:-3000} node apps/web/build/server/index.js 2>&1 &
+NODE_PID=$!
+echo "Node PID: $NODE_PID"
+sleep 5
+if kill -0 $NODE_PID 2>/dev/null; then
+  echo "Node is running, waiting..."
+  wait $NODE_PID
+  echo "Node exited with code $?"
+else
+  echo "Node died within 5 seconds"
+fi
 echo "Keeping container alive for debugging..."
 sleep 3600
