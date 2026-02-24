@@ -1,0 +1,8 @@
+node_modules
+.git
+packages/data/kabinett.db
+packages/data/*.db-journal
+packages/data/*.db-wal
+*.log
+.env
+.env.local

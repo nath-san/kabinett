@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = import.meta.dirname ?? resolve(fileURLToPath(import.meta.url), "..");
-const DB_PATH = resolve(
+const DB_PATH = process.env.DATABASE_PATH || resolve(
   __dirname,
   "../../../../packages/data/kabinett.db"
 );
