@@ -28,7 +28,8 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const selectedDecade = parseInt(url.searchParams.get("decade") || "0");
+  const parsedDecade = Number.parseInt(url.searchParams.get("decade") || "0", 10);
+  const selectedDecade = Number.isFinite(parsedDecade) ? parsedDecade : 0;
 
   const db = getDb();
   const rangeFrom = 1200;

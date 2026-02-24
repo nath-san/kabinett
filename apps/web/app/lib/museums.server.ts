@@ -20,14 +20,43 @@ function parseEnvMuseums(): string[] | null {
   return parsed.length > 0 ? parsed : null;
 }
 
+function sanitizeMuseumId(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (!/^[a-z0-9_-]+$/.test(normalized)) return null;
+  return normalized;
+}
+
+let enabledMuseumsCache: string[] | null = null;
+let enabledMuseumsCacheTime = 0;
+const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
+
 export function getEnabledMuseums(): string[] {
+  const now = Date.now();
+  if (enabledMuseumsCache && now - enabledMuseumsCacheTime < ENABLED_MUSEUMS_TTL_MS) {
+    return enabledMuseumsCache;
+  }
+
   const db = getDb();
   const rows = db.prepare("SELECT id FROM museums WHERE enabled = 1").all() as Array<{ id: string }>;
-  const all = rows.map((r) => r.id);
+  const all = rows
+    .map((r) => sanitizeMuseumId(r.id))
+    .filter((id): id is string => Boolean(id));
   const envMuseums = parseEnvMuseums();
-  if (!envMuseums) return all;
+  if (!envMuseums) {
+    enabledMuseumsCache = all;
+    enabledMuseumsCacheTime = now;
+    return all;
+  }
+
+  const sanitizedEnvMuseums = envMuseums
+    .map((id) => sanitizeMuseumId(id))
+    .filter((id): id is string => Boolean(id));
   const allowed = new Set(all);
-  return envMuseums.filter((id) => allowed.has(id));
+  const filtered = sanitizedEnvMuseums.filter((id) => allowed.has(id));
+  enabledMuseumsCache = filtered;
+  enabledMuseumsCacheTime = now;
+  return filtered;
 }
 
 export function isMuseumEnabled(source: string): boolean {
@@ -49,5 +78,6 @@ export function sourceFilter(prefix?: string): string {
   const museums = getEnabledMuseums();
   if (museums.length === 0) return "1 = 0";
   const col = prefix ? `${prefix}.source` : "source";
-  return `${col} IN (${museums.map((m) => `'${m}'`).join(",")})`;
+  const quoted = museums.map((museumId) => `'${museumId.replace(/'/g, "''")}'`).join(",");
+  return `${col} IN (${quoted})`;
 }

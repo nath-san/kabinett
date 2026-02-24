@@ -67,6 +67,28 @@ body {
   animation: heartPulse 0.35s ease-out;
 }
 
+.app-toast {
+  position: fixed;
+  bottom: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10,9,8,0.85);
+  color: #F5F0E8;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.app-toast--visible {
+  opacity: 1;
+}
+
 /* Scroll-triggered fade in */
 .reveal {
   opacity: 0;

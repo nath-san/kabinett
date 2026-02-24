@@ -4,20 +4,31 @@ import { sourceFilter } from "../lib/museums.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const r = parseInt(url.searchParams.get("r") || "128");
-  const g = parseInt(url.searchParams.get("g") || "128");
-  const b = parseInt(url.searchParams.get("b") || "128");
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "24"), 48);
+  const parseColorChannel = (value: string | null, fallback: number) => {
+    const parsed = Number.parseInt(value || "", 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(Math.max(parsed, 0), 255);
+  };
+
+  const rawLimit = Number.parseInt(url.searchParams.get("limit") || "24", 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 48) : 24;
+  const r = parseColorChannel(url.searchParams.get("r"), 128);
+  const g = parseColorChannel(url.searchParams.get("g"), 128);
+  const b = parseColorChannel(url.searchParams.get("b"), 128);
 
   const db = getDb();
-  const results = db.prepare(
-    `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-     FROM artworks
-     WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL
-       AND ${sourceFilter()}
-     ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
-     LIMIT ?`
-  ).all(r, g, b, limit) as any[];
+  try {
+    const results = db.prepare(
+      `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
+       FROM artworks
+       WHERE color_r IS NOT NULL AND iiif_url IS NOT NULL
+         AND ${sourceFilter()}
+       ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
+       LIMIT ?`
+    ).all(r, g, b, limit) as any[];
 
-  return Response.json(results);
+    return Response.json(results);
+  } catch {
+    return Response.json([]);
+  }
 }

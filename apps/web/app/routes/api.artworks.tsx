@@ -8,8 +8,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const raw = url.searchParams.get("ids") || "";
   const ids = raw
     .split(",")
-    .map((id) => Number(id))
-    .filter((id) => Number.isFinite(id))
+    .map((id) => Number.parseInt(id, 10))
+    .filter((id) => Number.isFinite(id) && id > 0)
     .slice(0, 60);
 
   if (ids.length === 0) return Response.json([]);
@@ -24,7 +24,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
          AND ${sourceFilter()}
        ORDER BY ${order}`
     )
-    .all(...ids) as any[];
+    .all(...ids) as Array<{
+      id: number;
+      title_sv: string | null;
+      title_en: string | null;
+      iiif_url: string | null;
+      dominant_color: string | null;
+      artists: string | null;
+      dating_text: string | null;
+    }>;
 
   const results = rows.map((row) => {
     return {
@@ -33,7 +41,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       artists: row.artists,
       dating_text: row.dating_text || "",
       dominant_color: row.dominant_color || "#D4CDC3",
-      imageUrl: buildImageUrl(row.iiif_url, 400),
+      imageUrl: row.iiif_url ? buildImageUrl(row.iiif_url, 400) : "",
     };
   });
 

@@ -90,41 +90,61 @@ export async function loader() {
   `).get() as any;
 
   // Top artists (excluding factories like Gustavsberg)
-  const topArtists = db.prepare(`
-    SELECT json_extract(artists, '$[0].name') as name, COUNT(*) as cnt
-    FROM artworks
-    WHERE artists IS NOT NULL
-      AND json_extract(artists, '$[0].name') IS NOT NULL
-      AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
-      AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
-      AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
-      AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-      AND ${sourceFilter()}
-    GROUP BY name
-    HAVING cnt >= 20
-    ORDER BY cnt DESC
-    LIMIT 12
-  `).all() as any[];
-
-  // Get a sample artwork for each top artist
-  const artistsWithImages = topArtists.map((a: any) => {
-    const row = db.prepare(`
-      SELECT id, iiif_url, dominant_color, title_sv, title_en, artists FROM artworks
-      WHERE json_extract(artists, '$[0].name') = ?
-        AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-        AND id NOT IN (SELECT artwork_id FROM broken_images)
+  const artistsWithImages = db.prepare(`
+    WITH top_artists AS (
+      SELECT json_extract(artists, '$[0].name') as name, COUNT(*) as cnt
+      FROM artworks
+      WHERE artists IS NOT NULL
+        AND json_extract(artists, '$[0].name') IS NOT NULL
+        AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
+        AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
+        AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
+        AND iiif_url IS NOT NULL
+        AND LENGTH(iiif_url) > 40
         AND ${sourceFilter()}
-      ORDER BY RANDOM() LIMIT 1
-    `).get(a.name) as any;
-    return {
-      name: a.name,
-      count: a.cnt,
-      imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 300) : undefined,
-      imageTitle: row?.title_sv || row?.title_en || "Utan titel",
-      imageArtist: parseArtist(row?.artists || null),
-      color: row?.dominant_color || "#D4CDC3",
-    };
-  });
+      GROUP BY name
+      HAVING cnt >= 20
+      ORDER BY cnt DESC
+      LIMIT 12
+    ), ranked AS (
+      SELECT
+        ta.name,
+        ta.cnt,
+        a.iiif_url,
+        a.dominant_color,
+        a.title_sv,
+        a.title_en,
+        a.artists,
+        ROW_NUMBER() OVER (PARTITION BY ta.name ORDER BY RANDOM()) AS rn
+      FROM top_artists ta
+      JOIN artworks a ON json_extract(a.artists, '$[0].name') = ta.name
+      WHERE a.iiif_url IS NOT NULL
+        AND LENGTH(a.iiif_url) > 40
+        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+        AND ${sourceFilter("a")}
+    )
+    SELECT name, cnt, iiif_url, dominant_color, title_sv, title_en, artists
+    FROM ranked
+    WHERE rn = 1
+    ORDER BY cnt DESC
+  `).all() as Array<{
+    name: string;
+    cnt: number;
+    iiif_url: string | null;
+    dominant_color: string | null;
+    title_sv: string | null;
+    title_en: string | null;
+    artists: string | null;
+  }>;
+
+  const mappedArtists = artistsWithImages.map((artistRow) => ({
+    name: artistRow.name,
+    count: artistRow.cnt,
+    imageUrl: artistRow.iiif_url ? buildIiif(artistRow.iiif_url, 300) : undefined,
+    imageTitle: artistRow.title_sv || artistRow.title_en || "Utan titel",
+    imageArtist: parseArtist(artistRow.artists || null),
+    color: artistRow.dominant_color || "#D4CDC3",
+  }));
 
   // Stats
   const enabledMuseums = getEnabledMuseums();
@@ -168,7 +188,7 @@ export async function loader() {
           artist: parseArtist(quizImg?.artists || null),
         }
       : undefined,
-    topArtists: artistsWithImages,
+    topArtists: mappedArtists,
     stats: { ...stats, yearsSpan },
     museums: museumList,
   };

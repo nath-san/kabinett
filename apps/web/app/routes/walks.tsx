@@ -20,6 +20,11 @@ type WalkPreview = {
   previewUrl: string | null;
 };
 
+type WalkPreviewImageRow = {
+  walk_id: number;
+  iiif_url: string;
+};
+
 type WalkArtwork = {
   id: number;
   title_sv: string | null;
@@ -45,30 +50,31 @@ export async function loader({ request }: Route.LoaderArgs) {
     )
     .all() as Array<Omit<WalkPreview, "previewUrl">>;
 
-  const previewStmt = db.prepare(
-    `SELECT a.iiif_url
-     FROM walk_items wi
-     JOIN artworks a ON a.id = wi.artwork_id
-     WHERE wi.walk_id = ?
-       AND a.iiif_url IS NOT NULL
-       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-       AND ${sourceFilter("a")}
-     ORDER BY RANDOM()
-     LIMIT 1`
+  const previewRows = db.prepare(
+    `WITH ranked_previews AS (
+      SELECT
+        wi.walk_id,
+        a.iiif_url,
+        ROW_NUMBER() OVER (PARTITION BY wi.walk_id ORDER BY RANDOM()) AS rn
+      FROM walk_items wi
+      JOIN artworks a ON a.id = wi.artwork_id
+      WHERE a.iiif_url IS NOT NULL
+        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+        AND ${sourceFilter("a")}
+    )
+    SELECT walk_id, iiif_url
+    FROM ranked_previews
+    WHERE rn = 1`
+  ).all() as WalkPreviewImageRow[];
+
+  const previewMap = new Map<number, string>(
+    previewRows.map((row) => [row.walk_id, buildImageUrl(row.iiif_url, 800)])
   );
 
-  const walkPreviews: WalkPreview[] = walkRows.map((w) => {
-    let previewUrl: string | null = null;
-    try {
-      const row = previewStmt.get(w.id) as any;
-      if (row?.iiif_url) {
-        previewUrl = buildImageUrl(row.iiif_url, 800);
-      }
-    } catch {
-      previewUrl = null;
-    }
-    return { ...w, previewUrl };
-  });
+  const walkPreviews: WalkPreview[] = walkRows.map((w) => ({
+    ...w,
+    previewUrl: previewMap.get(w.id) || null,
+  }));
 
   let artworks: WalkArtwork[] = [];
   let walkInfo: { title: string; subtitle: string; description: string; color: string } | null = null;
@@ -78,7 +84,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         `SELECT id, title, subtitle, description, color
          FROM walks WHERE slug = ? AND published = 1`
       )
-      .get(selected) as any;
+      .get(selected) as { id: number; title: string; subtitle: string; description: string; color: string } | undefined;
 
     if (walk) {
       walkInfo = {
@@ -141,6 +147,8 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
             >
               {w.previewUrl && (
                 <img src={w.previewUrl} alt="" role="presentation"
+                  loading="lazy"
+                  decoding="async"
                   className="absolute inset-0 w-full h-full object-cover opacity-60" />
               )}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
@@ -163,12 +171,14 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
           {/* Walk hero */}
           <div className="pt-12 px-4 pb-10 relative md:px-6" style={{ backgroundColor: walkInfo.color }}>
             {artworks[0] && (
-              <img
-                src={buildImageUrl(artworks[0].iiif_url, 800)}
-                alt=""
-                role="presentation"
-                className="absolute inset-0 w-full h-full object-cover opacity-25"
-              />
+                <img
+                  src={buildImageUrl(artworks[0].iiif_url, 800)}
+                  alt=""
+                  role="presentation"
+                  loading="eager"
+                  fetchPriority="high"
+                  className="absolute inset-0 w-full h-full object-cover opacity-25"
+                />
             )}
             <div className="relative md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-0 lg:px-0">
               <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
@@ -199,8 +209,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
                     <img src={buildImageUrl(a.iiif_url, 800)}
                       alt={`${a.title_sv || a.title_en || "Utan titel"} — ${parseArtist(a.artists)}`} width={800} height={600}
-                      onError={(e: any) => { e.target.classList.add("hidden"); }}
-                      loading="lazy" className="w-full block" />
+                      onError={(e) => { e.currentTarget.classList.add("hidden"); }}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full block" />
                   </div>
                   <div className="p-4">
                     <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>

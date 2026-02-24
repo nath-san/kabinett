@@ -62,10 +62,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 window.__toast=function(msg){
   var d=document.createElement('div');
   d.textContent=msg;
-  d.style.cssText='position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:rgba(10,9,8,0.85);color:#F5F0E8;padding:0.6rem 1.2rem;border-radius:999px;font-size:0.8rem;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.3s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+  d.className='app-toast';
   document.body.appendChild(d);
-  requestAnimationFrame(function(){d.style.opacity='1'});
-  setTimeout(function(){d.style.opacity='0';setTimeout(function(){d.remove()},300)},2000);
+  requestAnimationFrame(function(){d.classList.add('app-toast--visible')});
+  setTimeout(function(){d.classList.remove('app-toast--visible');setTimeout(function(){d.remove()},300)},2000);
 };
 `}} />
         <script dangerouslySetInnerHTML={{ __html: `
@@ -253,6 +253,7 @@ function BottomNav() {
             <a
               key={tab.href}
               href={tab.href}
+              aria-label={tab.label}
               className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2 focus-ring"
             >
               {tab.icon(color)}
@@ -293,11 +294,12 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     details = error.message;
     stack = error.stack || "";
   }
+  const showStack = import.meta.env.DEV;
   return (
     <div className="py-[4rem] px-4 text-center min-h-screen flex flex-col items-center justify-center">
       <h1 className="font-serif text-[3rem] font-bold text-charcoal">{message}</h1>
       <p className="mt-4 text-warm-gray">{details}</p>
-      {stack && (
+      {showStack && stack && (
         <pre className="mt-4 text-[0.65rem] text-[#999] text-left max-w-[90vw] overflow-auto whitespace-pre-wrap">
           {stack}
         </pre>

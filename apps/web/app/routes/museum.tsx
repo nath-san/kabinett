@@ -66,7 +66,7 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   const totalWorks = (db
     .prepare("SELECT COUNT(*) as c FROM artworks WHERE source = ?")
-    .get(id) as any).c as number;
+    .get(id) as { c: number }).c;
 
   const dateRow = db
     .prepare(
@@ -105,7 +105,15 @@ export async function loader({ params }: Route.LoaderArgs) {
          AND id NOT IN (SELECT artwork_id FROM broken_images)
        ORDER BY RANDOM() LIMIT 8`
     )
-    .all(id) as any[];
+    .all(id) as Array<{
+      id: number;
+      title_sv: string | null;
+      title_en: string | null;
+      iiif_url: string;
+      dominant_color: string | null;
+      artists: string | null;
+      dating_text: string | null;
+    }>;
 
   const featured: FeaturedItem[] = featuredRows.map((row) => ({
     id: row.id,

@@ -5,11 +5,11 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 
 function parseArtist(json: string | null): string {
-  if (!json) return "Okand konstnar";
+  if (!json) return "Okänd konstnär";
   try {
-    return JSON.parse(json)[0]?.name || "Okand konstnar";
+    return JSON.parse(json)[0]?.name || "Okänd konstnär";
   } catch {
-    return "Okand konstnar";
+    return "Okänd konstnär";
   }
 }
 
@@ -30,7 +30,7 @@ function truncate(value: string, max: number) {
 export async function loader({ params }: LoaderFunctionArgs) {
   const id = Number(params.id);
   if (!Number.isFinite(id)) {
-    return new Response("Invalid id", { status: 400 });
+    return new Response("Ogiltigt id", { status: 400 });
   }
 
   const db = getDb();
@@ -39,9 +39,17 @@ export async function loader({ params }: LoaderFunctionArgs) {
       `SELECT id, title_sv, title_en, artists, iiif_url, dominant_color, dating_text
        FROM artworks WHERE id = ? AND ${sourceFilter()}`
     )
-    .get(id) as any;
+    .get(id) as {
+      id: number;
+      title_sv: string | null;
+      title_en: string | null;
+      artists: string | null;
+      iiif_url: string;
+      dominant_color: string | null;
+      dating_text: string | null;
+    } | undefined;
 
-  if (!row) return new Response("Not found", { status: 404 });
+  if (!row) return new Response("Hittades inte", { status: 404 });
 
   const title = row.title_sv || row.title_en || "Utan titel";
   const artist = parseArtist(row.artists);

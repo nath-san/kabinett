@@ -55,7 +55,7 @@ const EPOCHS: Record<string, { from: number; to: number }> = {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const mood = url.searchParams.get("mood") || "";
-  const color = url.searchParams.get("color") || "";
+  const color = (url.searchParams.get("color") || "").trim();
   const epoch = url.searchParams.get("epoch") || "";
   const subject = url.searchParams.get("subject") || "";
   const size = url.searchParams.get("size") || "";
@@ -64,7 +64,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   let where = `iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40 AND id NOT IN (SELECT artwork_id FROM broken_images)
                AND ${sourceFilter()}`;
-  const params: any[] = [];
+  const params: Array<string | number> = [];
 
   if (epoch && EPOCHS[epoch]) {
     where += " AND year_start BETWEEN ? AND ?";

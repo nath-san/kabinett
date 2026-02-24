@@ -30,8 +30,7 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export const links: Route.LinksFunction = (args: any) => {
-  const data = args?.data;
+export const links = ({ data }: { data?: { canonicalUrl?: string } } = {}) => {
   if (!data?.canonicalUrl) return [];
   return [{ rel: "canonical", href: data.canonicalUrl }];
 };
@@ -39,22 +38,22 @@ export const links: Route.LinksFunction = (args: any) => {
 function parseDimensions(json: string | null): string | null {
   if (!json) return null;
   try {
-    const arr = JSON.parse(json);
+    const arr = JSON.parse(json) as Array<{ dimension?: string }>;
     if (!Array.isArray(arr) || arr.length === 0) return null;
-    return arr.map((d: any) => d.dimension).filter(Boolean).join("; ");
+    return arr.map((dimensionItem) => dimensionItem.dimension).filter(Boolean).join("; ");
   } catch { return null; }
 }
 
 function parseExhibitions(json: string | null): Array<{ title: string; venue: string; year: string }> {
   if (!json) return [];
   try {
-    const arr = JSON.parse(json);
+    const arr = JSON.parse(json) as Array<{ title?: string; venue?: string; organizer?: string; year_start?: number }>;
     if (!Array.isArray(arr)) return [];
-    return arr.map((e: any) => ({
-      title: e.title || "",
-      venue: e.venue || e.organizer || "",
-      year: e.year_start ? String(e.year_start) : "",
-    })).filter((e: any) => e.title || e.venue);
+    return arr.map((exhibition) => ({
+      title: exhibition.title || "",
+      venue: exhibition.venue || exhibition.organizer || "",
+      year: exhibition.year_start ? String(exhibition.year_start) : "",
+    })).filter((exhibition) => exhibition.title || exhibition.venue);
   } catch { return []; }
 }
 
@@ -77,7 +76,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     artists = JSON.parse(row.artists || "[]");
   } catch {}
 
-  const collectionName = (row as any).sub_museum || row.museum_name || null;
+  const collectionName = row.sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";
   const museumSiteUrl = row.source === "nationalmuseum"
     ? "https://www.nationalmuseum.se"
@@ -130,7 +129,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 
   // Similar by CLIP embedding (semantic/visual similarity)
-  let similar: any[] = [];
+  let similar: Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }> = [];
   try {
     const cache = await loadClipCache();
     const current = cache.find((c) => c.id === row.id);
@@ -147,7 +146,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
              FROM artworks
              WHERE id IN (${topIds.map(() => "?").join(",")})
                AND ${sourceFilter()}`)
-          .all(...topIds) as any[];
+          .all(...topIds) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
         // Preserve similarity order
         const orderMap = new Map(topIds.map((id, i) => [id, i]));
         similar.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
@@ -167,7 +166,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
          WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
            AND ${sourceFilter()}
          ORDER BY RANDOM() LIMIT 6`
-      ).all(row.id, `%${artistName}%`) as any[])
+      ).all(row.id, `%${artistName}%`) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null }>)
     : [];
 
   return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
@@ -209,6 +208,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         <img
           src={artwork.imageUrl}
           alt={`${artwork.title} — ${artist}`}
+          loading="eager"
+          fetchPriority="high"
           className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
         />
       </div>
@@ -221,7 +222,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {artwork.artists.length > 0 && (
           <p className="mt-2 text-base lg:text-[1.05rem]">
-            {artwork.artists.map((a: any, i: number) => (
+            {artwork.artists.map((a, i: number) => (
               <span key={i}>
                 {i > 0 && ", "}
                 <a href={"/artist/" + encodeURIComponent(a.name)}
@@ -300,7 +301,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               Utställningar ({artwork.exhibitions.length})
             </p>
             <div className="flex flex-col gap-[0.4rem]">
-              {artwork.exhibitions.slice(0, 5).map((ex: any, i: number) => (
+              {artwork.exhibitions.slice(0, 5).map((ex, i: number) => (
                 <div key={i} className="text-[0.8rem] text-charcoal leading-[1.4]">
                   <span className="font-medium">{ex.title}</span>
                   {ex.venue && <span className="text-warm-gray"> — {ex.venue}</span>}
@@ -335,7 +336,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   navigator.share({ title: artwork.title, text, url });
                 } else {
                   navigator.clipboard.writeText(url);
-                  (window as any).__toast?.("Länk kopierad");
+                  window.__toast?.("Länk kopierad");
                 }
               }}
               className="py-2 px-4 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium focus-ring"
@@ -367,6 +368,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 >
                   <img src={buildImageUrl(s.iiif_url, 200)}
                     alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={200} height={267}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">
@@ -395,6 +398,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 >
                   <img src={buildImageUrl(s.iiif_url, 200)}
                     alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={200} height={267}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover" />
                 </div>
                 <div className="p-2">

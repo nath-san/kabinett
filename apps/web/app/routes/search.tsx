@@ -5,6 +5,24 @@ import { clipSearch } from "../lib/clip-search.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
 
+type MuseumOption = { id: string; name: string; count: number };
+type SearchResult = {
+  id: number;
+  title?: string;
+  title_sv?: string | null;
+  title_en?: string | null;
+  iiif_url?: string | null;
+  dominant_color?: string | null;
+  artists?: string | null;
+  dating_text?: string | null;
+  museum_name?: string | null;
+  imageUrl?: string;
+  year?: string;
+  artist?: string;
+  color?: string;
+};
+type Suggestion = { value: string; type: string };
+
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
@@ -19,11 +37,14 @@ export function meta({ data }: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const query = url.searchParams.get("q")?.trim() || "";
+  const query = (url.searchParams.get("q") || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, 140);
   const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
   const db = getDb();
   const enabledMuseums = getEnabledMuseums();
-  let museumOptions: Array<{ id: string; name: string; count: number }> = [];
+  let museumOptions: MuseumOption[] = [];
   if (enabledMuseums.length > 0) {
     const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
     const countRows = db.prepare(
@@ -38,7 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        FROM museums
        WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
        ORDER BY ${order}`
-    ).all(...enabledMuseums) as any[];
+    ).all(...enabledMuseums) as Array<{ id: string; name: string }>;
     museumOptions = rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -99,7 +120,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   // Fallback: FTS text search
-  let results: any[];
+  let results: SearchResult[];
   let total: number;
   try {
     const ftsQuery = query.split(/\s+/).map(w => `"${w}"*`).join(" ");
@@ -113,14 +134,14 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY rank LIMIT 60`
-    ).all(ftsQuery, ...(museum ? [museum] : []));
+    ).all(ftsQuery, ...(museum ? [museum] : [])) as SearchResult[];
     total = (db.prepare(
       `SELECT COUNT(*) as count
        FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
        WHERE artworks_fts MATCH ?
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}`
-    ).get(ftsQuery, ...(museum ? [museum] : [])) as any).count;
+    ).get(ftsQuery, ...(museum ? [museum] : [])) as { count: number }).count;
   } catch {
     const like = `%${query}%`;
     results = db.prepare(
@@ -132,7 +153,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        LIMIT 60`
-    ).all(like, like, ...(museum ? [museum] : []));
+    ).all(like, like, ...(museum ? [museum] : [])) as SearchResult[];
     total = results.length;
   }
   return { query, museum, results, total, museumOptions, showMuseumBadge };
@@ -151,10 +172,10 @@ const TYPE_LABELS: Record<string, string> = {
 function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; museum?: string }) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSuggestions = useCallback((val: string) => {
-    clearTimeout(timer.current);
+    if (timer.current) clearTimeout(timer.current);
     const dropdown = dropdownRef.current;
     if (!dropdown) return;
 
@@ -167,14 +188,14 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
     timer.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
-        const data = await r.json();
+        const data = await r.json() as Suggestion[];
         if (data.length === 0) {
           dropdown.classList.add("hidden");
           dropdown.innerHTML = "";
           return;
         }
         dropdown.classList.remove("hidden");
-        dropdown.innerHTML = data.map((s: any, i: number) =>
+        dropdown.innerHTML = data.map((s, i) =>
           `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? 'border-t border-stone/5' : ''}" data-value="${s.value.replace(/"/g, '&quot;')}" role="button" tabindex="0">
             <span class="text-charcoal truncate">${s.value}</span>
             <span class="text-xs text-stone ml-2 shrink-0">${TYPE_LABELS[s.type] || ""}</span>
@@ -248,9 +269,9 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
   );
 }
 
-function ResultCard({ r, showMuseumBadge }: { r: any; showMuseumBadge: boolean }) {
+function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: boolean }) {
   const title = r.title || r.title_sv || r.title_en || "Utan titel";
-  const artist = r.artist || parseArtist(r.artists);
+  const artist = r.artist || parseArtist(r.artists ?? null);
   return (
     <a key={r.id} href={`/artwork/${r.id}`}
       className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group focus-ring">
@@ -259,6 +280,8 @@ function ResultCard({ r, showMuseumBadge }: { r: any; showMuseumBadge: boolean }
         className="overflow-hidden aspect-[3/4]"
       >
         <img src={r.imageUrl || (r.iiif_url ? buildImageUrl(r.iiif_url, 400) : "")}
+          loading="lazy"
+          decoding="async"
           alt={`${title} — ${artist}`} width={400} height={533}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
       </div>
@@ -278,8 +301,8 @@ function ResultCard({ r, showMuseumBadge }: { r: any; showMuseumBadge: boolean }
 const PAGE_SIZE = 60;
 
 export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, museum, results: initialResults, total, museumOptions, showMuseumBadge } = loaderData;
-  const [results, setResults] = useState(initialResults);
+  const { query, museum, results: initialResults, museumOptions, showMuseumBadge } = loaderData;
+  const [results, setResults] = useState<SearchResult[]>(initialResults as SearchResult[]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialResults.length >= PAGE_SIZE);
 
@@ -298,18 +321,18 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       const res = await fetch(
         `/api/clip-search?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&offset=${results.length}${museum ? `&museum=${museum}` : ""}`
       );
-      const data = await res.json();
+      const data = await res.json() as SearchResult[];
       if (data.length === 0) {
         setHasMore(false);
       } else {
-        setResults((prev: any[]) => [...prev, ...data]);
+        setResults((prev) => [...prev, ...data]);
         if (data.length < PAGE_SIZE) setHasMore(false);
       }
     } catch {
       setHasMore(false);
     }
     setLoading(false);
-  }, [loading, hasMore, query, results.length]);
+  }, [loading, hasMore, museum, query, results.length]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -354,7 +377,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               >
                 Alla
               </a>
-              {museumOptions.map((option: any) => (
+              {museumOptions.map((option: MuseumOption) => (
                 <a
                   key={option.id}
                   href={buildSearchUrl(option.id)}
@@ -396,7 +419,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           </p>
           {results.length > 0 && (
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-              {results.map((r: any) => (
+              {results.map((r) => (
                 <ResultCard key={r.id} r={r} showMuseumBadge={showMuseumBadge} />
               ))}
             </div>

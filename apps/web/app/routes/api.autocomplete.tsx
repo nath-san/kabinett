@@ -4,7 +4,10 @@ import type { Route } from "./+types/api.autocomplete";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const q = url.searchParams.get("q")?.trim() || "";
+  const q = (url.searchParams.get("q") || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, 80);
 
   if (q.length < 2) return Response.json([]);
 
