@@ -16,7 +16,6 @@ RUN pnpm install --frozen-lockfile
 # Copy source
 COPY apps/web/ apps/web/
 COPY packages/data/scripts/ packages/data/scripts/
-COPY packages/data/src/ packages/data/src/ 
 
 # Build
 RUN pnpm --filter web build
