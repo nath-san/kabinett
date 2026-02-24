@@ -1,11 +1,15 @@
 #!/bin/sh
 if [ ! -f /data/kabinett.db ]; then
-  echo "WARNING: /data/kabinett.db not found. Waiting for upload..."
-  echo "Use 'fly ssh sftp shell' then 'put kabinett.db /data/kabinett.db' to upload."
-  # Keep container alive so we can SSH in
-  while [ ! -f /data/kabinett.db ]; do
-    sleep 5
-  done
-  echo "Database found! Starting app..."
+  echo "Database not found at /data/kabinett.db"
+  if [ -n "$DB_DOWNLOAD_URL" ]; then
+    echo "Downloading database from DB_DOWNLOAD_URL..."
+    apt-get update -qq && apt-get install -y -qq wget > /dev/null 2>&1
+    wget -q --show-progress -O /data/kabinett.db "$DB_DOWNLOAD_URL"
+    echo "Download complete! Size: $(du -sh /data/kabinett.db | cut -f1)"
+  else
+    echo "Set DB_DOWNLOAD_URL secret to auto-download, or upload manually."
+    echo "Waiting..."
+    while [ ! -f /data/kabinett.db ]; do sleep 5; done
+  fi
 fi
 exec node apps/web/build/server/index.js
