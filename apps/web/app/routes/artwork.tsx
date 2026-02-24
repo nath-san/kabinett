@@ -60,7 +60,7 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
 export async function loader({ params, request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const artworkId = Number.parseInt(params.id || "", 10);
-  if (!Number.isFinite(artworkId) || artworkId <= 0) {
+  if (!Number.isFinite(artworkId) || artworkId === 0) {
     throw new Response("Ogiltigt id", { status: 400 });
   }
 
