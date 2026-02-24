@@ -18,5 +18,5 @@ export function buildImageUrl(iiifOrDirect: string, width: number): string {
     return normalized.replace(/dimension=\d+x\d+/, `dimension=${width}x${width}`);
   }
 
-  return normalized + `full/${width},/0/default.jpg`;
+  return normalized + `full/${width},/0/default.webp`;
 }
