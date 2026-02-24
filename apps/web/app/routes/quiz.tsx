@@ -127,8 +127,8 @@ export async function loader({}: Route.LoaderArgs) {
 
   function subjectSample(ftsQuery: string) {
     return db.prepare(
-      `SELECT a.id, a.iiif_url, a.title_sv, a.title_en, a.artists FROM artworks_fts f
-       JOIN artworks a ON a.id = f.rowid
+      `SELECT a.id, a.iiif_url, a.title_sv, a.title_en, a.artists FROM artworks_fts
+       JOIN artworks a ON a.id = artworks_fts.rowid
        WHERE artworks_fts MATCH ?
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40

@@ -135,12 +135,12 @@ export async function fetchFeed(options: {
       .prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
                 m.name as museum_name
-         FROM artworks_fts f
-         JOIN artworks a ON a.id = f.rowid
+         FROM artworks_fts
+         JOIN artworks a ON a.id = artworks_fts.rowid
          LEFT JOIN museums m ON m.id = a.source
-         WHERE f MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+         WHERE artworks_fts MATCH ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
            AND ${sourceFilter("a")}
-         ORDER BY bm25(f)
+         ORDER BY bm25(artworks_fts)
          LIMIT ? OFFSET ?`
       )
       .all(mood.fts, limit, offset) as FeedItemRow[];

@@ -102,8 +102,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
-       FROM artworks_fts f
-       JOIN artworks a ON a.id = f.rowid
+       FROM artworks_fts
+       JOIN artworks a ON a.id = artworks_fts.rowid
        LEFT JOIN museums m ON m.id = a.source
        WHERE artworks_fts MATCH ?
          AND ${sourceFilter("a")}
@@ -112,7 +112,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     ).all(ftsQuery, ...(museum ? [museum] : []));
     total = (db.prepare(
       `SELECT COUNT(*) as count
-       FROM artworks_fts f JOIN artworks a ON a.id = f.rowid
+       FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
        WHERE artworks_fts MATCH ?
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}`

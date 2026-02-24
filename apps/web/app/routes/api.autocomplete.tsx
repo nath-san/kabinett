@@ -17,8 +17,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     const rows = db
       .prepare(
         `SELECT a.title_sv as title, a.artists, a.category
-         FROM artworks_fts f
-         JOIN artworks a ON a.id = f.rowid
+         FROM artworks_fts
+         JOIN artworks a ON a.id = artworks_fts.rowid
          WHERE artworks_fts MATCH ?
            AND ${sourceFilter("a")}
          ORDER BY rank

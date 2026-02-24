@@ -53,8 +53,8 @@ export async function loader() {
     const terms = c.query.split(" ").join(" OR ");
     try {
       const rows = db.prepare(`
-        SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts f
-        JOIN artworks a ON a.id = f.rowid
+        SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts
+        JOIN artworks a ON a.id = artworks_fts.rowid
         WHERE artworks_fts MATCH ?
           AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
