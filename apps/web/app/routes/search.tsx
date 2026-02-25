@@ -22,6 +22,21 @@ type SearchResult = {
   color?: string;
 };
 type Suggestion = { value: string; type: string };
+type SearchMode = "fts" | "clip" | "color";
+
+const PAGE_SIZE = 60;
+const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
+  "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
+  "blått": { r: 40, g: 70, b: 150 }, "blå": { r: 40, g: 70, b: 150 }, "blåa": { r: 40, g: 70, b: 150 },
+  "grönt": { r: 50, g: 130, b: 60 }, "grön": { r: 50, g: 130, b: 60 }, "gröna": { r: 50, g: 130, b: 60 },
+  "gult": { r: 200, g: 180, b: 50 }, "gul": { r: 200, g: 180, b: 50 }, "gula": { r: 200, g: 180, b: 50 },
+  "svart": { r: 20, g: 20, b: 20 }, "svarta": { r: 20, g: 20, b: 20 },
+  "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
+};
+
+function nextCursor(length: number): number | null {
+  return length >= PAGE_SIZE ? length : null;
+}
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -68,7 +83,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
   const showMuseumBadge = enabledMuseums.length > 1;
   const museum = museumParam && isMuseumEnabled(museumParam) ? museumParam : "";
-  if (!query && !museum) return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge };
+  if (!query && !museum) {
+    return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip" as SearchMode, cursor: null };
+  }
   if (!query && museum) {
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
@@ -81,18 +98,18 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.source = ?
        ORDER BY RANDOM() LIMIT 60`
     ).all(museum);
-    return { query, museum, results, total: results.length, museumOptions, showMuseumBadge };
+    return {
+      query,
+      museum,
+      results,
+      total: results.length,
+      museumOptions,
+      showMuseumBadge,
+      searchMode: "clip" as SearchMode,
+      cursor: null,
+    };
   }
 
-  // Color queries — match dominant_color RGB
-  const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
-    "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
-    "blått": { r: 40, g: 70, b: 150 }, "blå": { r: 40, g: 70, b: 150 }, "blåa": { r: 40, g: 70, b: 150 },
-    "grönt": { r: 50, g: 130, b: 60 }, "grön": { r: 50, g: 130, b: 60 }, "gröna": { r: 50, g: 130, b: 60 },
-    "gult": { r: 200, g: 180, b: 50 }, "gul": { r: 200, g: 180, b: 50 }, "gula": { r: 200, g: 180, b: 50 },
-    "svart": { r: 20, g: 20, b: 20 }, "svarta": { r: 20, g: 20, b: 20 },
-    "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
-  };
   const colorTarget = COLOR_TERMS[query.toLowerCase()];
   if (colorTarget) {
     const rows = db.prepare(
@@ -105,16 +122,34 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
-       LIMIT 120`
-    ).all(...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b) as any[];
-    return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge };
+       LIMIT ? OFFSET ?`
+    ).all(...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as any[];
+    return {
+      query,
+      museum,
+      results: rows,
+      total: rows.length,
+      museumOptions,
+      showMuseumBadge,
+      searchMode: "color" as SearchMode,
+      cursor: nextCursor(rows.length),
+    };
   }
 
   // Use CLIP semantic search directly
   try {
-    const clipResults = await clipSearch(query, 60, 0, museum || undefined);
+    const clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined);
     if (clipResults.length > 0) {
-      return { query, museum, results: clipResults, total: clipResults.length, museumOptions, showMuseumBadge };
+      return {
+        query,
+        museum,
+        results: clipResults,
+        total: clipResults.length,
+        museumOptions,
+        showMuseumBadge,
+        searchMode: "clip" as SearchMode,
+        cursor: nextCursor(clipResults.length),
+      };
     }
   } catch (err) {
     console.error("[CLIP search error]", err);
@@ -133,7 +168,16 @@ export async function loader({ request }: Route.LoaderArgs) {
       .join(" ");
 
     if (!ftsQuery) {
-      return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge };
+      return {
+        query,
+        museum,
+        results: [],
+        total: 0,
+        museumOptions,
+        showMuseumBadge,
+        searchMode: "fts" as SearchMode,
+        cursor: null,
+      };
     }
 
     results = db.prepare(
@@ -148,8 +192,8 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
-       ORDER BY rank LIMIT 60`
-    ).all(ftsQuery, ...(museum ? [museum] : [])) as SearchResult[];
+       ORDER BY rank LIMIT ? OFFSET ?`
+    ).all(ftsQuery, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
     total = (db.prepare(
       `SELECT COUNT(*) as count
        FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
@@ -173,11 +217,20 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceFilter("a")}
          ${museum ? "AND a.source = ?" : ""}
-       LIMIT 60`
-    ).all(like, like, ...(museum ? [museum] : [])) as SearchResult[];
+       LIMIT ? OFFSET ?`
+    ).all(like, like, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
     total = results.length;
   }
-  return { query, museum, results, total, museumOptions, showMuseumBadge };
+  return {
+    query,
+    museum,
+    results,
+    total,
+    museumOptions,
+    showMuseumBadge,
+    searchMode: "fts" as SearchMode,
+    cursor: nextCursor(results.length),
+  };
 }
 
 function parseArtist(json: string | null): string {
@@ -334,41 +387,63 @@ function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: 
   );
 }
 
-const PAGE_SIZE = 60;
-
 export default function Search({ loaderData }: Route.ComponentProps) {
-  const { query, museum, results: initialResults, museumOptions, showMuseumBadge } = loaderData;
+  const {
+    query,
+    museum,
+    results: initialResults,
+    museumOptions,
+    showMuseumBadge,
+    searchMode,
+    cursor: initialCursor,
+  } = loaderData;
   const [results, setResults] = useState<SearchResult[]>(initialResults as SearchResult[]);
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(initialResults.length >= PAGE_SIZE);
+  const [cursor, setCursor] = useState<number | null>(initialCursor);
+  const [hasMore, setHasMore] = useState(initialCursor !== null);
 
   // Reset when query changes (SSR navigation)
   useEffect(() => {
     setResults(initialResults);
-    setHasMore(initialResults.length >= PAGE_SIZE);
-  }, [initialResults]);
+    setCursor(initialCursor);
+    setHasMore(initialCursor !== null);
+  }, [initialCursor, initialResults]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+    if (loading || !hasMore || !query || cursor === null) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/clip-search?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&offset=${results.length}${museum ? `&museum=${museum}` : ""}`
-      );
+      const params = new URLSearchParams({
+        q: query,
+        limit: String(PAGE_SIZE),
+        offset: String(cursor),
+        mode: searchMode,
+      });
+      if (museum) params.set("museum", museum);
+
+      const res = await fetch(`/api/clip-search?${params.toString()}`);
       const data = await res.json() as SearchResult[];
       if (data.length === 0) {
         setHasMore(false);
+        setCursor(null);
       } else {
         setResults((prev) => [...prev, ...data]);
-        if (data.length < PAGE_SIZE) setHasMore(false);
+        const next = cursor + data.length;
+        if (data.length < PAGE_SIZE) {
+          setHasMore(false);
+          setCursor(null);
+        } else {
+          setCursor(next);
+        }
       }
     } catch {
       setHasMore(false);
+      setCursor(null);
     }
     setLoading(false);
-  }, [loading, hasMore, museum, query, results.length]);
+  }, [cursor, hasMore, loading, museum, query, searchMode]);
 
   useEffect(() => {
     const el = sentinelRef.current;
