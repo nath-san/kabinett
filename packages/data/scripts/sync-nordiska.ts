@@ -14,6 +14,13 @@ import { XMLParser } from "fast-xml-parser";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { createHash } from "crypto";
+import {
+  KSAMSOK_XML_PARSER_CONFIG,
+  extractYears,
+  findAll,
+  findFirst,
+  getText,
+} from "./lib/ksamsok-utils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
@@ -27,62 +34,7 @@ const MAX_ITEMS = LIMIT_ARG ? Math.max(0, parseInt(LIMIT_ARG.split("=")[1] || "0
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  removeNSPrefix: true,
-  textNodeName: "#text",
-});
-
-function getText(node: any): string {
-  if (node == null) return "";
-  if (typeof node === "string" || typeof node === "number") return String(node);
-  if (Array.isArray(node)) return getText(node[0]);
-  if (typeof node === "object" && "#text" in node) return String(node["#text"]);
-  return "";
-}
-
-function findAll(obj: any, key: string, acc: any[] = []): any[] {
-  if (!obj || typeof obj !== "object") return acc;
-  if (key in obj) {
-    const v = obj[key];
-    if (Array.isArray(v)) acc.push(...v);
-    else acc.push(v);
-  }
-  for (const value of Object.values(obj)) {
-    if (Array.isArray(value)) {
-      for (const item of value) findAll(item, key, acc);
-    } else if (typeof value === "object") {
-      findAll(value, key, acc);
-    }
-  }
-  return acc;
-}
-
-function findFirst(obj: any, key: string): any {
-  if (!obj || typeof obj !== "object") return null;
-  if (key in obj) return Array.isArray(obj[key]) ? obj[key][0] : obj[key];
-  for (const value of Object.values(obj)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        const found = findFirst(item, key);
-        if (found != null) return found;
-      }
-    } else if (typeof value === "object") {
-      const found = findFirst(value, key);
-      if (found != null) return found;
-    }
-  }
-  return null;
-}
-
-function extractYears(text: string): { start: number | null; end: number | null } {
-  const years = (text.match(/\d{4}/g) || [])
-    .map((y) => parseInt(y, 10))
-    .filter((y) => y >= 1400 && y <= 2100);
-  if (years.length === 0) return { start: null, end: null };
-  return { start: Math.min(...years), end: Math.max(...years) };
-}
+const parser = new XMLParser(KSAMSOK_XML_PARSER_CONFIG);
 
 function hashId(uuid: string): number {
   const buf = createHash("sha1").update("nordiska:" + uuid).digest();
@@ -161,7 +113,7 @@ function parseEntity(entity: any) {
     }
   }
   const datingText = dateTexts[0] || null;
-  const { start, end } = extractYears(dateTexts.join(" ") || title);
+  const { start, end } = extractYears(dateTexts.join(" ") || title, { minYear: 1400 });
 
   const imageUrl = extractImageUrl(entity);
   if (!imageUrl) return null;
