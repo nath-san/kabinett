@@ -48,30 +48,57 @@ function main() {
 
     const insertVec = db.prepare("INSERT INTO vec_artworks (embedding) VALUES (?)");
     const insertMap = db.prepare("INSERT INTO vec_artwork_map (vec_rowid, artwork_id) VALUES (?, ?)");
+    const getLastRowid = db.prepare("SELECT last_insert_rowid() as rid");
     const insertBatch = db.transaction((rows: EmbeddingRow[]) => {
       for (const row of rows) {
-        const info = insertVec.run(row.embedding);
-        insertMap.run(info.lastInsertRowid, row.artwork_id);
+        insertVec.run(row.embedding);
+        const { rid } = getLastRowid.get() as { rid: number };
+        insertMap.run(rid, row.artwork_id);
       }
     });
 
     let processed = 0;
-    let batchOffset = 0;
+    let skipped = 0;
+    let lastId = -Number.MAX_SAFE_INTEGER;
 
-    while (batchOffset < total) {
-      const rows = db.prepare(
-        "SELECT artwork_id, embedding FROM clip_embeddings ORDER BY artwork_id LIMIT ? OFFSET ?"
-      ).all(BATCH_SIZE, batchOffset) as EmbeddingRow[];
+    while (true) {
+      let rows: EmbeddingRow[];
+      try {
+        rows = db.prepare(
+          "SELECT artwork_id, embedding FROM clip_embeddings WHERE artwork_id > ? ORDER BY artwork_id LIMIT ?"
+        ).all(lastId, BATCH_SIZE) as EmbeddingRow[];
+      } catch (err) {
+        console.error(`   ⚠️ Read error after artwork_id ${lastId}, skipping ahead...`);
+        // Skip ahead by trying the next range
+        const nextRow = db.prepare(
+          "SELECT MIN(artwork_id) as next_id FROM clip_embeddings WHERE artwork_id > ? + 1000"
+        ).get(lastId) as { next_id: number | null } | undefined;
+        if (!nextRow?.next_id) break;
+        lastId = nextRow.next_id - 1;
+        skipped++;
+        continue;
+      }
 
       if (rows.length === 0) break;
+      lastId = rows[rows.length - 1].artwork_id;
 
-      insertBatch(rows);
+      try {
+        insertBatch(rows);
+      } catch (err) {
+        // Insert one by one on batch failure
+        for (const row of rows) {
+          try {
+            insertVec.run(row.embedding);
+            const info = db.prepare("SELECT last_insert_rowid() as rid").get() as { rid: number };
+            insertMap.run(info.rid, row.artwork_id);
+          } catch { skipped++; }
+        }
+      }
       processed += rows.length;
-      batchOffset += rows.length;
 
       if (processed % 10_000 < BATCH_SIZE || rows.length < BATCH_SIZE) {
         const pct = ((processed / total) * 100).toFixed(1);
-        console.log(`   ${processed}/${total} (${pct}%)`);
+        console.log(`   ${processed}/${total} (${pct}%)${skipped > 0 ? ` [${skipped} skipped]` : ""}`);
       }
     }
 
