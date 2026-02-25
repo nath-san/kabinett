@@ -230,7 +230,11 @@ async function main() {
   console.log(`\nKlar — synkade ${processed.toLocaleString()} objekt från Nordiska museet (${skipped} skippade)`);
 }
 
-main().catch((err) => {
-  console.error("Sync failed:", err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error("Sync failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    db.close();
+  });

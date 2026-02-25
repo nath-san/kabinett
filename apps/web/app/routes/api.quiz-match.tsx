@@ -22,7 +22,9 @@ function formatDimensions(json: string | null): string {
     const width = candidate.width || candidate.bredd || candidate.W;
     const height = candidate.height || candidate.hojd || candidate.H;
     if (width && height) return `${width} × ${height}`;
-  } catch {}
+  } catch (_) {
+    // dimensions_json can contain malformed source data
+  }
   return "";
 }
 

@@ -138,7 +138,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   let artists: Array<{ name: string; nationality: string; role: string }> = [];
   try {
     artists = JSON.parse(row.artists || "[]");
-  } catch {}
+  } catch (_) {
+    // ignore malformed artist payloads from source records
+  }
 
   const collectionName = row.sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";

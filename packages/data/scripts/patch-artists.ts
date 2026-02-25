@@ -60,4 +60,11 @@ async function main() {
   console.log(`\nDone! Patched ${updated} artworks with artist data.`);
 }
 
-main().catch(console.error);
+main()
+  .catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    db.close();
+  });

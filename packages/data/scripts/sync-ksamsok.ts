@@ -224,7 +224,11 @@ async function main() {
   console.log(`Object-cache: ${objectCache.size} unika objekt`);
 }
 
-main().catch((err) => {
-  console.error("Sync failed:", err);
-  process.exit(1);
-});
+main()
+  .catch((err) => {
+    console.error("Sync failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    db.close();
+  });
