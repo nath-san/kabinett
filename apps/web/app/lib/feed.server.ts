@@ -130,6 +130,7 @@ export async function fetchFeed(options: {
     "a.iiif_url IS NOT NULL",
     "LENGTH(a.iiif_url) > 40",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
+    "LENGTH(a.title_sv) < 120",
     sourceA.sql,
   ];
   const baseParams: Array<string | number> = [...sourceA.params];
