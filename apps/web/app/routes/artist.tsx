@@ -3,10 +3,6 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 
-function buildIiif(url: string, size: number) {
-  return buildImageUrl(url, size);
-}
-
 type ActorDate = { date_type?: string; date_earliest?: string | number };
 
 type ActorLink = { link_type?: string; link?: string };
@@ -189,7 +185,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     .map((r) => ({
       id: r.id,
       title: r.title_sv || r.title_en || "Utan titel",
-      imageUrl: buildIiif(r.iiif_url, 400),
+      imageUrl: buildImageUrl(r.iiif_url, 400),
       year: r.year_start,
       color: r.dominant_color || "#D4CDC3",
     }));
@@ -197,7 +193,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   const gridWorks = rows.map((r) => ({
     id: r.id,
     title: r.title_sv || r.title_en || "Utan titel",
-    imageUrl: buildIiif(r.iiif_url, 400),
+    imageUrl: buildImageUrl(r.iiif_url, 400),
     color: r.dominant_color || "#D4CDC3",
     year: r.dating_text || "",
   }));

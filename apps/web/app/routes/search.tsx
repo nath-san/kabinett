@@ -4,6 +4,7 @@ import { getDb } from "../lib/db.server";
 import { clipSearch } from "../lib/clip-search.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
+import { parseArtist } from "../lib/parsing";
 
 type MuseumOption = { id: string; name: string; count: number };
 type SearchResult = {
@@ -178,12 +179,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     total = results.length;
   }
   return { query, museum, results, total, museumOptions, showMuseumBadge };
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
-  catch { return "Okänd konstnär"; }
 }
 
 const TYPE_LABELS: Record<string, string> = {

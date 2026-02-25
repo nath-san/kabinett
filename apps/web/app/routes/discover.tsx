@@ -2,6 +2,7 @@ import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
+import { parseArtist } from "../lib/parsing";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -12,15 +13,6 @@ export function meta() {
     { title: "Upptäck — Kabinett" },
     { name: "description", content: "Utforska över en miljon verk från nio svenska samlingar." },
   ];
-}
-
-function buildIiif(url: string, width: number) {
-  return buildImageUrl(url, width);
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
 }
 
 type Collection = {
@@ -91,7 +83,7 @@ export async function loader() {
       const row = rows[0];
       return {
         ...c,
-        imageUrl: row?.iiif_url ? buildIiif(row.iiif_url, 400) : undefined,
+        imageUrl: row?.iiif_url ? buildImageUrl(row.iiif_url, 400) : undefined,
         imageTitle: row?.title_sv || row?.title_en || "Utan titel",
         imageArtist: parseArtist(row?.artists || null),
         color: row?.dominant_color || "#2B2A27",
@@ -162,7 +154,7 @@ export async function loader() {
   const mappedArtists: TopArtist[] = artistsWithImages.map((artistRow) => ({
     name: artistRow.name,
     count: artistRow.cnt,
-    imageUrl: artistRow.iiif_url ? buildIiif(artistRow.iiif_url, 300) : undefined,
+    imageUrl: artistRow.iiif_url ? buildImageUrl(artistRow.iiif_url, 300) : undefined,
     imageTitle: artistRow.title_sv || artistRow.title_en || "Utan titel",
     imageArtist: parseArtist(artistRow.artists || null),
     color: artistRow.dominant_color || "#D4CDC3",
@@ -205,7 +197,7 @@ export async function loader() {
     collections,
     quizImage: quizImg?.iiif_url
       ? {
-          url: buildIiif(quizImg.iiif_url, 600),
+          url: buildImageUrl(quizImg.iiif_url, 600),
           title: quizImg?.title_sv || quizImg?.title_en || "Utan titel",
           artist: parseArtist(quizImg?.artists || null),
         }

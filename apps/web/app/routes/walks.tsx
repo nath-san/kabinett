@@ -2,6 +2,7 @@ import type { Route } from "./+types/walks";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
+import { parseArtist } from "../lib/parsing";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -110,15 +111,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   return { walkPreviews, artworks, selected, walkInfo };
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
 }
 
 export default function Walks({ loaderData }: Route.ComponentProps) {
