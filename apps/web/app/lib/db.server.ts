@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
+import * as sqliteVec from "sqlite-vec";
 
 const __dirname = import.meta.dirname ?? resolve(fileURLToPath(import.meta.url), "..");
 const DB_PATH = process.env.DATABASE_PATH || resolve(
@@ -13,6 +14,7 @@ let db: Database.Database | null = null;
 export function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH, { readonly: true });
+    sqliteVec.load(db);
     db.pragma("journal_mode = WAL");
     db.pragma("cache_size = -64000"); // 64MB cache
     db.pragma("mmap_size = 268435456"); // 256MB mmap
