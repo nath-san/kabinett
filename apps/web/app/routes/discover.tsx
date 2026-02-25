@@ -21,6 +21,7 @@ type Collection = {
   subtitle: string;
   query: string;
   imageIds?: number[];
+  clipQuery?: string;
   imageUrl?: string;
   imageTitle?: string;
   imageArtist?: string;
@@ -43,18 +44,18 @@ type MuseumSummary = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga", imageIds: [24664, 20450, 15634] },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng", imageIds: [20993, 20523, 23027] },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö", imageIds: [17939, 17176, 17567, 18218, 21087] },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", imageIds: [17457, 17458, 18106, 154102, 18360] },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur", imageIds: [15877, 14792, 18888, 19063, 17875] },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", imageIds: [17096, 17115, 18148, 17412, 18762] },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageIds: [15900, 17076, 17107, 17110, 17112] },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", imageIds: [17313, 17387, 17773, 17613, 15488] },
-  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageIds: [18895, 19942, 20431, 21900, 23019] },
-  { title: "Stilleben", subtitle: "Vardagens poesi", query: "stilleben frukt mat", imageIds: [17457, 18106, 18360, 18403] },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageIds: [16051, 17093, 17587, 17994, 18123] },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", imageIds: [15506, 15482, 17539, 17958, 14754] },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "dark dramatic night shadows", imageIds: [24664, 20450, 15634] },
+  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "bright calm summer meadow sunlight", imageIds: [20993, 20523, 23027] },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "stormy sea waves ocean ship", imageIds: [17939, 17176, 17567, 18218, 21087] },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "flowers bouquet roses still life", imageIds: [17457, 17458, 18106, 154102, 18360] },
+  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "animals horse dog bird", imageIds: [15877, 14792, 18888, 19063, 17875] },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "portrait face person", imageIds: [17096, 17115, 18148, 17412, 18762] },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landscape forest mountains valley nature", imageIds: [15900, 17076, 17107, 17110, 17112] },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "mythology venus gods greek roman", imageIds: [17313, 17387, 17773, 17613, 15488] },
+  { title: "Vinter", subtitle: "Snö och is", query: "winter snow ice cold", imageIds: [18895, 19942, 20431, 21900, 23019] },
+  { title: "Stilleben", subtitle: "Vardagens poesi", query: "still life fruit table objects", imageIds: [17457, 18106, 18360, 18403] },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "children child boy girl", imageIds: [16051, 17093, 17587, 17994, 18123] },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "castle church building architecture", imageIds: [15506, 15482, 17539, 17958, 14754] },
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
