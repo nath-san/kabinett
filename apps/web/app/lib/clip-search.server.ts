@@ -5,10 +5,20 @@ import { parseArtist } from "./parsing";
 import {
   AutoTokenizer,
   CLIPTextModelWithProjection,
+  pipeline,
   env,
 } from "@xenova/transformers";
 
 env.allowLocalModels = false;
+
+let translatorPromise: Promise<any> | null = null;
+
+function getTranslator() {
+  if (!translatorPromise) {
+    translatorPromise = pipeline("translation", "Xenova/opus-mt-sv-en");
+  }
+  return translatorPromise;
+}
 
 const SV_EN_LOOKUP: Record<string, string> = {
   djur: "animals horses dogs cats birds painting", djuren: "animals horses dogs cats birds painting",
@@ -86,22 +96,51 @@ const RICH_PROMPTS: Record<string, string> = {
 
 const translationCache = new Map<string, string>();
 
+function lookupTranslate(text: string): { result: string; allFound: boolean } {
+  const words = text.split(/\s+/);
+  let allFound = true;
+  const translated = words.map((w) => {
+    const en = SV_EN_LOOKUP[w];
+    if (!en) allFound = false;
+    return en || w;
+  });
+  return { result: translated.join(" "), allFound };
+}
+
 async function translateToEnglish(text: string): Promise<string> {
   const lower = text.toLowerCase().trim();
 
+  // 1. Curated rich prompts (best quality)
   const rich = RICH_PROMPTS[lower];
   if (rich) return rich;
 
+  // 2. Check cache
   const cached = translationCache.get(lower);
   if (cached) return cached;
 
-  const words = lower.split(/\s+/);
-  const translated = words.map((w) => {
-    const en = SV_EN_LOOKUP[w];
-    return en ? en : w;
-  }).join(" ");
-  translationCache.set(lower, translated);
-  return translated;
+  // 3. Try lookup table
+  const lookup = lookupTranslate(lower);
+  if (lookup.allFound) {
+    translationCache.set(lower, lookup.result);
+    return lookup.result;
+  }
+
+  // 4. Fall back to opus-mt-sv-en translation model
+  try {
+    const translator = await getTranslator();
+    const output = await translator(lower, { max_length: 128 });
+    const translated = (output as Array<{ translation_text: string }>)[0]?.translation_text?.trim();
+    if (translated && translated.toLowerCase() !== lower) {
+      translationCache.set(lower, translated);
+      return translated;
+    }
+  } catch (err) {
+    console.error("Translation model failed, using lookup fallback:", err);
+  }
+
+  // 5. Fallback: return partial lookup result
+  translationCache.set(lower, lookup.result);
+  return lookup.result;
 }
 
 function translateQuerySync(query: string): string {
