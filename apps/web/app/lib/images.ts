@@ -4,7 +4,9 @@ const SIZE_MAP = [
   { max: Infinity, shm: "full" },
 ];
 
-export function buildImageUrl(iiifOrDirect: string, width: number): string {
+export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
+  if (!iiifOrDirect?.trim()) return "";
+
   const normalized = iiifOrDirect.replace("http://", "https://");
 
   const shmMatch = normalized.match(/\/(thumb|thumbnail|medium|full)(\?.*)?$/);
