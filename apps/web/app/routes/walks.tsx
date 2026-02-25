@@ -3,6 +3,7 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import Breadcrumb from "../components/Breadcrumb";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -185,10 +186,16 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 />
             )}
             <div className="relative md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-0 lg:px-0">
-              <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
-                ← Alla vandringar
-              </a>
-              <h1 className="font-serif text-[2rem] font-bold text-white mt-4 leading-[1.2]">
+              <Breadcrumb
+                className="mb-1"
+                variant="dark"
+                items={[
+                  { label: "Kabinett", href: "/" },
+                  { label: "Vandringar", href: "/walks" },
+                  { label: walkInfo.title },
+                ]}
+              />
+              <h1 className="font-serif text-[2rem] font-bold text-white mt-3 leading-[1.2]">
                 {walkInfo.title}
               </h1>
               <p className="font-serif text-[1rem] text-[rgba(255,255,255,0.75)] mt-2">

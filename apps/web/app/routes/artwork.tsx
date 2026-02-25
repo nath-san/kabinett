@@ -5,6 +5,7 @@ import { loadClipCache, dot } from "../lib/clip-cache.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import Breadcrumb from "../components/Breadcrumb";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -252,6 +253,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 export default function Artwork({ loaderData }: Route.ComponentProps) {
   const { artwork, similar, sameArtist, artistName } = loaderData;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const collectionLabel = artwork.collectionName || artwork.museumName || "Samling";
+  const collectionHref = artwork.collectionName || artwork.museumName
+    ? `/samling/${encodeURIComponent(artwork.collectionName || artwork.museumName || "")}`
+    : undefined;
+  const artworkTitle = artwork.title.length > 40 ? `${artwork.title.slice(0, 39).trimEnd()}…` : artwork.title;
   const descriptionSections = useMemo(() => parseDescriptionSections(artwork.description), [artwork.description]);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const canExpandDescription =
@@ -277,6 +283,16 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
+      <div className="pt-4 px-4 md:px-6 lg:px-8 lg:max-w-5xl lg:mx-auto">
+        <Breadcrumb
+          className="mb-2"
+          items={[
+            { label: "Kabinett", href: "/" },
+            { label: collectionLabel, href: collectionHref },
+            { label: artworkTitle },
+          ]}
+        />
+      </div>
       {/* Hero image with color bg */}
       <div
         className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
