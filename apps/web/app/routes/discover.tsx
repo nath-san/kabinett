@@ -119,6 +119,10 @@ export async function loader() {
         AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
         AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
         AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
+        AND category NOT LIKE '%Keramik%'
+        AND category NOT LIKE '%Porslin%'
+        AND category NOT LIKE '%Glas%'
+        AND category NOT LIKE '%Formgivning%'
         AND iiif_url IS NOT NULL
         AND LENGTH(iiif_url) > 40
         AND ${source.sql}
@@ -250,7 +254,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 href={`/search?q=${encodeURIComponent(c.query)}`}
                 className={[
                   "relative rounded-[14px] overflow-hidden no-underline focus-ring",
-                  i < 2 ? "aspect-[4/3]" : "aspect-square",
+                  "aspect-square",
                 ].join(" ")}
                 style={{ backgroundColor: c.color || "#2B2A27" }}
               >
@@ -260,7 +264,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     alt={`${c.imageTitle || "Utan titel"} — ${c.imageArtist || "Okänd konstnär"}`}
                     loading="lazy"
                     width={400}
-                    height={i < 2 ? 300 : 400}
+                    height={400}
                     onError={(event) => {
                       event.currentTarget.classList.add("is-broken");
                     }}
