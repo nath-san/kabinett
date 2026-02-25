@@ -114,12 +114,6 @@ export default function About({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
 
-        <section className="pt-8 pb-10">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">Teknik</h2>
-          <p className="mt-2 text-[0.95rem] text-warm-gray">
-            Byggt med React Router, SQLite, Tailwind CSS och Transformers.js
-          </p>
-        </section>
       </div>
     </div>
   );
