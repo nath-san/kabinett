@@ -51,12 +51,30 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
+// Theme titles → optimized search terms for CLIP/FTS
+const THEME_SEARCH_TERMS: Record<string, string> = {
+  "Mörkt & dramatiskt": "natt mörker skugga",
+  "Ljust & stilla": "sommar äng solsken ljus",
+  "Stormigt hav": "hav storm vågor skepp",
+  "Blommor": "blommor bukett ros stilleben",
+  "Djur i konsten": "djur häst hund fågel",
+  "Porträtt": "porträtt ansikte",
+  "Landskap": "landskap skog berg dal",
+  "Mytologi": "venus gudinna amor",
+  "Vinter": "vinter snö is",
+  "Stilleben": "stilleben frukt",
+  "Barn": "barn flicka pojke",
+  "Arkitektur": "slott kyrka byggnad",
+};
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const query = (url.searchParams.get("q") || "")
     .replace(/[\u0000-\u001F\u007F]/g, "")
     .trim()
     .slice(0, 140);
+  // If query matches a theme title, use optimized search terms internally
+  const searchTerms = THEME_SEARCH_TERMS[query] || query;
   const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
   const db = getDb();
   const sourceA = sourceFilter("a");
@@ -114,7 +132,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     };
   }
 
-  const colorTarget = COLOR_TERMS[query.toLowerCase()];
+  const colorTarget = COLOR_TERMS[searchTerms.toLowerCase()];
   if (colorTarget) {
     const rows = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
@@ -142,7 +160,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // Use CLIP semantic search directly
   try {
-    const clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined);
+    const clipResults = await clipSearch(searchTerms, PAGE_SIZE, 0, museum || undefined);
     if (clipResults.length > 0) {
       return {
         query,
@@ -164,7 +182,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   let results: SearchResult[];
   let total: number;
   try {
-    const ftsQuery = query
+    const ftsQuery = searchTerms
       .split(/\s+/)
       .map((word) => word.replace(/"/g, "").trim())
       .filter(Boolean)
@@ -209,7 +227,7 @@ export async function loader({ request }: Route.LoaderArgs) {
          ${museum ? "AND a.source = ?" : ""}`
     ).get(ftsQuery, ...sourceA.params, ...(museum ? [museum] : [])) as { count: number }).count;
   } catch {
-    const like = `%${query}%`;
+    const like = `%${searchTerms}%`;
     results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
