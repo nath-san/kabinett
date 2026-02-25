@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "./+types/color-match";
 import { buildImageUrl } from "../lib/images";
+import { parseArtist } from "../lib/parsing";
 
 export function meta() {
   return [
@@ -16,15 +17,6 @@ type MatchItem = {
   dominant_color: string | null;
   artists: string | null;
 };
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
-}
-
-function iiif(url: string, size: number) {
-  return buildImageUrl(url, size);
-}
 
 function hexToRgb(hex: string) {
   const cleaned = hex.replace("#", "");
@@ -226,7 +218,7 @@ export default function ColorMatch() {
                   style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
                 >
                   <img
-                    src={iiif(item.iiif_url, 400)}
+                    src={buildImageUrl(item.iiif_url, 400)}
                     alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
                     loading="lazy"
                     width={400}

@@ -184,7 +184,7 @@ async function main() {
           meta.yearStart,
           meta.yearEnd,
           `https://media.samlingar.shm.se/item/${mediaUuid}/medium`,
-          meta.collection,
+          meta.collection || "SHM",
         );
         processed++;
       }

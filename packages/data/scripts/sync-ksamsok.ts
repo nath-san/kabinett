@@ -122,9 +122,9 @@ async function fetchObjectMetadata(objectUri: string): Promise<{
 const upsert = db.prepare(`
   INSERT INTO artworks (
     id, inventory_number, title_sv, category, technique_material, dating_text,
-    year_start, year_end, iiif_url, source, synced_at
+    year_start, year_end, iiif_url, source, sub_museum, synced_at
   ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', datetime('now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now')
   )
   ON CONFLICT(id) DO UPDATE SET
     title_sv = excluded.title_sv,
@@ -135,6 +135,7 @@ const upsert = db.prepare(`
     year_end = excluded.year_end,
     iiif_url = excluded.iiif_url,
     source = 'shm',
+    sub_museum = excluded.sub_museum,
     synced_at = datetime('now')
 `);
 
@@ -212,6 +213,7 @@ async function main() {
         meta.yearStart,
         meta.yearEnd,
         imageUrl,
+        subMuseum,
       );
       processed++;
     }

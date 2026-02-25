@@ -2,31 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
-}
-
-function formatDimensions(json: string | null): string {
-  if (!json) return "";
-  try {
-    const parsed = JSON.parse(json);
-    const candidate = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (!candidate) return "";
-    if (candidate.dimension_text) return candidate.dimension_text;
-    const width = candidate.width || candidate.bredd || candidate.W;
-    const height = candidate.height || candidate.hojd || candidate.H;
-    if (width && height) return `${width} × ${height}`;
-  } catch (_) {
-    // dimensions_json can contain malformed source data
-  }
-  return "";
-}
+import { formatDimensions, parseArtist } from "../lib/parsing";
 
 function parseSize(dimensions: string): number | null {
   if (!dimensions) return null;

@@ -6,6 +6,7 @@ import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
+import { parseArtist } from "../lib/parsing";
 import type Database from "better-sqlite3";
 
 let _statsCache: { total: number; museums: number; paintings: number; yearsSpan: number } | null = null;
@@ -227,11 +228,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     canonicalUrl,
     origin: url.origin,
   };
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {

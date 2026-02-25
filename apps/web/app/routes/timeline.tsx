@@ -2,19 +2,7 @@ import type { Route } from "./+types/timeline";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-
-function buildIiif(url: string, size: number) {
-  return buildImageUrl(url, size);
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
-}
+import { parseArtist } from "../lib/parsing";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -103,7 +91,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     list.push({
       id: row.id,
       title: row.title_sv || row.title_en || "Utan titel",
-      imageUrl: buildIiif(row.iiif_url, 400),
+      imageUrl: buildImageUrl(row.iiif_url, 400),
       color: row.dominant_color || "#2B2A27",
       artist: parseArtist(row.artists),
       year: row.dating_text ?? (row.year_start ? String(row.year_start) : ""),
@@ -170,7 +158,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     selectedWorks = selectedRows.map((r) => ({
       id: r.id,
       title: r.title_sv || r.title_en || "Utan titel",
-      imageUrl: buildIiif(r.iiif_url, 400),
+      imageUrl: buildImageUrl(r.iiif_url, 400),
       color: r.dominant_color || "#2B2A27",
       artist: parseArtist(r.artists),
       year: r.dating_text ?? (r.year_start ? String(r.year_start) : ""),

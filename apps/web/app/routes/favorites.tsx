@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFavorites } from "../lib/favorites";
+import { parseArtist } from "../lib/parsing";
 
 export function meta() {
   return [
@@ -15,15 +16,6 @@ type FavoriteItem = {
   dominant_color: string;
   imageUrl: string;
 };
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
-}
 
 export default function Favorites() {
   const { ids, remove } = useFavorites();

@@ -4,6 +4,7 @@ import { getDb, type ArtworkRow } from "../lib/db.server";
 import { loadClipCache, dot } from "../lib/clip-cache.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
+import { parseArtist } from "../lib/parsing";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -238,12 +239,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     : [];
 
   return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
-  catch { return "Okänd konstnär"; }
 }
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {

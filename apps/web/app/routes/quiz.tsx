@@ -3,15 +3,7 @@ import type { Route } from "./+types/quiz";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-
-function buildIiif(url: string, size: number) {
-  return buildImageUrl(url, size);
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; } catch { return "Okänd konstnär"; }
-}
+import { parseArtist } from "../lib/parsing";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -149,7 +141,7 @@ export async function loader({}: Route.LoaderArgs) {
   function mapSample(row: any) {
     if (!row?.iiif_url) return null;
     return {
-      url: buildIiif(row.iiif_url, 400),
+      url: buildImageUrl(row.iiif_url, 400),
       title: row.title_sv || row.title_en || "Utan titel",
       artist: parseArtist(row.artists || null),
     };

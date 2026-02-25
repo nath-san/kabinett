@@ -2,15 +2,7 @@ import type { Route } from "./+types/samling";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
-}
+import { parseArtist } from "../lib/parsing";
 
 function formatRange(minYear: number | null, maxYear: number | null): string {
   if (!minYear || !maxYear) return "Okänt";
