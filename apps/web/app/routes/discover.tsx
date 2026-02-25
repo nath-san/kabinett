@@ -52,7 +52,7 @@ const COLLECTIONS: Collection[] = [
   { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageIds: [15900, 17076, 17107, 17110, 17112] },
   { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", imageIds: [17313, 17387, 17773, 17613, 15488] },
   { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageIds: [18895, 19942, 20431, 21900, 23019] },
-  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt", imageIds: [218432, 218434, 218438] },
+  { title: "Stilleben", subtitle: "Vardagens poesi", query: "stilleben frukt mat", imageIds: [17457, 18106, 18360, 18403] },
   { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageIds: [16051, 17093, 17587, 17994, 18123] },
   { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", imageIds: [15506, 15482, 17539, 17958, 14754] },
 ];
