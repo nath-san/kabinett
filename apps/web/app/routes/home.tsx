@@ -274,9 +274,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 function getCardVariant(positionInFeed: number): CardVariant {
-  const positionInPattern = positionInFeed % 14;
-  if (positionInPattern === 0 || positionInPattern === 7) return "large";
-  if (positionInPattern === 4 || positionInPattern === 11) return "medium";
+  // Pattern per 9 cards = 3 rows of 3 columns:
+  // Row 1: large(2) + small(1) = 3
+  // Row 2: small(1) + small(1) + small(1) = 3
+  // Row 3: small(1) + medium(2) = 3
+  const p = positionInFeed % 9;
+  if (p === 0) return "large";
+  if (p === 7) return "medium";
   return "small";
 }
 
@@ -298,15 +302,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const initial = loaderData.initialItems;
     for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
-      if (i === 5 && loaderData.firstTheme.items.length > 0) {
+      // Theme + walks promo after 3 cards (mobile: ~3 swipes, desktop: 1 row)
+      if (i === 2 && loaderData.firstTheme.items.length > 0) {
         entries.push({ type: "theme", ...loaderData.firstTheme });
         entries.push({ type: "walkPromo" });
       }
+      // Spotlight after 6 cards
+      if (i === 5 && loaderData.spotlight) {
+        entries.push({ type: "spotlight", ...loaderData.spotlight });
+      }
+      // Stats after 9 cards
       if (i === 8) {
         entries.push({ type: "stats", ...loaderData.stats });
-      }
-      if (i === 12 && loaderData.spotlight) {
-        entries.push({ type: "spotlight", ...loaderData.spotlight });
       }
     }
 
