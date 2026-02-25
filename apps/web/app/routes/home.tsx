@@ -196,11 +196,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     }));
   const ogImageUrl = curated[0]?.imageUrl || null;
 
-  // Load first rows in parallel
-  const firstTheme = THEMES[0];
-  const [initial, themeItems] = await Promise.all([
+  // Load first rows + 3 themes in parallel
+  const preloadThemes = THEMES.slice(0, 3);
+  const [initial, ...themeResults] = await Promise.all([
     fetchFeed({ cursor: null, limit: 15, filter: "Alla" }),
-    fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter }),
+    ...preloadThemes.map(t => fetchFeed({ cursor: null, limit: 8, filter: t.filter })),
   ]);
 
   // Prepend curated, deduplicate
@@ -263,7 +263,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     initialItems: [...curated, ...restItems],
     initialCursor: initial.nextCursor,
     initialHasMore: initial.hasMore,
-    firstTheme: { ...firstTheme, items: themeItems.items },
+    preloadedThemes: preloadThemes.map((t, i) => ({ ...t, items: themeResults[i].items })).filter(t => t.items.length > 0),
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
     spotlight,
@@ -298,20 +298,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
+    const themes = loaderData.preloadedThemes || [];
     for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
-      // Theme + walks promo after 3 cards (mobile: ~3 swipes, desktop: 1 row)
-      if (i === 2 && loaderData.firstTheme.items.length > 0) {
-        entries.push({ type: "theme", ...loaderData.firstTheme });
+      // Theme 1 + walks promo after 3 cards
+      if (i === 2 && themes[0]) {
+        entries.push({ type: "theme", ...themes[0] });
         entries.push({ type: "walkPromo" });
       }
-      // Spotlight after 6 cards
-      if (i === 5 && loaderData.spotlight) {
+      // Spotlight after 5 cards
+      if (i === 4 && loaderData.spotlight) {
         entries.push({ type: "spotlight", ...loaderData.spotlight });
+      }
+      // Theme 2 after 7 cards
+      if (i === 6 && themes[1]) {
+        entries.push({ type: "theme", ...themes[1] });
       }
       // Stats after 9 cards
       if (i === 8) {
         entries.push({ type: "stats", ...loaderData.stats });
+      }
+      // Theme 3 after 11 cards
+      if (i === 10 && themes[2]) {
+        entries.push({ type: "theme", ...themes[2] });
       }
     }
 
@@ -319,8 +328,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       entries.push({ type: "stats", ...loaderData.stats });
     }
 
-    if (loaderData.firstTheme.items.length > 0 && !entries.some((entry) => entry.type === "theme")) {
-      entries.push({ type: "theme", ...loaderData.firstTheme });
+    if (themes.length > 0 && !entries.some((entry) => entry.type === "theme")) {
+      entries.push({ type: "theme", ...themes[0] });
       entries.push({ type: "walkPromo" });
     }
 
@@ -335,7 +344,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [themeIndex, setThemeIndex] = useState(1); // already loaded index 0
+  const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1); // skip preloaded themes
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
