@@ -20,7 +20,7 @@ type Collection = {
   title: string;
   subtitle: string;
   query: string;
-  imageId?: number;
+  imageIds?: number[];
   imageUrl?: string;
   imageTitle?: string;
   imageArtist?: string;
@@ -43,18 +43,18 @@ type MuseumSummary = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga", imageId: 24664 },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng", imageId: 20993 },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö", imageId: 17939 },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", imageId: 17457 },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur", imageId: 15877 },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", imageId: 17096 },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageId: 15900 },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", imageId: 17313 },
-  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageId: 18895 },
-  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt", imageId: 218432 },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageId: 16051 },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", imageId: 15506 },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga", imageIds: [24664, 20450, 15634] },
+  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng", imageIds: [20993, 20523, 23027] },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö", imageIds: [17939, 17176, 17567, 18218, 21087] },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", imageIds: [17457, 17458, 18106, 154102, 18360] },
+  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur", imageIds: [15877, 14792, 18888, 19063, 17875] },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", imageIds: [17096, 17115, 18148, 17412, 18762] },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageIds: [15900, 17076, 17107, 17110, 17112] },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", imageIds: [17313, 17387, 17773, 17613, 15488] },
+  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageIds: [18895, 19942, 20431, 21900, 23019] },
+  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt", imageIds: [218432, 218434, 218438] },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageIds: [16051, 17093, 17587, 17994, 18123] },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", imageIds: [15506, 15482, 17539, 17958, 14754] },
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
@@ -75,10 +75,11 @@ export async function loader() {
   const collections = COLLECTIONS.map((c, index) => {
     try {
       let row: any;
-      if (c.imageId) {
+      if (c.imageIds?.length) {
+        const pickedId = c.imageIds[Math.floor((randomSeed + index) % c.imageIds.length)];
         row = db.prepare(
           `SELECT iiif_url, dominant_color, title_sv, title_en, artists FROM artworks WHERE id = ?`
-        ).get(c.imageId);
+        ).get(pickedId);
       }
       if (!row) {
         const terms = c.query.split(" ").join(" OR ");
