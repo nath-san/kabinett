@@ -64,6 +64,17 @@ function extractLinks(links: ActorLink[] | undefined) {
   return { wikidata, wikipedia };
 }
 
+function sanitizeExternalUrl(url: string | null | undefined) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
 function getWikidataId(url: string) {
   const match = url.match(/Q\d+/i);
   return match ? match[0].toUpperCase() : "";
@@ -91,7 +102,9 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
           entity?.descriptions?.sv?.value || entity?.descriptions?.en?.value;
         data.wikiTitle = entity?.sitelinks?.svwiki?.title || "";
       }
-    } catch {}
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   const wikiTitle =
@@ -112,7 +125,9 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
         data.extract = json?.extract || "";
         data.wikiUrl = json?.content_urls?.desktop?.page || wikipediaUrl;
       }
-    } catch {}
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   return data;
@@ -181,7 +196,9 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   const nationality = actor?.actor_nationality || "";
   const { birth, death } = extractYears(actor?.dates);
-  const { wikidata, wikipedia } = extractLinks(actor?.links);
+  const links = extractLinks(actor?.links);
+  const wikidata = sanitizeExternalUrl(links.wikidata);
+  const wikipedia = sanitizeExternalUrl(links.wikipedia);
   const wikiSummary = wikidata ? await fetchWikiSummary(wikidata, wikipedia) : {};
 
   const timelineWorks = rows

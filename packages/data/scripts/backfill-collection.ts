@@ -130,4 +130,11 @@ async function main() {
   console.log(`\nKlar — ${updated.toLocaleString()} uppdaterade`);
 }
 
-main().catch((err) => { console.error("Failed:", err); process.exit(1); });
+main()
+  .catch((err) => {
+    console.error("Failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    db.close();
+  });

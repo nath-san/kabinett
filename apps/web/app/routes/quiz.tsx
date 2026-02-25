@@ -247,7 +247,9 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
     if (stored) {
       try {
         setLastResult(JSON.parse(stored));
-      } catch {}
+      } catch (_) {
+        // ignore invalid cached quiz data from older versions
+      }
     }
   }, []);
 
@@ -280,7 +282,8 @@ export default function Quiz({ loaderData }: Route.ComponentProps) {
       } else {
         setErrorMessage("Vi hittade inget verk för kombinationen. Prova andra val.");
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setErrorMessage("Kunde inte hämta ditt verk just nu. Försök igen.");
     } finally {
       setLoading(false);

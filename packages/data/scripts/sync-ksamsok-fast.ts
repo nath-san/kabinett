@@ -201,4 +201,11 @@ async function main() {
   console.log(`\nKlar — ${processed.toLocaleString()} SHM-objekt på ${totalTime} min (${skipped} skippade, ${objectCache.size} cachade objekt)`);
 }
 
-main().catch((err) => { console.error("Sync failed:", err); process.exit(1); });
+main()
+  .catch((err) => {
+    console.error("Sync failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    db.close();
+  });

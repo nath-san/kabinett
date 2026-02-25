@@ -51,7 +51,9 @@ export async function loader({ request }: Route.LoaderArgs) {
           seen.add(`a:${name}`);
           results.push({ value: name, type: "artist" });
         }
-      } catch {}
+      } catch (_) {
+        // artists JSON can be malformed on legacy rows; skip safely
+      }
 
       // Titles
       if (row.title && !seen.has(`t:${row.title}`) && results.filter(r => r.type === "title").length < 4) {
@@ -76,7 +78,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
 
     return Response.json(results.slice(0, 8));
-  } catch {
+  } catch (err) {
+    console.error(err);
     return Response.json([]);
   }
 }

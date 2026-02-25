@@ -7,6 +7,7 @@ export default [
   route("search", "routes/search.tsx"),
   route("api/autocomplete", "routes/api.autocomplete.tsx"),
   route("api/color-search", "routes/api.color-search.tsx"),
+  route("api/og/:id", "routes/api.og.$id.tsx"),
   route("timeline", "routes/timeline.tsx"),
   route("artwork/:id", "routes/artwork.tsx"),
   route("artist/:name", "routes/artist.tsx"),
