@@ -19,6 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = "gpt-4o-mini";
+const FORCE = process.argv.includes("--force");
 
 const THEMES = [
   "dramatic ocean storms and shipwrecks",
@@ -148,49 +149,87 @@ function topSimilar(
   return scored.slice(0, count).map((s) => s.r);
 }
 
-async function callOpenAI(prompt: string): Promise<WalkResponse> {
+async function callOpenAI(
+  prompt: string,
+  maxRetries = 3
+): Promise<WalkResponse> {
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY saknas i miljön");
   }
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.7,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: prompt },
+          ],
+        }),
+      });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`OpenAI-fel: ${res.status} ${body}`);
+      if (res.status === 429 || res.status >= 500) {
+        const wait = Math.min(1000 * 2 ** (attempt - 1), 10000);
+        console.log(
+          `     ⏳ ${res.status} — retry ${attempt}/${maxRetries} om ${wait}ms...`
+        );
+        await new Promise((r) => setTimeout(r, wait));
+        continue;
+      }
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`OpenAI-fel: ${res.status} ${body}`);
+      }
+
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) throw new Error("Tomt svar från OpenAI");
+      return extractJson(content) as WalkResponse;
+    } catch (err: any) {
+      if (attempt === maxRetries) throw err;
+      const wait = Math.min(1000 * 2 ** (attempt - 1), 10000);
+      console.log(
+        `     ⏳ Fel: ${err.message} — retry ${attempt}/${maxRetries} om ${wait}ms...`
+      );
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
 
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Tomt svar från OpenAI");
-  return extractJson(content) as WalkResponse;
+  throw new Error("callOpenAI: alla retries misslyckades");
 }
 
 function alignItems(selected: EmbeddingRow[], response?: WalkResponse) {
+  const validIds = new Set(selected.map((r) => r.id));
   const byId = new Map<number, string | null>();
   const items = response?.items || [];
+
   for (const item of items) {
-    if (item?.artwork_id) byId.set(item.artwork_id, item.narrative_text || null);
+    if (item?.artwork_id && validIds.has(item.artwork_id)) {
+      byId.set(item.artwork_id, item.narrative_text || null);
+    }
   }
 
-  return selected.map((row, index) => ({
+  // Use GPT's ordering if all ids are valid, otherwise keep CLIP similarity order
+  const gptIds = items.map((i) => i?.artwork_id).filter((id) => id && validIds.has(id));
+  const useGptOrder =
+    gptIds.length === selected.length &&
+    new Set(gptIds).size === selected.length;
+
+  const ordered = useGptOrder
+    ? gptIds.map((id) => selected.find((r) => r.id === id)!)
+    : selected;
+
+  return ordered.map((row) => ({
     artwork_id: row.id,
-    narrative_text:
-      byId.get(row.id) ?? items[index]?.narrative_text ?? null,
+    narrative_text: byId.get(row.id) ?? null,
   }));
 }
 
@@ -204,9 +243,14 @@ async function main() {
 
   const existing = (db.prepare("SELECT COUNT(*) as c FROM walks").get() as any)
     .c as number;
-  if (existing > 0) {
-    console.log("   Vandringar finns redan — avbryter.");
+  if (existing > 0 && !FORCE) {
+    console.log("   Vandringar finns redan — avbryter. (Kör med --force för att regenerera)");
     return;
+  }
+  if (existing > 0 && FORCE) {
+    console.log(`   --force: Tar bort ${existing} befintliga vandringar...`);
+    db.exec("DELETE FROM walk_items");
+    db.exec("DELETE FROM walks");
   }
 
   const embeddings = loadEmbeddings(db);
