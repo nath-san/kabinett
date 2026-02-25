@@ -525,12 +525,6 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      {/* Back */}
-      <div className="pt-10 pb-12 px-4 text-center">
-        <a href="/discover" className="text-[0.875rem] text-warm-gray no-underline focus-ring">
-          ← Utforska mer
-        </a>
-      </div>
     </div>
   );
 }
