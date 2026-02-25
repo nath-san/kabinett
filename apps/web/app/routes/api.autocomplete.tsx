@@ -12,6 +12,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (q.length < 2) return Response.json([]);
 
   const db = getDb();
+  const source = sourceFilter();
+  const sourceA = sourceFilter("a");
 
   try {
     const ftsQuery = q
@@ -32,11 +34,11 @@ export async function loader({ request }: Route.LoaderArgs) {
          FROM artworks_fts
          JOIN artworks a ON a.id = artworks_fts.rowid
          WHERE artworks_fts MATCH ?
-           AND ${sourceFilter("a")}
+           AND ${sourceA.sql}
          ORDER BY rank
          LIMIT 20`
       )
-      .all(ftsQuery) as any[];
+      .all(ftsQuery, ...sourceA.params) as any[];
 
     // Extract unique artists and categories
     const seen = new Set<string>();
@@ -67,9 +69,9 @@ export async function loader({ request }: Route.LoaderArgs) {
       `SELECT DISTINCT category as value
        FROM artworks
        WHERE category LIKE ?
-         AND ${sourceFilter()}
+         AND ${source.sql}
        LIMIT 2`
-    ).all(`%${q}%`) as any[];
+    ).all(`%${q}%`, ...source.params) as any[];
     for (const c of cats) {
       if (c.value && !seen.has(`c:${c.value}`)) {
         seen.add(`c:${c.value}`);
@@ -80,6 +82,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     return Response.json(results.slice(0, 8));
   } catch (err) {
     console.error(err);
-    return Response.json([]);
+    return Response.json([], { headers: { "X-Error": "1" } });
   }
 }

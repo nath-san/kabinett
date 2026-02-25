@@ -16,16 +16,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const order = `CASE id ${ids.map((id, index) => `WHEN ${id} THEN ${index}`).join(" ")} END`;
   const db = getDb();
+  const source = sourceFilter();
   const rows = db
     .prepare(
       `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
        FROM artworks
        WHERE id IN (${ids.map(() => "?").join(",")})
          AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
+         AND ${source.sql}
        ORDER BY ${order}`
     )
-    .all(...ids) as Array<{
+    .all(...ids, ...source.params) as Array<{
       id: number;
       title_sv: string | null;
       title_en: string | null;

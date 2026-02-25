@@ -60,14 +60,17 @@ const DISCOVER_CACHE_TTL_MS = 60 * 1000;
 
 export async function loader() {
   const now = Date.now();
+  const randomSeed = Math.floor(now / 60_000);
   if (discoverCache && discoverCache.expiresAt > now) {
     return discoverCache.data;
   }
 
   const db = getDb();
+  const source = sourceFilter();
+  const sourceA = sourceFilter("a");
 
   // Collection images
-  const collections = COLLECTIONS.map((c) => {
+  const collections = COLLECTIONS.map((c, index) => {
     const terms = c.query.split(" ").join(" OR ");
     try {
       const rows = db.prepare(`
@@ -77,9 +80,10 @@ export async function loader() {
           AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
           AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
-          AND ${sourceFilter("a")}
-        ORDER BY RANDOM() LIMIT 1
-      `).all(terms) as any[];
+          AND ${sourceA.sql}
+        ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+        LIMIT 1
+      `).all(terms, ...sourceA.params, randomSeed + index) as any[];
       const row = rows[0];
       return {
         ...c,
@@ -99,9 +103,10 @@ export async function loader() {
     WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
-      AND ${sourceFilter()}
-    ORDER BY RANDOM() LIMIT 1
-  `).get() as any;
+      AND ${source.sql}
+    ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
+    LIMIT 1
+  `).get(...source.params, randomSeed + 100) as any;
 
   // Top artists (excluding factories like Gustavsberg)
   const artistsWithImages = db.prepare(`
@@ -115,7 +120,7 @@ export async function loader() {
         AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
         AND iiif_url IS NOT NULL
         AND LENGTH(iiif_url) > 40
-        AND ${sourceFilter()}
+        AND ${source.sql}
       GROUP BY name
       HAVING cnt >= 20
       ORDER BY cnt DESC
@@ -129,19 +134,22 @@ export async function loader() {
         a.title_sv,
         a.title_en,
         a.artists,
-        ROW_NUMBER() OVER (PARTITION BY ta.name ORDER BY RANDOM()) AS rn
+        ROW_NUMBER() OVER (
+          PARTITION BY ta.name
+          ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+        ) AS rn
       FROM top_artists ta
       JOIN artworks a ON json_extract(a.artists, '$[0].name') = ta.name
       WHERE a.iiif_url IS NOT NULL
         AND LENGTH(a.iiif_url) > 40
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-        AND ${sourceFilter("a")}
+        AND ${sourceA.sql}
     )
     SELECT name, cnt, iiif_url, dominant_color, title_sv, title_en, artists
     FROM ranked
     WHERE rn = 1
     ORDER BY cnt DESC
-  `).all() as Array<{
+  `).all(...source.params, randomSeed + 200, ...sourceA.params) as Array<{
     name: string;
     cnt: number;
     iiif_url: string | null;
@@ -163,16 +171,16 @@ export async function loader() {
   // Stats
   const enabledMuseums = getEnabledMuseums();
   const stats = {
-    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c,
-    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${sourceFilter()}`).get() as any).c,
+    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c,
+    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${source.sql}`).get(...source.params) as any).c,
     museums: (db.prepare(`
       SELECT COUNT(*) as c FROM (
         SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
         FROM artworks a LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
+        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
       )
-    `).get() as any).c,
-    oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c,
+    `).get(...sourceA.params) as any).c,
+    oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c,
   };
   const currentYear = new Date().getFullYear();
   const yearsSpan = stats.oldestYear ? Math.max(0, currentYear - stats.oldestYear) : 0;
@@ -181,12 +189,12 @@ export async function loader() {
     SELECT COALESCE(a.sub_museum, m.name) as coll_name, COUNT(*) as count
     FROM artworks a
     LEFT JOIN museums m ON m.id = a.source
-    WHERE ${sourceFilter("a")}
+    WHERE ${sourceA.sql}
       AND COALESCE(a.sub_museum, m.name) IS NOT NULL
       AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
     GROUP BY coll_name
     ORDER BY count DESC
-  `).all() as Array<{ coll_name: string; count: number }>;
+  `).all(...sourceA.params) as Array<{ coll_name: string; count: number }>;
   const museumList: MuseumSummary[] = museums.map((row: any) => ({
     id: row.coll_name,
     name: row.coll_name,

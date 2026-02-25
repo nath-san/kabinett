@@ -74,10 +74,12 @@ export function getMuseumInfo(source: string): MuseumRow | null {
   return row || null;
 }
 
-export function sourceFilter(prefix?: string): string {
+export function sourceFilter(prefix?: string): { sql: string; params: string[] } {
   const museums = getEnabledMuseums();
-  if (museums.length === 0) return "1 = 0";
+  if (museums.length === 0) return { sql: "1 = 0", params: [] };
   const col = prefix ? `${prefix}.source` : "source";
-  const quoted = museums.map((museumId) => `'${museumId.replace(/'/g, "''")}'`).join(",");
-  return `${col} IN (${quoted})`;
+  return {
+    sql: `${col} IN (${museums.map(() => "?").join(",")})`,
+    params: museums,
+  };
 }

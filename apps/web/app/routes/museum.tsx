@@ -42,6 +42,19 @@ type FeaturedItem = {
   color: string;
 };
 
+type FeaturedRow = {
+  id: number;
+  title_sv: string | null;
+  title_en: string | null;
+  iiif_url: string;
+  dominant_color: string | null;
+  artists: string | null;
+  dating_text: string | null;
+};
+
+const FEATURED_CACHE_TTL_MS = 60 * 1000;
+const museumFeaturedCache = new Map<string, { expiresAt: number; rows: FeaturedRow[] }>();
+
 type CategoryStat = { name: string; count: number };
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -88,24 +101,28 @@ export async function loader({ params }: Route.LoaderArgs) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  const featuredRows = db
-    .prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
-       FROM artworks
-       WHERE source = ?
-         AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-       ORDER BY RANDOM() LIMIT 8`
-    )
-    .all(id) as Array<{
-      id: number;
-      title_sv: string | null;
-      title_en: string | null;
-      iiif_url: string;
-      dominant_color: string | null;
-      artists: string | null;
-      dating_text: string | null;
-    }>;
+  const now = Date.now();
+  const cachedFeatured = museumFeaturedCache.get(id);
+  const featuredRows = cachedFeatured && cachedFeatured.expiresAt > now
+    ? cachedFeatured.rows
+    : (db
+        .prepare(
+          `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
+           FROM artworks
+           WHERE source = ?
+             AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
+             AND id NOT IN (SELECT artwork_id FROM broken_images)
+           ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
+           LIMIT 8`
+        )
+        .all(id, Math.floor(now / 60_000)) as FeaturedRow[]);
+
+  if (!cachedFeatured || cachedFeatured.expiresAt <= now) {
+    museumFeaturedCache.set(id, {
+      expiresAt: now + FEATURED_CACHE_TTL_MS,
+      rows: featuredRows,
+    });
+  }
 
   const featured: FeaturedItem[] = featuredRows.map((row) => ({
     id: row.id,

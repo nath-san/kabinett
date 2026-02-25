@@ -59,6 +59,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     .slice(0, 140);
   const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
   const db = getDb();
+  const sourceA = sourceFilter("a");
   const enabledMuseums = getEnabledMuseums();
   let museumOptions: MuseumOption[] = [];
   if (enabledMuseums.length > 0) {
@@ -88,6 +89,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip" as SearchMode, cursor: null };
   }
   if (!query && museum) {
+    const randomSeed = Math.floor(Date.now() / 60_000);
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               m.name as museum_name
@@ -95,10 +97,11 @@ export async function loader({ request }: Route.LoaderArgs) {
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          AND a.source = ?
-       ORDER BY RANDOM() LIMIT 60`
-    ).all(museum);
+       ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+       LIMIT 60`
+    ).all(...sourceA.params, museum, randomSeed);
     return {
       query,
       museum,
@@ -120,11 +123,11 @@ export async function loader({ request }: Route.LoaderArgs) {
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT ? OFFSET ?`
-    ).all(...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as any[];
+    ).all(...sourceA.params, ...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as any[];
     return {
       query,
       museum,
@@ -191,10 +194,10 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          ${museum ? "AND a.source = ?" : ""}
        ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(ftsQuery, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
+    ).all(ftsQuery, ...sourceA.params, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
     total = (db.prepare(
       `SELECT COUNT(*) as count
        FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
@@ -202,9 +205,9 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          ${museum ? "AND a.source = ?" : ""}`
-    ).get(ftsQuery, ...(museum ? [museum] : [])) as { count: number }).count;
+    ).get(ftsQuery, ...sourceA.params, ...(museum ? [museum] : [])) as { count: number }).count;
   } catch {
     const like = `%${query}%`;
     results = db.prepare(
@@ -216,10 +219,10 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          ${museum ? "AND a.source = ?" : ""}
        LIMIT ? OFFSET ?`
-    ).all(like, like, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
+    ).all(like, like, ...sourceA.params, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
     total = results.length;
   }
   return {

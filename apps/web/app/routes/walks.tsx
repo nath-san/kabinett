@@ -42,6 +42,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const selected = url.searchParams.get("walk") || "";
   const db = getDb();
+  const sourceA = sourceFilter("a");
+  const randomSeed = Math.floor(Date.now() / 60_000);
 
   const walkRows = db
     .prepare(
@@ -56,17 +58,20 @@ export async function loader({ request }: Route.LoaderArgs) {
       SELECT
         wi.walk_id,
         a.iiif_url,
-        ROW_NUMBER() OVER (PARTITION BY wi.walk_id ORDER BY RANDOM()) AS rn
+        ROW_NUMBER() OVER (
+          PARTITION BY wi.walk_id
+          ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+        ) AS rn
       FROM walk_items wi
       JOIN artworks a ON a.id = wi.artwork_id
       WHERE a.iiif_url IS NOT NULL
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-        AND ${sourceFilter("a")}
+        AND ${sourceA.sql}
     )
     SELECT walk_id, iiif_url
     FROM ranked_previews
     WHERE rn = 1`
-  ).all() as WalkPreviewImageRow[];
+  ).all(randomSeed, ...sourceA.params) as WalkPreviewImageRow[];
 
   const previewMap = new Map<number, string>(
     previewRows.map((row) => [row.walk_id, buildImageUrl(row.iiif_url, 800)])
@@ -103,10 +108,10 @@ export async function loader({ request }: Route.LoaderArgs) {
           JOIN artworks a ON a.id = wi.artwork_id
           WHERE wi.walk_id = ?
             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-            AND ${sourceFilter("a")}
+            AND ${sourceA.sql}
           ORDER BY wi.position ASC`
         )
-        .all(walk.id) as WalkArtwork[];
+        .all(walk.id, ...sourceA.params) as WalkArtwork[];
     }
   }
 

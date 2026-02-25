@@ -20,6 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const selectedDecade = Number.isFinite(parsedDecade) ? parsedDecade : 0;
 
   const db = getDb();
+  const source = sourceFilter();
   const rangeFrom = 1200;
   const rangeTo = 2000;
 
@@ -32,11 +33,11 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND iiif_url IS NOT NULL
          AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
+         AND ${source.sql}
        GROUP BY decade
        ORDER BY decade ASC`
     )
-    .all(rangeFrom, rangeTo) as Array<{ decade: number; count: number }>;
+    .all(rangeFrom, rangeTo, ...source.params) as Array<{ decade: number; count: number }>;
 
   const sampleRows = db
     .prepare(
@@ -58,14 +59,14 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
            AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter()}
+           AND ${source.sql}
        )
        SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start, decade
        FROM ranked
        WHERE rn <= 5
        ORDER BY decade ASC, year_start ASC`
     )
-    .all(rangeFrom, rangeTo) as Array<{
+    .all(rangeFrom, rangeTo, ...source.params) as Array<{
       id: number;
       title_sv: string | null;
       title_en: string | null;
@@ -126,8 +127,8 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
            AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter()}`
-      ).get(selectedDecade, selectedDecade + 9) as { count: number }
+           AND ${source.sql}`
+      ).get(selectedDecade, selectedDecade + 9, ...source.params) as { count: number }
     ).count;
 
     const selectedRows = db
@@ -139,11 +140,11 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
            AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter()}
+           AND ${source.sql}
          ORDER BY year_start ASC
          LIMIT 240`
       )
-      .all(selectedDecade, selectedDecade + 9) as Array<{
+      .all(selectedDecade, selectedDecade + 9, ...source.params) as Array<{
         id: number;
         title_sv: string | null;
         title_en: string | null;

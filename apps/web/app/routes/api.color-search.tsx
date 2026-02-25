@@ -17,6 +17,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const b = parseColorChannel(url.searchParams.get("b"), 128);
 
   const db = getDb();
+  const source = sourceFilter();
   try {
     const results = db.prepare(
       `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
@@ -25,13 +26,14 @@ export async function loader({ request }: Route.LoaderArgs) {
          AND iiif_url IS NOT NULL
          AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
+         AND ${source.sql}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT ?`
-    ).all(r, g, b, limit) as any[];
+    ).all(...source.params, r, g, b, limit) as any[];
 
     return Response.json(results);
-  } catch {
-    return Response.json([]);
+  } catch (err) {
+    console.error(err);
+    return Response.json([], { headers: { "X-Error": "1" } });
   }
 }

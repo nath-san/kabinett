@@ -14,107 +14,37 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({}: Route.LoaderArgs) {
   const db = getDb();
+  const source = sourceFilter();
+  const sourceA = sourceFilter("a");
+  const randomSeed = Math.floor(Date.now() / 60_000);
 
-  const moodSamples = {
-    dark: db
+  function artworkSample(whereSql: string, params: Array<string | number>, seedOffset: number) {
+    return db
       .prepare(
         `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE (color_r + color_g + color_b) / 3 < 90
+         WHERE ${whereSql}
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
            AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter()}
-         ORDER BY RANDOM()
+           AND ${source.sql}
+         ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
          LIMIT 1`
       )
-      .get() as any,
-    light: db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE (color_r + color_g + color_b) / 3 > 170
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    dramatic: db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) > 80
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    calm: db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
+      .get(...params, ...source.params, randomSeed + seedOffset) as any;
+  }
+
+  const moodSamples = {
+    dark: artworkSample("(color_r + color_g + color_b) / 3 < 90", [], 1),
+    light: artworkSample("(color_r + color_g + color_b) / 3 > 170", [], 2),
+    dramatic: artworkSample("(max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) > 80", [], 3),
+    calm: artworkSample("(max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55", [], 4),
   };
 
   const epochSamples = {
-    "1500s": db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE year_start BETWEEN 1500 AND 1599
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    "1600s": db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE year_start BETWEEN 1600 AND 1699
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    "1700s": db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE year_start BETWEEN 1700 AND 1799
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
-    "1800s": db
-      .prepare(
-        `SELECT id, iiif_url, title_sv, title_en, artists FROM artworks
-         WHERE year_start BETWEEN 1800 AND 1899
-           AND iiif_url IS NOT NULL
-           AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get() as any,
+    "1500s": artworkSample("year_start BETWEEN 1500 AND 1599", [], 10),
+    "1600s": artworkSample("year_start BETWEEN 1600 AND 1699", [], 11),
+    "1700s": artworkSample("year_start BETWEEN 1700 AND 1799", [], 12),
+    "1800s": artworkSample("year_start BETWEEN 1800 AND 1899", [], 13),
   };
 
   function subjectSample(ftsQuery: string) {
@@ -125,10 +55,10 @@ export async function loader({}: Route.LoaderArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
-       ORDER BY RANDOM()
+         AND ${sourceA.sql}
+       ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
        LIMIT 1`
-    ).get(ftsQuery) as any;
+    ).get(ftsQuery, ...sourceA.params, randomSeed + 20) as any;
   }
 
   const subjectSamples = {
