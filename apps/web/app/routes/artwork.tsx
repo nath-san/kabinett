@@ -1,7 +1,6 @@
 import type { Route } from "./+types/artwork";
 import { useMemo, useState } from "react";
 import { getDb, type ArtworkRow } from "../lib/db.server";
-import { loadClipCache, dot } from "../lib/clip-cache.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
@@ -204,28 +203,28 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   // Similar by CLIP embedding (semantic/visual similarity)
   let similar: Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }> = [];
   try {
-    const cache = await loadClipCache();
-    const current = cache.find((c) => c.id === row.id);
-    if (current) {
-      const scored = cache
-        .filter((c) => c.id !== row.id)
-        .map((c) => ({ id: c.id, score: dot(current.embedding, c.embedding) }));
-      scored.sort((a, b) => b.score - a.score);
-      const topIds = scored.slice(0, 8).map((s) => s.id);
-      if (topIds.length > 0) {
-        similar = db
-          .prepare(
-            `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
-             FROM artworks
-             WHERE id IN (${topIds.map(() => "?").join(",")})
-               AND id NOT IN (SELECT artwork_id FROM broken_images)
-               AND ${source.sql}`)
-          .all(...topIds, ...source.params) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
-        // Preserve similarity order
-        const orderMap = new Map(topIds.map((id, i) => [id, i]));
-        similar.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
-      }
-    }
+    similar = db
+      .prepare(
+        `SELECT
+           v.artwork_id AS id,
+           a.title_sv,
+           a.iiif_url,
+           a.dominant_color,
+           a.artists,
+           a.dating_text
+         FROM vec_artworks v
+         JOIN artworks a ON a.id = v.artwork_id
+         WHERE v.embedding MATCH (
+             SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
+           )
+           AND k = ?
+           AND v.artwork_id != ?
+           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${source.sql}
+         ORDER BY v.distance
+         LIMIT ?`
+      )
+      .all(row.id, 48, row.id, ...source.params, 8) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
   } catch {
     // Fall back to no similar
   }
