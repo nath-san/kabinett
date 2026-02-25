@@ -12,7 +12,6 @@
  */
 
 import Database from "better-sqlite3";
-import sharp from "sharp";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -56,25 +55,10 @@ async function fetchPage(page: number): Promise<{ items: any[]; totalPages: numb
   };
 }
 
-async function extractDominantColor(iiifUrl: string): Promise<{ hex: string; r: number; g: number; b: number } | null> {
-  try {
-    const imgUrl = iiifUrl.replace("http://", "https://") + "full/100,/0/default.jpg";
-    const res = await fetch(imgUrl);
-    if (!res.ok) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const { dominant } = await sharp(buffer).resize(1, 1).stats();
-    if (!dominant) return null;
-    const hex = `#${dominant.r.toString(16).padStart(2, "0")}${dominant.g.toString(16).padStart(2, "0")}${dominant.b.toString(16).padStart(2, "0")}`.toUpperCase();
-    return { hex, r: dominant.r, g: dominant.g, b: dominant.b };
-  } catch {
-    return null;
-  }
-}
-
 // --- Upsert ---
 
 const upsertStmt = db.prepare(`
-  INSERT OR REPLACE INTO artworks (
+  INSERT INTO artworks (
     id, inventory_number, title_sv, title_en, category, technique_material,
     artists, dating_text, year_start, year_end, acquisition_year,
     iiif_url, dominant_color, color_r, color_g, color_b,
@@ -91,6 +75,35 @@ const upsertStmt = db.prepare(`
     ?, ?, ?, ?,
     ?, ?, ?, datetime('now')
   )
+  ON CONFLICT(id) DO UPDATE SET
+    inventory_number = excluded.inventory_number,
+    title_sv = excluded.title_sv,
+    title_en = excluded.title_en,
+    category = excluded.category,
+    technique_material = excluded.technique_material,
+    artists = excluded.artists,
+    dating_text = excluded.dating_text,
+    year_start = excluded.year_start,
+    year_end = excluded.year_end,
+    acquisition_year = excluded.acquisition_year,
+    iiif_url = excluded.iiif_url,
+    descriptions_sv = excluded.descriptions_sv,
+    descriptions_en = excluded.descriptions_en,
+    acquisition_sv = excluded.acquisition_sv,
+    object_type_sv = excluded.object_type_sv,
+    style_sv = excluded.style_sv,
+    signature = excluded.signature,
+    inscription = excluded.inscription,
+    motive_category = excluded.motive_category,
+    loan = excluded.loan,
+    material_tags = excluded.material_tags,
+    technique_tags = excluded.technique_tags,
+    dimensions_json = excluded.dimensions_json,
+    actors_json = excluded.actors_json,
+    exhibitions_json = excluded.exhibitions_json,
+    last_updated = excluded.last_updated,
+    source = excluded.source,
+    synced_at = datetime('now')
 `);
 
 function parseItem(item: any) {
@@ -135,107 +148,119 @@ function parseItem(item: any) {
 // --- Main ---
 
 async function main() {
-  let page = 1;
-  let totalNew = 0;
-  let totalUpdated = 0;
-  let done = false;
+  try {
+    const existingRows = db.prepare("SELECT id, last_updated FROM artworks").all() as Array<{
+      id: string | number;
+      last_updated: number | null;
+    }>;
+    const existingById = new Map(existingRows.map((row) => [row.id, row.last_updated]));
 
-  while (!done) {
-    const { items, totalPages } = await fetchPage(page);
-    if (items.length === 0) break;
+    let page = 1;
+    let totalNew = 0;
+    let totalUpdated = 0;
+    let done = false;
 
-    for (const item of items) {
-      const itemTimestamp = item.last_updated || 0;
+    while (!done) {
+      const { items, totalPages } = await fetchPage(page);
+      if (items.length === 0) break;
 
-      // If not full mode, stop when we reach already-synced items
-      if (!FULL_MODE && itemTimestamp <= latestTimestamp) {
-        done = true;
-        break;
-      }
+      for (const item of items) {
+        const itemTimestamp = item.last_updated || 0;
 
-      const parsed = parseItem(item);
-
-      // Check if exists
-      const existing = db.prepare("SELECT id, last_updated FROM artworks WHERE id = ?").get(item.id) as any;
-
-      // Extract color for new items with images
-      let color = null;
-      if (parsed.iiif_url && (!existing || !existing.last_updated)) {
-        color = await extractDominantColor(parsed.iiif_url);
-      }
-
-      // Skip items without IIIF (NOT NULL constraint)
-      if (!parsed.iiif_url) continue;
-
-      upsertStmt.run(
-        parsed.id, parsed.inventory_number, parsed.title_sv, parsed.title_en,
-        parsed.category, parsed.technique_material, parsed.artists,
-        parsed.dating_text, parsed.year_start, parsed.year_end,
-        parsed.acquisition_year, parsed.iiif_url,
-        color?.hex ?? null,
-        color?.r ?? null, color?.g ?? null, color?.b ?? null,
-        parsed.descriptions_sv, parsed.descriptions_en, parsed.acquisition_sv,
-        parsed.object_type_sv, parsed.style_sv, parsed.signature,
-        parsed.inscription, parsed.motive_category, parsed.loan,
-        parsed.material_tags, parsed.technique_tags, parsed.dimensions_json,
-        parsed.actors_json, parsed.exhibitions_json, parsed.last_updated, "nationalmuseum",
-      );
-
-      if (existing) {
-        totalUpdated++;
-      } else {
-        totalNew++;
-      }
-    }
-
-    if (!done) {
-      console.log(`   Page ${page}/${totalPages} — ${totalNew} new, ${totalUpdated} updated`);
-      page++;
-
-      // Rate limit
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
-
-  console.log(`\n✅ Sync complete: ${totalNew} new, ${totalUpdated} updated artworks`);
-
-  // Check for removed artworks
-  if (CHECK_REMOVED) {
-    console.log("\n🔍 Checking for removed artworks...");
-    const sampleIds = (db.prepare(
-      "SELECT id FROM artworks ORDER BY RANDOM() LIMIT 500"
-    ).all() as any[]).map((r) => r.id);
-
-    let removed = 0;
-    for (const id of sampleIds) {
-      try {
-        const res = await fetch(`${API_BASE}/${id}`);
-        if (res.status === 404) {
-          db.prepare("DELETE FROM artworks WHERE id = ?").run(id);
-          db.prepare("DELETE FROM clip_embeddings WHERE artwork_id = ?").run(id);
-          removed++;
-          console.log(`   Removed: ${id}`);
+        // If not full mode, stop when we reach already-synced items
+        if (!FULL_MODE && itemTimestamp <= latestTimestamp) {
+          done = true;
+          break;
         }
-        await new Promise((r) => setTimeout(r, 100));
-      } catch {
-        // Skip network errors
+
+        const parsed = parseItem(item);
+
+        // Skip items without IIIF (NOT NULL constraint)
+        if (!parsed.iiif_url) continue;
+
+        const isExisting = existingById.has(item.id);
+
+        upsertStmt.run(
+          parsed.id, parsed.inventory_number, parsed.title_sv, parsed.title_en,
+          parsed.category, parsed.technique_material, parsed.artists,
+          parsed.dating_text, parsed.year_start, parsed.year_end,
+          parsed.acquisition_year, parsed.iiif_url,
+          null,
+          null, null, null,
+          parsed.descriptions_sv, parsed.descriptions_en, parsed.acquisition_sv,
+          parsed.object_type_sv, parsed.style_sv, parsed.signature,
+          parsed.inscription, parsed.motive_category, parsed.loan,
+          parsed.material_tags, parsed.technique_tags, parsed.dimensions_json,
+          parsed.actors_json, parsed.exhibitions_json, parsed.last_updated, "nationalmuseum",
+        );
+
+        existingById.set(item.id, parsed.last_updated ?? null);
+
+        if (isExisting) {
+          totalUpdated++;
+        } else {
+          totalNew++;
+        }
+      }
+
+      if (!done) {
+        console.log(`   Page ${page}/${totalPages} — ${totalNew} new, ${totalUpdated} updated`);
+        page++;
+
+        // Rate limit
+        await new Promise((r) => setTimeout(r, 200));
       }
     }
-    console.log(`✅ Removed ${removed} artworks no longer in API`);
+
+    console.log(`\n✅ Sync complete: ${totalNew} new, ${totalUpdated} updated artworks`);
+
+    // Check for removed artworks
+    if (CHECK_REMOVED) {
+      console.log("\n🔍 Checking for removed artworks...");
+      const sampleIds = (db.prepare(
+        "SELECT id FROM artworks ORDER BY RANDOM() LIMIT 500"
+      ).all() as any[]).map((r) => r.id);
+
+      let removed = 0;
+      for (const id of sampleIds) {
+        try {
+          const res = await fetch(`${API_BASE}/${id}`);
+          if (res.status === 404) {
+            db.prepare("DELETE FROM artworks WHERE id = ?").run(id);
+            db.prepare("DELETE FROM clip_embeddings WHERE artwork_id = ?").run(id);
+            removed++;
+            console.log(`   Removed: ${id}`);
+          }
+          await new Promise((r) => setTimeout(r, 100));
+        } catch {
+          // Skip network errors
+        }
+      }
+      console.log(`✅ Removed ${removed} artworks no longer in API`);
+    }
+
+    const needColorExtraction = (db.prepare(`
+      SELECT COUNT(*) as c FROM artworks
+      WHERE iiif_url IS NOT NULL AND dominant_color IS NULL
+    `).get() as any).c;
+
+    if (needColorExtraction > 0) {
+      console.log(`\n⚠️  ${needColorExtraction} artworks need color extraction — run a separate color extraction command`);
+    }
+
+    // Report new artworks needing embeddings
+    const needEmbeddings = (db.prepare(`
+      SELECT COUNT(*) as c FROM artworks
+      WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
+      AND id NOT IN (SELECT artwork_id FROM clip_embeddings)
+    `).get() as any).c;
+
+    if (needEmbeddings > 0) {
+      console.log(`\n⚠️  ${needEmbeddings} artworks need CLIP embeddings — run: pnpm embeddings`);
+    }
+  } finally {
+    db.close();
   }
-
-  // Report new artworks needing embeddings
-  const needEmbeddings = (db.prepare(`
-    SELECT COUNT(*) as c FROM artworks
-    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 90
-    AND id NOT IN (SELECT artwork_id FROM clip_embeddings)
-  `).get() as any).c;
-
-  if (needEmbeddings > 0) {
-    console.log(`\n⚠️  ${needEmbeddings} artworks need CLIP embeddings — run: pnpm embeddings`);
-  }
-
-  db.close();
 }
 
 main().catch((err) => {
