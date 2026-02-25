@@ -142,9 +142,11 @@ export async function fetchFeed(options: {
   let computedOrderSelect = "NULL as color_distance";
 
   if (filter === "Alla") {
+    // Mix museums with deterministic hash to avoid NM-only feed
+    // (NM has positive IDs, Nordiska negative — plain DESC shows only NM)
+    dedupeOrderBy = "ABS(a.id) DESC";
+    finalOrderBy = "ABS(id) DESC";
     mode = "cursor_desc";
-    dedupeOrderBy = "a.id DESC";
-    finalOrderBy = "id DESC";
   }
 
   if (CATEGORY_FILTERS.has(filter)) {
@@ -174,7 +176,11 @@ export async function fetchFeed(options: {
   }
 
   if (mode === "cursor_desc" && cursor) {
-    cursorConditions.push("id < ?");
+    if (filter === "Alla") {
+      cursorConditions.push("ABS(id) < ABS(?)");
+    } else {
+      cursorConditions.push("id < ?");
+    }
     cursorParams.push(cursor);
   }
 
