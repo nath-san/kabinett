@@ -85,7 +85,9 @@ export async function fetchFeed(options: {
   if (MOOD_QUERIES[filter]) {
     const mood = MOOD_QUERIES[filter];
     const offset = Math.max(0, cursor || 0);
-    const rows = db
+    let rows: FeedItemRow[];
+    try {
+    rows = db
       .prepare(
         `WITH ranked AS (
            SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
@@ -111,6 +113,10 @@ export async function fetchFeed(options: {
          LIMIT ? OFFSET ?`
       )
       .all(mood.fts, ...sourceA.params, limit, offset) as FeedItemRow[];
+    } catch (err) {
+      console.error("FTS mood query failed (artworks_fts may be missing):", err);
+      rows = [];
+    }
 
     return {
       items: mapRows(rows),
