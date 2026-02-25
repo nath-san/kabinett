@@ -1,8 +1,9 @@
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
-import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
+import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import { getSiteStats } from "../lib/stats.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -169,21 +170,13 @@ export async function loader() {
   }));
 
   // Stats
-  const enabledMuseums = getEnabledMuseums();
+  const siteStats = getSiteStats(db);
   const stats = {
-    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c,
-    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${source.sql}`).get(...source.params) as any).c,
-    museums: (db.prepare(`
-      SELECT COUNT(*) as c FROM (
-        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
-        FROM artworks a LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
-      )
-    `).get(...sourceA.params) as any).c,
-    oldestYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c,
+    totalWorks: siteStats.totalWorks,
+    paintings: siteStats.paintings,
+    museums: siteStats.museums,
+    yearsSpan: siteStats.yearsSpan,
   };
-  const currentYear = new Date().getFullYear();
-  const yearsSpan = stats.oldestYear ? Math.max(0, currentYear - stats.oldestYear) : 0;
 
   const museums = db.prepare(`
     SELECT COALESCE(a.sub_museum, m.name) as coll_name, COUNT(*) as count
@@ -211,7 +204,7 @@ export async function loader() {
         }
       : undefined,
     topArtists: mappedArtists,
-    stats: { ...stats, yearsSpan },
+    stats,
     museums: museumList,
   };
 

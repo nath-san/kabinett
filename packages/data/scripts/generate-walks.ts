@@ -12,6 +12,7 @@ import {
   CLIPTextModelWithProjection,
   env,
 } from "@xenova/transformers";
+import { parseArtist } from "../../../apps/web/app/lib/parsing";
 
 env.allowLocalModels = false;
 
@@ -50,15 +51,6 @@ function dot(a: Float32Array, b: Float32Array): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
   return sum;
-}
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try {
-    return JSON.parse(json)[0]?.name || "Okänd konstnär";
-  } catch {
-    return "Okänd konstnär";
-  }
 }
 
 function slugify(input: string): string {

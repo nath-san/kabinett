@@ -1,6 +1,7 @@
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
+import { parseArtist } from "./parsing";
 import {
   AutoTokenizer,
   CLIPTextModelWithProjection,
@@ -143,12 +144,6 @@ let embeddingCache: CachedEmbedding[] | null = null;
 let embeddingCachePromise: Promise<CachedEmbedding[]> | null = null;
 let embeddingCacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000;
-
-function parseArtist(json: string | null): string {
-  if (!json) return "Okänd konstnär";
-  try { return JSON.parse(json)[0]?.name || "Okänd konstnär"; }
-  catch { return "Okänd konstnär"; }
-}
 
 function normalize(vec: Float32Array): Float32Array {
   let sum = 0;

@@ -47,7 +47,15 @@ export function meta({ data }: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
-  const slug = decodeURIComponent(params.name || "");
+  let slug = "";
+  try {
+    slug = decodeURIComponent(params.name || "");
+  } catch (error) {
+    if (error instanceof URIError) {
+      throw new Response("Ogiltig URL-kodning", { status: 400 });
+    }
+    throw error;
+  }
   const db = getDb();
   const sourceA = sourceFilter("a");
 

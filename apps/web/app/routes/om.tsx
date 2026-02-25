@@ -1,6 +1,7 @@
 import type { Route } from "./+types/om";
 import { getDb } from "../lib/db.server";
-import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
+import { sourceFilter } from "../lib/museums.server";
+import { getSiteStats } from "../lib/stats.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -16,26 +17,15 @@ export function meta() {
   ];
 }
 
-type MuseumLink = { id: string; name: string };
-
 export async function loader() {
   const db = getDb();
-  const enabledMuseums = getEnabledMuseums();
-  const source = sourceFilter();
   const sourceA = sourceFilter("a");
-
+  const siteStats = getSiteStats(db);
   const stats = {
-    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c as number,
-    museums: (db.prepare(`
-      SELECT COUNT(*) as c FROM (
-        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
-        FROM artworks a
-        LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
-      )
-    `).get(...sourceA.params) as any).c as number,
-    minYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null,
-    maxYear: (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null,
+    totalWorks: siteStats.totalWorks,
+    museums: siteStats.museums,
+    minYear: siteStats.minYear,
+    maxYear: siteStats.maxYear,
   };
 
   const collections = db.prepare(`

@@ -7,33 +7,10 @@ import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
-import type Database from "better-sqlite3";
+import { getCachedSiteStats } from "../lib/stats.server";
 
 function serializeJsonLd(value: unknown): string {
   return JSON.stringify(value).replace(/<\//g, "\\u003C/");
-}
-
-let _statsCache: { total: number; museums: number; paintings: number; yearsSpan: number } | null = null;
-function getCachedStats(db: Database.Database) {
-  if (_statsCache) return _statsCache;
-  const source = sourceFilter();
-  const sourceA = sourceFilter("a");
-  const oldestYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
-  const currentYear = new Date().getFullYear();
-  _statsCache = {
-    total: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c,
-    museums: (db.prepare(`
-      SELECT COUNT(*) as c FROM (
-        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
-        FROM artworks a
-        LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
-      )
-    `).get(...sourceA.params) as any).c,
-    paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${source.sql}`).get(...source.params) as any).c,
-    yearsSpan: oldestYear ? Math.max(0, currentYear - oldestYear) : 0,
-  };
-  return _statsCache;
 }
 
 type FeedItem = {
@@ -222,7 +199,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id));
 
   // Stats for the collection card (cached in memory — read-only DB, never changes between deploys)
-  const stats = getCachedStats(db);
+  const siteStats = getCachedSiteStats(db);
+  const stats = {
+    total: siteStats.totalWorks,
+    museums: siteStats.museums,
+    paintings: siteStats.paintings,
+    yearsSpan: siteStats.yearsSpan,
+  };
 
   return {
     initialItems: [...curated, ...restItems],
