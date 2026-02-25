@@ -206,19 +206,20 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     similar = db
       .prepare(
         `SELECT
-           v.artwork_id AS id,
+           map.artwork_id AS id,
            a.title_sv,
            a.iiif_url,
            a.dominant_color,
            a.artists,
            a.dating_text
          FROM vec_artworks v
-         JOIN artworks a ON a.id = v.artwork_id
+         JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
+         JOIN artworks a ON a.id = map.artwork_id
          WHERE v.embedding MATCH (
              SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
            )
            AND k = ?
-           AND v.artwork_id != ?
+           AND map.artwork_id != ?
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${source.sql}
          ORDER BY v.distance
