@@ -20,6 +20,7 @@ type Collection = {
   title: string;
   subtitle: string;
   query: string;
+  imageId?: number;
   imageUrl?: string;
   imageTitle?: string;
   imageArtist?: string;
@@ -42,18 +43,18 @@ type MuseumSummary = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga" },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng" },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö" },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros" },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur" },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt" },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg" },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus" },
-  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is" },
-  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt" },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke" },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad" },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörk natt skugga", imageId: 24664 },
+  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "ljus sommar äng", imageId: 20993 },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm sjö", imageId: 17939 },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", imageId: 17457 },
+  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "häst hund fågel djur", imageId: 15877 },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", imageId: 17096 },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageId: 15900 },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna venus", imageId: 17313 },
+  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageId: 18895 },
+  { title: "Naket", subtitle: "Kroppen i konsten", query: "naken akt", imageId: 218432 },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageId: 16051 },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "kyrka slott byggnad", imageId: 15506 },
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
@@ -72,20 +73,28 @@ export async function loader() {
 
   // Collection images
   const collections = COLLECTIONS.map((c, index) => {
-    const terms = c.query.split(" ").join(" OR ");
     try {
-      const rows = db.prepare(`
-        SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts
-        JOIN artworks a ON a.id = artworks_fts.rowid
-        WHERE artworks_fts MATCH ?
-          AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
-          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-          AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
-          AND ${sourceA.sql}
-        ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
-        LIMIT 1
-      `).all(terms, ...sourceA.params, randomSeed + index) as any[];
-      const row = rows[0];
+      let row: any;
+      if (c.imageId) {
+        row = db.prepare(
+          `SELECT iiif_url, dominant_color, title_sv, title_en, artists FROM artworks WHERE id = ?`
+        ).get(c.imageId);
+      }
+      if (!row) {
+        const terms = c.query.split(" ").join(" OR ");
+        const rows = db.prepare(`
+          SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts
+          JOIN artworks a ON a.id = artworks_fts.rowid
+          WHERE artworks_fts MATCH ?
+            AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+            AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
+            AND ${sourceA.sql}
+          ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+          LIMIT 1
+        `).all(terms, ...sourceA.params, randomSeed + index) as any[];
+        row = rows[0];
+      }
       return {
         ...c,
         imageUrl: row?.iiif_url ? buildImageUrl(row.iiif_url, 400) : undefined,
