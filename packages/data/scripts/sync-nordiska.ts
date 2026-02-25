@@ -27,6 +27,7 @@ const DB_PATH = resolve(__dirname, "../kabinett.db");
 
 const API_BASE = "https://kulturarvsdata.se/ksamsok/api";
 const HITS_PER_PAGE = 500;
+const PAGE_CONCURRENCY = 5;
 const QUERY = "serviceOrganization=nomu AND thumbnailExists=j";
 const LIMIT_ARG = process.argv.find((arg) => arg.startsWith("--limit="));
 const MAX_ITEMS = LIMIT_ARG ? Math.max(0, parseInt(LIMIT_ARG.split("=")[1] || "0", 10)) : Number.POSITIVE_INFINITY;
@@ -72,6 +73,21 @@ async function fetchPage(startRecord: number) {
   if (!res.ok) throw new Error(`K-samsök error ${res.status}`);
   const text = await res.text();
   return parser.parse(text);
+}
+
+async function pMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: number): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await fn(items[current]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 }
 
 function extractImageUrl(entity: any): string | null {
@@ -130,30 +146,20 @@ function parseEntity(entity: any) {
   };
 }
 
-async function main() {
-  let startRecord = 1;
-  let totalHits = Infinity;
-  let processed = 0;
-  let skipped = 0;
-
-  console.log(`Synkar Nordiska museet via K-samsök (limit: ${MAX_ITEMS === Infinity ? "alla" : MAX_ITEMS})…`);
-
-  while (startRecord <= totalHits && processed < MAX_ITEMS) {
-    const parsed = await fetchPage(startRecord);
-
-    if (totalHits === Infinity) {
-      const th = getText(findFirst(parsed, "totalHits"));
-      totalHits = parseInt(th, 10) || 0;
-      console.log(`Totalt ${totalHits.toLocaleString()} poster`);
-    }
-
-    const entities = findAll(parsed, "Entity");
-    if (entities.length === 0) break;
-
+function processPage(
+  entities: any[],
+  processed: number,
+  skipped: number,
+  maxItems: number,
+): { processed: number; skipped: number } {
+  const insertBatch = db.transaction(() => {
     for (const entity of entities) {
-      if (processed >= MAX_ITEMS) break;
+      if (processed >= maxItems) break;
       const item = parseEntity(entity);
-      if (!item) { skipped++; continue; }
+      if (!item) {
+        skipped++;
+        continue;
+      }
 
       upsert.run(
         item.id,
@@ -167,9 +173,58 @@ async function main() {
       );
       processed++;
     }
+  });
 
+  insertBatch();
+  return { processed, skipped };
+}
+
+async function main() {
+  let totalHits = 0;
+  let processed = 0;
+  let skipped = 0;
+
+  console.log(`Synkar Nordiska museet via K-samsök (sidkonkurrens: ${PAGE_CONCURRENCY}, limit: ${MAX_ITEMS === Infinity ? "alla" : MAX_ITEMS})…`);
+
+  const firstStartRecord = 1;
+  const firstPage = await fetchPage(firstStartRecord);
+  const th = getText(findFirst(firstPage, "totalHits"));
+  totalHits = parseInt(th, 10) || 0;
+  console.log(`Totalt ${totalHits.toLocaleString()} poster`);
+
+  const firstEntities = findAll(firstPage, "Entity");
+  if (firstEntities.length > 0) {
+    ({ processed, skipped } = processPage(firstEntities, processed, skipped, MAX_ITEMS));
+    console.log(`  ${processed.toLocaleString()} synkade, ${skipped} skippade (@ ${firstStartRecord.toLocaleString()} / ${totalHits.toLocaleString()})`);
+  }
+
+  if (processed >= MAX_ITEMS) {
+    console.log(`\nKlar — synkade ${processed.toLocaleString()} objekt från Nordiska museet (${skipped} skippade)`);
+    return;
+  }
+
+  const remainingStartRecords: number[] = [];
+  for (let startRecord = firstStartRecord + HITS_PER_PAGE; startRecord <= totalHits; startRecord += HITS_PER_PAGE) {
+    remainingStartRecords.push(startRecord);
+  }
+
+  const cappedStartRecords = Number.isFinite(MAX_ITEMS)
+    ? remainingStartRecords.slice(0, Math.ceil((MAX_ITEMS - processed) / HITS_PER_PAGE))
+    : remainingStartRecords;
+
+  const remainingPages = await pMap(cappedStartRecords, (startRecord) => fetchPage(startRecord), PAGE_CONCURRENCY);
+
+  for (let index = 0; index < remainingPages.length; index++) {
+    if (processed >= MAX_ITEMS) break;
+
+    const parsed = remainingPages[index];
+    const entities = findAll(parsed, "Entity");
+    if (entities.length === 0) continue;
+
+    ({ processed, skipped } = processPage(entities, processed, skipped, MAX_ITEMS));
+
+    const startRecord = cappedStartRecords[index];
     console.log(`  ${processed.toLocaleString()} synkade, ${skipped} skippade (@ ${startRecord.toLocaleString()} / ${totalHits.toLocaleString()})`);
-    startRecord += HITS_PER_PAGE;
   }
 
   console.log(`\nKlar — synkade ${processed.toLocaleString()} objekt från Nordiska museet (${skipped} skippade)`);
