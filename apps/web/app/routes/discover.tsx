@@ -43,18 +43,18 @@ type MuseumSummary = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", imageIds: [24664, 20450, 15634] },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", imageIds: [20993, 20523, 23027] },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", imageIds: [17939, 17176, 17567, 18218, 21087] },
-  { title: "Blommor", subtitle: "Natur i närbild", imageIds: [17457, 17458, 18106, 154102, 18360] },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", imageIds: [15877, 14792, 18888, 19063, 17875] },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", imageIds: [17096, 17115, 18148, 17412, 18762] },
-  { title: "Landskap", subtitle: "Skog, berg och dal", imageIds: [15900, 17076, 17107, 17110, 17112] },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", imageIds: [17313, 17387, 17773, 17613, 15488] },
-  { title: "Vinter", subtitle: "Snö och is", imageIds: [18895, 19942, 20431, 21900, 23019] },
-  { title: "Stilleben", subtitle: "Vardagens poesi", imageIds: [17457, 18106, 18360, 18403] },
-  { title: "Barn", subtitle: "Barndomens porträtt", imageIds: [16051, 17093, 17587, 17994, 18123] },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", imageIds: [15506, 15482, 17539, 17958, 14754] },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "natt mörker skugga", imageIds: [24664, 20450, 15634] },
+  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "sommar äng solsken", imageIds: [20993, 20523, 23027] },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "hav storm vågor", imageIds: [17939, 17176, 17567, 18218, 21087] },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor bukett ros", imageIds: [17457, 17458, 18106, 154102, 18360] },
+  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "djur häst hund fågel", imageIds: [15877, 14792, 18888, 19063, 17875] },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt ansikte", imageIds: [17096, 17115, 18148, 17412, 18762] },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog berg", imageIds: [15900, 17076, 17107, 17110, 17112] },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "venus gudinna amor", imageIds: [17313, 17387, 17773, 17613, 15488] },
+  { title: "Vinter", subtitle: "Snö och is", query: "vinter snö is", imageIds: [18895, 19942, 20431, 21900, 23019] },
+  { title: "Stilleben", subtitle: "Vardagens poesi", query: "stilleben frukt", imageIds: [17457, 18106, 18360, 18403] },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn flicka pojke", imageIds: [16051, 17093, 17587, 17994, 18123] },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott kyrka byggnad", imageIds: [15506, 15482, 17539, 17958, 14754] },
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
