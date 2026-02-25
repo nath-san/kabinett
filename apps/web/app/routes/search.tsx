@@ -321,8 +321,8 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
   }, []);
 
   return (
-    <>
-      <form ref={formRef} action="/search" method="get" className="mt-4">
+    <div className="relative mt-4">
+      <form ref={formRef} action="/search" method="get">
         <div className="flex gap-2">
           {museum && <input type="hidden" name="museum" value={museum} />}
           <label htmlFor="search-input" className="sr-only">Sök</label>
@@ -347,9 +347,9 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
         onPointerDown={handleDropdownClick}
         onKeyDown={handleDropdownKeyDown}
         role="listbox"
-        className="hidden mt-1 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
+        className="hidden absolute left-0 right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
       />
-    </>
+    </div>
   );
 }
 
