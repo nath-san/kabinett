@@ -43,7 +43,16 @@ type StatsCard = {
   yearsSpan: number;
 };
 type ArtCard = { type: "art"; item: FeedItem };
-type FeedEntry = ArtCard | ThemeSection | StatsCard;
+type SpotlightCardEntry = {
+  type: "spotlight";
+  artistName: string;
+  items: FeedItem[];
+};
+type WalkPromoCardEntry = {
+  type: "walkPromo";
+};
+type CardVariant = "large" | "medium" | "small";
+type FeedEntry = ArtCard | ThemeSection | StatsCard | SpotlightCardEntry | WalkPromoCardEntry;
 
 const THEMES = [
   { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D" },
@@ -207,6 +216,49 @@ export async function loader({ request }: Route.LoaderArgs) {
     yearsSpan: siteStats.yearsSpan,
   };
 
+  const topArtists = db.prepare(
+    `SELECT artists, COUNT(*) as cnt
+     FROM artworks
+     WHERE artists IS NOT NULL
+       AND artists != ''
+       AND artists != '[]'
+       AND artists != '[null]'
+       AND artists NOT LIKE '%Okänd%'
+       AND artists NOT LIKE '%okänd%'
+       AND ${sourceA.sql}
+     GROUP BY artists
+     ORDER BY cnt DESC
+     LIMIT 20`
+  ).all(...sourceA.params) as Array<{ artists: string | null }>;
+
+  let spotlight: { artistName: string; items: FeedItem[] } | null = null;
+  if (topArtists.length > 0) {
+    const pickedArtist = topArtists[Math.floor(Math.random() * topArtists.length)]?.artists;
+    if (pickedArtist) {
+      const spotlightRows = db.prepare(
+        `SELECT a.id, a.title_sv, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                COALESCE(a.sub_museum, m.name) as museum_name
+         FROM artworks a
+         LEFT JOIN museums m ON m.id = a.source
+         WHERE a.artists = ?
+           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceA.sql}
+         ORDER BY RANDOM()
+         LIMIT 5`
+      ).all(pickedArtist, ...sourceA.params) as Omit<FeedItem, "imageUrl">[];
+
+      if (spotlightRows.length > 0) {
+        spotlight = {
+          artistName: parseArtist(pickedArtist),
+          items: spotlightRows.map((row) => ({
+            ...row,
+            imageUrl: buildImageUrl(row.iiif_url, 200),
+          })),
+        };
+      }
+    }
+  }
+
   return {
     initialItems: [...curated, ...restItems],
     initialCursor: initial.nextCursor,
@@ -214,10 +266,18 @@ export async function loader({ request }: Route.LoaderArgs) {
     firstTheme: { ...firstTheme, items: themeItems.items },
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
+    spotlight,
     ogImageUrl,
     canonicalUrl,
     origin: url.origin,
   };
+}
+
+function getCardVariant(positionInFeed: number): CardVariant {
+  const positionInPattern = positionInFeed % 14;
+  if (positionInPattern === 0 || positionInPattern === 7) return "large";
+  if (positionInPattern === 4 || positionInPattern === 11) return "medium";
+  return "small";
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
@@ -236,21 +296,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [feed, setFeed] = useState<FeedEntry[]>(() => {
     const entries: FeedEntry[] = [];
     const initial = loaderData.initialItems;
-    // First 6 artworks (fills 2 rows of 3 on desktop), then theme, then rest
-    for (let i = 0; i < Math.min(6, initial.length); i++) {
+    for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
+      if (i === 5 && loaderData.firstTheme.items.length > 0) {
+        entries.push({ type: "theme", ...loaderData.firstTheme });
+        entries.push({ type: "walkPromo" });
+      }
+      if (i === 8) {
+        entries.push({ type: "stats", ...loaderData.stats });
+      }
+      if (i === 12 && loaderData.spotlight) {
+        entries.push({ type: "spotlight", ...loaderData.spotlight });
+      }
     }
-    if (loaderData.firstTheme.items.length > 0) {
+
+    if (initial.length <= 8) {
+      entries.push({ type: "stats", ...loaderData.stats });
+    }
+
+    if (loaderData.firstTheme.items.length > 0 && !entries.some((entry) => entry.type === "theme")) {
       entries.push({ type: "theme", ...loaderData.firstTheme });
+      entries.push({ type: "walkPromo" });
     }
-    // Add more artworks then stats (9 = 3 rows of 3)
-    for (let i = 6; i < Math.min(9, initial.length); i++) {
-      entries.push({ type: "art", item: initial[i] });
+
+    if (initial.length <= 12 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {
+      entries.push({ type: "spotlight", ...loaderData.spotlight });
     }
-    entries.push({ type: "stats", ...loaderData.stats });
-    for (let i = 9; i < initial.length; i++) {
-      entries.push({ type: "art", item: initial[i] });
-    }
+
     return entries;
   });
 
@@ -352,19 +424,53 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
-          {feed.map((entry, i) =>
-            entry.type === "art" ? (
-              <ArtworkCard key={`art-${entry.item.id}-${i}`} item={entry.item} index={i} showMuseumBadge={loaderData.showMuseumBadge} />
-            ) : entry.type === "stats" ? (
-              <div key="stats" className="lg:col-span-3">
-                <StatsSection stats={entry} />
-              </div>
-            ) : (
-              <div key={`theme-${entry.title}-${i}`} className="lg:col-span-3">
-                <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
-              </div>
-            )
-          )}
+          {(() => {
+            let artPosition = -1;
+            return feed.map((entry, i) => {
+              if (entry.type === "art") {
+                artPosition += 1;
+                return (
+                  <ArtworkCard
+                    key={`art-${entry.item.id}-${i}`}
+                    item={entry.item}
+                    index={artPosition}
+                    variant={getCardVariant(artPosition)}
+                    showMuseumBadge={loaderData.showMuseumBadge}
+                  />
+                );
+              }
+
+              if (entry.type === "stats") {
+                return (
+                  <div key="stats" className="lg:col-span-3">
+                    <StatsSection stats={entry} />
+                  </div>
+                );
+              }
+
+              if (entry.type === "spotlight") {
+                return (
+                  <div key={`spotlight-${entry.artistName}-${i}`} className="lg:col-span-3">
+                    <SpotlightCard spotlight={entry} />
+                  </div>
+                );
+              }
+
+              if (entry.type === "walkPromo") {
+                return (
+                  <div key={`walks-${i}`} className="lg:col-span-3">
+                    <WalkPromoCard />
+                  </div>
+                );
+              }
+
+              return (
+                <div key={`theme-${entry.title}-${i}`} className="lg:col-span-3">
+                  <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
+                </div>
+              );
+            });
+          })()}
         </div>
         <div ref={sentinelRef} className="h-px" />
         {loading && (
@@ -382,15 +488,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   );
 }
 
-const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBadge }: { item: FeedItem; index: number; showMuseumBadge: boolean }) {
+const ArtworkCard = React.memo(function ArtworkCard({
+  item,
+  index,
+  variant = "small",
+  showMuseumBadge,
+}: {
+  item: FeedItem;
+  index: number;
+  variant?: CardVariant;
+  showMuseumBadge: boolean;
+}) {
   const eager = index < 3;
   const { isFavorite, toggle } = useFavorites();
   const saved = isFavorite(item.id);
   const [pulsing, setPulsing] = useState(false);
+  const variantClass = variant === "large"
+    ? "lg:col-span-2 lg:aspect-[3/2] lg:max-h-[32rem]"
+    : variant === "medium"
+      ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[20rem]"
+      : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[32rem]";
+
+  // Mobile: large = full screen, medium = shorter/cinematic, small = 75vh
+  const mobileHeight = variant === "large"
+    ? "h-[100vh] md:h-[85vh]"
+    : variant === "medium"
+      ? "h-[60vh] md:h-[50vh]"
+      : "h-[75vh] md:h-[70vh]";
+
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full h-[100vh] md:h-[85vh] lg:h-auto lg:aspect-[3/4] lg:max-h-[32rem] no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card focus-ring ${index === 0 ? "lg:col-span-2 lg:aspect-[3/2]" : ""}`}
+      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card focus-ring ${variantClass}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -452,6 +581,68 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
     </a>
   );
 });
+
+function SpotlightCard({ spotlight }: { spotlight: SpotlightCardEntry }) {
+  return (
+    <section className="bg-[#1E1D1A] rounded-none lg:rounded-[1.5rem] px-4 py-6 md:px-6 md:py-7 lg:px-8 lg:py-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+      <div className="lg:max-w-[24rem]">
+        <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.45)]">Konstnär i fokus</p>
+        <h2 className="font-serif text-[2rem] md:text-[2.2rem] text-[#F5F0E8] leading-[1.05] mt-2">
+          {spotlight.artistName}
+        </h2>
+        <a
+          href={`/search?q=${encodeURIComponent(spotlight.artistName)}`}
+          className="inline-block mt-4 text-[0.8rem] tracking-[0.02em] text-[rgba(245,240,232,0.75)] no-underline focus-ring"
+        >
+          Utforska konstnären →
+        </a>
+      </div>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+        {spotlight.items.map((item) => (
+          <a
+            key={item.id}
+            href={`/artwork/${item.id}`}
+            className="shrink-0 w-[7.5rem] h-[7.5rem] rounded-lg overflow-hidden block focus-ring"
+            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
+          >
+            <img
+              src={item.imageUrl}
+              alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
+              loading="lazy"
+              width={120}
+              height={120}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                img.classList.remove("opacity-0");
+                img.classList.add("opacity-100");
+              }}
+              onError={(e) => {
+                e.currentTarget.classList.add("is-broken");
+              }}
+              className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
+            />
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WalkPromoCard() {
+  return (
+    <section className="bg-[#2B2A27] rounded-none lg:rounded-[1.5rem] px-6 py-8 md:px-8 md:py-9 lg:px-10 lg:py-10">
+      <p className="font-serif text-[1.9rem] md:text-[2.2rem] text-[#F5F0E8] leading-[1.1]">
+        Upptäck konstvandringar
+      </p>
+      <p className="mt-2 text-[0.85rem] text-[rgba(245,240,232,0.65)]">
+        Curaterade resor genom samlingarna
+      </p>
+      <a href="/walks" className="inline-block mt-5 text-[0.76rem] tracking-[0.08em] uppercase text-[rgba(245,240,232,0.8)] no-underline focus-ring">
+        Till vandringarna →
+      </a>
+    </section>
+  );
+}
 
 function StatsSection({ stats }: { stats: StatsCard }) {
   const items = [
