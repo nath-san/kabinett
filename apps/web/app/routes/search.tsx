@@ -58,7 +58,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     .trim()
     .slice(0, 140);
   const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
-  const label = url.searchParams.get("label")?.trim().slice(0, 60) || "";
   const db = getDb();
   const sourceA = sourceFilter("a");
   const enabledMuseums = getEnabledMuseums();
@@ -396,8 +395,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     searchMode,
     cursor: initialCursor,
   } = loaderData;
-  const label = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("label") || "" : "";
-  const displayQuery = label || query;
+  const displayQuery = query;
   const [results, setResults] = useState<SearchResult[]>(initialResults as SearchResult[]);
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
@@ -470,8 +468,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-3xl font-bold text-charcoal">{label || "Sök"}</h1>
-        <AutocompleteSearch defaultValue={label || query} museum={museum || undefined} />
+        <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
+        <AutocompleteSearch defaultValue={query} museum={museum || undefined} />
 
         {showMuseumFilters && (
           <div className="mt-4">
