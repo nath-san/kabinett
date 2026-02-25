@@ -19,6 +19,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router": "7.12.0",
+    "sharp": "^0.33.5",
     "sqlite-vec": "0.1.7-alpha.2"
   },
   "devDependencies": {
