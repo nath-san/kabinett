@@ -147,7 +147,15 @@ export function meta({ data }: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
-  const name = decodeURIComponent(params.name || "").trim();
+  let name = "";
+  try {
+    name = decodeURIComponent(params.name || "").trim();
+  } catch (error) {
+    if (error instanceof URIError) {
+      throw new Response("Ogiltig URL-kodning", { status: 400 });
+    }
+    throw error;
+  }
   if (!name) throw new Response("Saknar namn", { status: 400 });
 
   const db = getDb();
