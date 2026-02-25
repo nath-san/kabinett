@@ -4,6 +4,19 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 
+type FeaturedRow = {
+  id: number;
+  title_sv: string | null;
+  title_en: string | null;
+  iiif_url: string;
+  dominant_color: string | null;
+  artists: string | null;
+  dating_text: string | null;
+};
+
+const FEATURED_CACHE_TTL_MS = 60 * 1000;
+const collectionFeaturedCache = new Map<string, { expiresAt: number; rows: FeaturedRow[] }>();
+
 function formatRange(minYear: number | null, maxYear: number | null): string {
   if (!minYear || !maxYear) return "Okänt";
   if (minYear === maxYear) return String(minYear);
@@ -36,18 +49,19 @@ export function meta({ data }: Route.MetaArgs) {
 export async function loader({ params }: Route.LoaderArgs) {
   const slug = decodeURIComponent(params.name || "");
   const db = getDb();
+  const sourceA = sourceFilter("a");
 
   // Find the collection — match sub_museum or museum name
   const check = db.prepare(`
     SELECT COUNT(*) as c FROM artworks a
     LEFT JOIN museums m ON m.id = a.source
-    WHERE ${sourceFilter("a")}
+    WHERE ${sourceA.sql}
       AND (a.sub_museum = ? OR (a.sub_museum IS NULL AND m.name = ?))
-  `).get(slug, slug) as any;
+  `).get(...sourceA.params, slug, slug) as any;
 
   if (!check || check.c === 0) throw new Response("Inte hittat", { status: 404 });
 
-  const whereClause = `${sourceFilter("a")} AND (a.sub_museum = ? OR (a.sub_museum IS NULL AND m.name = ?))`;
+  const whereClause = `${sourceA.sql} AND (a.sub_museum = ? OR (a.sub_museum IS NULL AND m.name = ?))`;
 
   const totalWorks = check.c as number;
 
@@ -55,14 +69,14 @@ export async function loader({ params }: Route.LoaderArgs) {
     SELECT MIN(a.year_start) as minYear, MAX(COALESCE(a.year_end, a.year_start)) as maxYear
     FROM artworks a LEFT JOIN museums m ON m.id = a.source
     WHERE ${whereClause} AND a.year_start > 0
-  `).get(slug, slug) as { minYear: number | null; maxYear: number | null };
+  `).get(...sourceA.params, slug, slug) as { minYear: number | null; maxYear: number | null };
 
   const rawCategories = db.prepare(`
     SELECT a.category, COUNT(*) as c
     FROM artworks a LEFT JOIN museums m ON m.id = a.source
     WHERE ${whereClause} AND a.category IS NOT NULL AND a.category != ''
     GROUP BY a.category
-  `).all(slug, slug) as Array<{ category: string; c: number }>;
+  `).all(...sourceA.params, slug, slug) as Array<{ category: string; c: number }>;
 
   const categoryMap = new Map<string, number>();
   for (const row of rawCategories) {
@@ -75,14 +89,26 @@ export async function loader({ params }: Route.LoaderArgs) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  const featuredRows = db.prepare(`
-    SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
-    FROM artworks a LEFT JOIN museums m ON m.id = a.source
-    WHERE ${whereClause}
-      AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
-      AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-    ORDER BY RANDOM() LIMIT 8
-  `).all(slug, slug) as any[];
+  const now = Date.now();
+  const cachedFeatured = collectionFeaturedCache.get(slug);
+  const featuredRows = cachedFeatured && cachedFeatured.expiresAt > now
+    ? cachedFeatured.rows
+    : (db.prepare(`
+        SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
+        FROM artworks a LEFT JOIN museums m ON m.id = a.source
+        WHERE ${whereClause}
+          AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+        ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
+        LIMIT 8
+      `).all(...sourceA.params, slug, slug, Math.floor(now / 60_000)) as FeaturedRow[]);
+
+  if (!cachedFeatured || cachedFeatured.expiresAt <= now) {
+    collectionFeaturedCache.set(slug, {
+      expiresAt: now + FEATURED_CACHE_TTL_MS,
+      rows: featuredRows,
+    });
+  }
 
   const featured = featuredRows.map((row: any) => ({
     id: row.id,

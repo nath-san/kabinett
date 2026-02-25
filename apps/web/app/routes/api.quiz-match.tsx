@@ -4,15 +4,6 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { formatDimensions, parseArtist } from "../lib/parsing";
 
-function parseSize(dimensions: string): number | null {
-  if (!dimensions) return null;
-  const nums = dimensions.match(/\d+[\.,]?\d*/g);
-  if (!nums) return null;
-  const values = nums.map((n) => parseFloat(n.replace(",", "."))).filter((n) => !Number.isNaN(n));
-  if (values.length === 0) return null;
-  return Math.max(...values);
-}
-
 function parseHexColor(hex: string) {
   const cleaned = hex.replace("#", "");
   if (cleaned.length !== 6) return null;
@@ -39,9 +30,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const size = url.searchParams.get("size") || "";
 
   const db = getDb();
+  const source = sourceFilter();
+  const randomSeed = Math.floor(Date.now() / 60_000);
 
   let where = `iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40 AND id NOT IN (SELECT artwork_id FROM broken_images)
-               AND ${sourceFilter()}`;
+               AND ${source.sql}`;
   const params: Array<string | number> = [];
 
   if (epoch && EPOCHS[epoch]) {
@@ -78,11 +71,41 @@ export async function loader({ request }: LoaderFunctionArgs) {
     where += " AND (max(color_r, color_g, color_b) - min(color_r, color_g, color_b)) < 55";
   }
 
-  let order = "ORDER BY RANDOM()";
+  if (size === "large") {
+    where += `
+      AND dimensions_json IS NOT NULL
+      AND json_valid(dimensions_json)
+      AND EXISTS (
+        SELECT 1
+        FROM json_each(dimensions_json) d
+        WHERE max(
+          CAST(replace(COALESCE(json_extract(d.value, '$.width'), json_extract(d.value, '$.bredd'), json_extract(d.value, '$.W'), '0'), ',', '.') AS REAL),
+          CAST(replace(COALESCE(json_extract(d.value, '$.height'), json_extract(d.value, '$.hojd'), json_extract(d.value, '$.H'), '0'), ',', '.') AS REAL)
+        ) >= 80
+      )`;
+  }
+
+  if (size === "small") {
+    where += `
+      AND dimensions_json IS NOT NULL
+      AND json_valid(dimensions_json)
+      AND EXISTS (
+        SELECT 1
+        FROM json_each(dimensions_json) d
+        WHERE max(
+          CAST(replace(COALESCE(json_extract(d.value, '$.width'), json_extract(d.value, '$.bredd'), json_extract(d.value, '$.W'), '0'), ',', '.') AS REAL),
+          CAST(replace(COALESCE(json_extract(d.value, '$.height'), json_extract(d.value, '$.hojd'), json_extract(d.value, '$.H'), '0'), ',', '.') AS REAL)
+        ) BETWEEN 1 AND 40
+      )`;
+  }
+
+  let order = "ORDER BY ((rowid * 1103515245 + ?) & 2147483647)";
+  params.push(randomSeed);
   const colorRgb = parseHexColor(color);
   if (colorRgb) {
     order =
       "ORDER BY ((color_r - ?) * (color_r - ?) + (color_g - ?) * (color_g - ?) + (color_b - ?) * (color_b - ?)) ASC";
+    params.pop();
     params.push(colorRgb.r, colorRgb.r, colorRgb.g, colorRgb.g, colorRgb.b, colorRgb.b);
   }
 
@@ -94,29 +117,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
        ${order}
        LIMIT 80`
     )
-    .all(...params) as any[];
+    .all(...source.params, ...params) as any[];
 
   if (rows.length === 0) {
     return Response.json({ result: null });
   }
 
-  let candidates = rows.map((r) => ({
-    row: r,
-    dimensions: formatDimensions(r.dimensions_json),
-  }));
-
-  if (size) {
-    const wanted = size === "large" ? "large" : "small";
-    const filtered = candidates.filter((c) => {
-      const maxDim = parseSize(c.dimensions || "");
-      if (!maxDim) return false;
-      return wanted === "large" ? maxDim >= 80 : maxDim <= 40;
-    });
-    if (filtered.length > 0) candidates = filtered;
-  }
-
-  const picked = candidates[0];
-  const r = picked.row;
+  const picked = rows[0];
+  const r = picked;
   return Response.json({
     result: {
       id: r.id,
@@ -126,7 +134,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       color: r.dominant_color || "#D4CDC3",
       year: r.dating_text || r.year_start || "",
       technique: r.technique_material || "",
-      dimensions: picked.dimensions,
+      dimensions: formatDimensions(r.dimensions_json),
     },
   });
 }

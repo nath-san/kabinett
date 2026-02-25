@@ -185,15 +185,16 @@ async function loadEmbeddingCache(): Promise<CachedEmbedding[]> {
 
   embeddingCachePromise = (async () => {
     const db = getDb();
+    const sourceA = sourceFilter("a");
     const rows = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               a.source, m.name as museum_name, c.embedding
        FROM clip_embeddings c
        JOIN artworks a ON a.id = c.artwork_id
        LEFT JOIN museums m ON m.id = a.source
-       WHERE ${sourceFilter("a")}
+       WHERE ${sourceA.sql}
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)`
-    ).all() as any[];
+    ).all(...sourceA.params) as any[];
 
     const mapped = rows.map((r) => {
       const buffer: Buffer = r.embedding;

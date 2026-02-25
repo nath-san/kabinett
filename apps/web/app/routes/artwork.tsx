@@ -129,14 +129,16 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const db = getDb();
+  const source = sourceFilter();
+  const sourceA = sourceFilter("a");
   const row = db
     .prepare(
       `SELECT a.*, m.name as museum_name, m.url as museum_url
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
-       WHERE a.id = ? AND ${sourceFilter("a")}`
+       WHERE a.id = ? AND ${sourceA.sql}`
     )
-    .get(artworkId) as (ArtworkRow & { museum_name: string | null; museum_url: string | null }) | undefined;
+    .get(artworkId, ...sourceA.params) as (ArtworkRow & { museum_name: string | null; museum_url: string | null }) | undefined;
 
   if (!row) throw new Response("Inte hittat", { status: 404 });
 
@@ -217,8 +219,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
              FROM artworks
              WHERE id IN (${topIds.map(() => "?").join(",")})
                AND id NOT IN (SELECT artwork_id FROM broken_images)
-               AND ${sourceFilter()}`)
-          .all(...topIds) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
+               AND ${source.sql}`)
+          .all(...topIds, ...source.params) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
         // Preserve similarity order
         const orderMap = new Map(topIds.map((id, i) => [id, i]));
         similar.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
@@ -231,15 +233,17 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   // Same artist
   const artistName = artists[0]?.name;
   const knownArtist = artistName && !artistName.match(/^(okänd|unknown|anonym)/i);
+  const randomSeed = Math.floor(Date.now() / 60_000);
   const sameArtist = knownArtist
     ? (db.prepare(
         `SELECT id, title_sv, iiif_url, dominant_color, dating_text
          FROM artworks
          WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
            AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter()}
-         ORDER BY RANDOM() LIMIT 6`
-      ).all(row.id, `%${artistName}%`) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null }>)
+           AND ${source.sql}
+         ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
+         LIMIT 6`
+      ).all(row.id, `%${artistName}%`, ...source.params, randomSeed) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null }>)
     : [];
 
   return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };

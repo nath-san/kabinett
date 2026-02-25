@@ -77,6 +77,7 @@ export async function fetchFeed(options: {
   filter: string;
 }) {
   const db = getDb();
+  const sourceA = sourceFilter("a");
   const limit = Math.max(1, Math.min(options.limit, 40));
   const filter = options.filter?.trim() || "Alla";
   const cursor = options.cursor ?? null;
@@ -101,7 +102,7 @@ export async function fetchFeed(options: {
              AND a.iiif_url IS NOT NULL
              AND LENGTH(a.iiif_url) > 40
              AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-             AND ${sourceFilter("a")}
+             AND ${sourceA.sql}
          )
          SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material, museum_name
          FROM ranked
@@ -109,7 +110,7 @@ export async function fetchFeed(options: {
          ORDER BY relevance ASC, id DESC
          LIMIT ? OFFSET ?`
       )
-      .all(mood.fts, limit, offset) as FeedItemRow[];
+      .all(mood.fts, ...sourceA.params, limit, offset) as FeedItemRow[];
 
     return {
       items: mapRows(rows),
@@ -123,9 +124,9 @@ export async function fetchFeed(options: {
     "a.iiif_url IS NOT NULL",
     "LENGTH(a.iiif_url) > 40",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
-    sourceFilter("a"),
+    sourceA.sql,
   ];
-  const baseParams: Array<string | number> = [];
+  const baseParams: Array<string | number> = [...sourceA.params];
   const cursorConditions: string[] = [];
   const cursorParams: Array<string | number> = [];
   let mode: "cursor" | "cursor_desc" = "cursor";

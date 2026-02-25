@@ -5,6 +5,20 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 
+const IMAGE_FETCH_TIMEOUT_MS = 5_000;
+const ALLOWED_OG_IMAGE_HOSTS = new Set([
+  "media.nationalmuseum.se",
+  "ems.dimu.org",
+  "media.samlingar.shm.se",
+  "iiif.nationalmuseum.se",
+]);
+
+function isAllowedOgImageHost(hostname: string): boolean {
+  if (ALLOWED_OG_IMAGE_HOSTS.has(hostname)) return true;
+  if (!hostname.includes("iiif")) return false;
+  return hostname.endsWith(".nationalmuseum.se") || hostname.endsWith(".samlingar.shm.se");
+}
+
 function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -26,12 +40,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
   }
 
   const db = getDb();
+  const source = sourceFilter();
   const row = db
     .prepare(
       `SELECT id, title_sv, title_en, artists, iiif_url, dominant_color, dating_text
-       FROM artworks WHERE id = ? AND ${sourceFilter()}`
+       FROM artworks WHERE id = ? AND ${source.sql}`
     )
-    .get(id) as {
+    .get(id, ...source.params) as {
       id: number;
       title_sv: string | null;
       title_en: string | null;
@@ -46,6 +61,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const title = row.title_sv || row.title_en || "Utan titel";
   const artist = parseArtist(row.artists);
   const imageUrl = buildImageUrl(row.iiif_url, 1200);
+  const imageHost = (() => {
+    try {
+      return new URL(imageUrl).hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
 
   let base = sharp({
     create: {
@@ -56,17 +78,23 @@ export async function loader({ params }: LoaderFunctionArgs) {
     },
   });
 
-  try {
-    const response = await fetch(imageUrl);
-    if (response.ok) {
-      const buffer = Buffer.from(await response.arrayBuffer());
-      base = sharp(buffer).resize(1200, 630, {
-        fit: "contain",
-        background: "#0B0A09",
-      });
+  if (imageHost && isAllowedOgImageHost(imageHost)) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(imageUrl, { signal: controller.signal });
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        base = sharp(buffer).resize(1200, 630, {
+          fit: "contain",
+          background: "#0B0A09",
+        });
+      }
+    } catch {
+      // keep fallback background
+    } finally {
+      clearTimeout(timeout);
     }
-  } catch {
-    // keep fallback background
   }
 
   const safeTitle = escapeXml(truncate(title, 72));

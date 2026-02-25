@@ -21,31 +21,33 @@ type MuseumLink = { id: string; name: string };
 export async function loader() {
   const db = getDb();
   const enabledMuseums = getEnabledMuseums();
+  const source = sourceFilter();
+  const sourceA = sourceFilter("a");
 
   const stats = {
-    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${sourceFilter()}`).get() as any).c as number,
+    totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c as number,
     museums: (db.prepare(`
       SELECT COUNT(*) as c FROM (
         SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
         FROM artworks a
         LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceFilter("a")} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
+        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
       )
-    `).get() as any).c as number,
-    minYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null,
-    maxYear: (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${sourceFilter()}`).get() as any).c as number | null,
+    `).get(...sourceA.params) as any).c as number,
+    minYear: (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null,
+    maxYear: (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null,
   };
 
   const collections = db.prepare(`
     SELECT COALESCE(a.sub_museum, m.name) as coll_name, a.source as id, COUNT(*) as cnt
     FROM artworks a
     LEFT JOIN museums m ON m.id = a.source
-    WHERE ${sourceFilter("a")}
+    WHERE ${sourceA.sql}
       AND COALESCE(a.sub_museum, m.name) IS NOT NULL
       AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
     GROUP BY coll_name
     ORDER BY cnt DESC
-  `).all() as Array<{ name: string; id: string; cnt: number }>;
+  `).all(...sourceA.params) as Array<{ name: string; id: string; cnt: number }>;
   const museums = collections.map((row: any) => ({ id: row.id, name: row.coll_name }));
 
   return { stats, museums };

@@ -76,6 +76,24 @@ function getWikidataId(url: string) {
   return match ? match[0].toUpperCase() : "";
 }
 
+const EXTERNAL_FETCH_TIMEOUT_MS = 5_000;
+
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function fetchJsonWithTimeout(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXTERNAL_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
   const data: {
     description?: string;
@@ -88,18 +106,19 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
 
   if (wikidataId) {
     try {
-      const res = await fetch(
+      const json = await fetchJsonWithTimeout(
         `https://www.wikidata.org/wiki/Special:EntityData/${wikidataId}.json`
       );
-      if (res.ok) {
-        const json = await res.json();
+      if (json) {
         const entity = json?.entities?.[wikidataId];
         data.description =
           entity?.descriptions?.sv?.value || entity?.descriptions?.en?.value;
         data.wikiTitle = entity?.sitelinks?.svwiki?.title || "";
       }
     } catch (err) {
-      console.error(err);
+      if (!isTimeoutError(err)) {
+        console.error(err);
+      }
     }
   }
 
@@ -111,18 +130,19 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
 
   if (wikiTitle) {
     try {
-      const res = await fetch(
+      const json = await fetchJsonWithTimeout(
         `https://sv.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
           wikiTitle
         )}`
       );
-      if (res.ok) {
-        const json = await res.json();
+      if (json) {
         data.extract = json?.extract || "";
         data.wikiUrl = json?.content_urls?.desktop?.page || wikipediaUrl;
       }
     } catch (err) {
-      console.error(err);
+      if (!isTimeoutError(err)) {
+        console.error(err);
+      }
     }
   }
 
@@ -151,6 +171,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!name) throw new Response("Saknar namn", { status: 400 });
 
   const db = getDb();
+  const source = sourceFilter();
 
   const rows = db
     .prepare(
@@ -158,15 +179,13 @@ export async function loader({ params }: Route.LoaderArgs) {
        FROM artworks
        WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
          AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter()}
+         AND ${source.sql}
        ORDER BY year_start ASC NULLS LAST`
     )
-    .all(`%${name}%`) as any[];
+    .all(`%${name}%`, ...source.params) as any[];
 
   const total = (
-    db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE artists LIKE ? AND ${sourceFilter()}`).get(
-      `%${name}%`
-    ) as any
+    db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE artists LIKE ? AND ${source.sql}`).get(`%${name}%`, ...source.params) as any
   ).c as number;
 
   let actor: ActorInfo | null = null;
@@ -180,9 +199,9 @@ export async function loader({ params }: Route.LoaderArgs) {
   const fallbackRow = !actor
     ? (db
         .prepare(
-          `SELECT actors_json FROM artworks WHERE artists LIKE ? AND actors_json IS NOT NULL AND ${sourceFilter()} LIMIT 1`
+          `SELECT actors_json FROM artworks WHERE artists LIKE ? AND actors_json IS NOT NULL AND ${source.sql} LIMIT 1`
         )
-        .get(`%${name}%`) as any)
+        .get(`%${name}%`, ...source.params) as any)
     : null;
 
   if (!actor && fallbackRow?.actors_json) {

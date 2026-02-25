@@ -29,6 +29,7 @@ function buildFtsQuery(q: string): string {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  const errorResponse = () => Response.json([], { headers: { "X-Error": "1" } });
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") || "")
     .replace(/[\u0000-\u001F\u007F]/g, "")
@@ -37,7 +38,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const rawLimit = Number.parseInt(url.searchParams.get("limit") || "20", 10);
   const rawOffset = Number.parseInt(url.searchParams.get("offset") || "0", 10);
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 20;
-  const offset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
+  const offset = Number.isFinite(rawOffset) ? Math.min(Math.max(rawOffset, 0), 10_000) : 0;
   const museum = url.searchParams.get("museum")?.trim().toLowerCase() || "";
   const mode = parseMode(url.searchParams.get("mode"));
 
@@ -48,12 +49,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     try {
       const results = await clipSearch(q, limit, offset, scoped);
       return Response.json(results);
-    } catch {
-      return Response.json([]);
+    } catch (err) {
+      console.error(err);
+      return errorResponse();
     }
   }
 
   const db = getDb();
+  const sourceA = sourceFilter("a");
 
   if (mode === "color") {
     const colorTarget = COLOR_TERMS[q.toLowerCase()];
@@ -69,11 +72,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
            AND a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter("a")}
+           AND ${sourceA.sql}
            ${scoped ? "AND a.source = ?" : ""}
          ORDER BY ABS(a.color_r - ?) + ABS(a.color_g - ?) + ABS(a.color_b - ?)
          LIMIT ? OFFSET ?`
       ).all(
+        ...sourceA.params,
         ...(scoped ? [scoped] : []),
         colorTarget.r,
         colorTarget.g,
@@ -83,8 +87,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       ) as any[];
 
       return Response.json(results);
-    } catch {
-      return Response.json([]);
+    } catch (err) {
+      console.error(err);
+      return errorResponse();
     }
   }
 
@@ -102,10 +107,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
          AND a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceFilter("a")}
+         AND ${sourceA.sql}
          ${scoped ? "AND a.source = ?" : ""}
        ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(ftsQuery, ...(scoped ? [scoped] : []), limit, offset) as any[];
+    ).all(ftsQuery, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
 
     return Response.json(results);
   } catch {
@@ -120,14 +125,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
            AND a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceFilter("a")}
+           AND ${sourceA.sql}
            ${scoped ? "AND a.source = ?" : ""}
          LIMIT ? OFFSET ?`
-      ).all(like, like, ...(scoped ? [scoped] : []), limit, offset) as any[];
+      ).all(like, like, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
 
       return Response.json(results);
-    } catch {
-      return Response.json([]);
+    } catch (err) {
+      console.error(err);
+      return errorResponse();
     }
   }
 }

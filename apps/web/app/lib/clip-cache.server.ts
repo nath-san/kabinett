@@ -20,15 +20,16 @@ export async function loadClipCache(): Promise<CachedEmbedding[]> {
 
   cachePromise = (async () => {
     const db = getDb();
+    const sourceA = sourceFilter("a");
     const rows = db
       .prepare(
         `SELECT c.artwork_id, c.embedding
          FROM clip_embeddings c
          JOIN artworks a ON a.id = c.artwork_id
-         WHERE ${sourceFilter("a")}
+         WHERE ${sourceA.sql}
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)`
       )
-      .all() as any[];
+      .all(...sourceA.params) as any[];
 
     const mapped = rows.map((r) => {
       const buf: Buffer = r.embedding;
