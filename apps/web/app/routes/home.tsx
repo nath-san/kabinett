@@ -417,17 +417,12 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
         <p className="font-serif text-[1.5rem] lg:text-[1.7rem] font-semibold text-white leading-[1.2] mb-[0.35rem]">
           {item.title_sv || "Utan titel"}
         </p>
-        <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.6)]">
+        <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.75)]">
           {parseArtist(item.artists)}
         </p>
         {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
-          <p className="text-[0.7rem] text-warm-gray mt-[0.15rem]">
+          <p className="text-[0.75rem] text-[rgba(255,255,255,0.45)] mt-[0.2rem]">
             {item.museum_name}
-          </p>
-        )}
-        {item.dating_text && (
-          <p className="text-[0.75rem] lg:text-[0.8rem] text-[rgba(255,255,255,0.35)] mt-[0.2rem]">
-            {item.dating_text}
           </p>
         )}
       </div>
@@ -546,11 +541,11 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
               <p className="text-[0.8rem] font-medium text-white leading-[1.3] overflow-hidden line-clamp-2">
                 {item.title_sv || "Utan titel"}
               </p>
-              <p className="text-[0.7rem] text-[rgba(255,255,255,0.5)] mt-[0.15rem]">
+              <p className="text-[0.7rem] text-[rgba(255,255,255,0.6)] mt-[0.15rem]">
                 {parseArtist(item.artists)}
               </p>
               {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
-                <p className="text-[0.65rem] text-warm-gray mt-[0.15rem]">
+                <p className="text-[0.65rem] text-[rgba(255,255,255,0.4)] mt-[0.1rem]">
                   {item.museum_name}
                 </p>
               )}
