@@ -3,7 +3,6 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, getMuseumInfo } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
-import Breadcrumb from "../components/Breadcrumb";
 
 function formatRange(minYear: number | null, maxYear: number | null): string {
   if (!minYear || !maxYear) return "Okänt";
@@ -162,13 +161,6 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-16 bg-cream">
       <div className="max-w-5xl mx-auto px-4 lg:px-6">
         <div className="pt-6">
-          <Breadcrumb
-            className="mb-2"
-            items={[
-              { label: "Kabinett", href: "/" },
-              { label: museum.name },
-            ]}
-          />
           <p className="text-[0.7rem] tracking-[0.2em] uppercase text-warm-gray">Museum</p>
           <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0">
             {museum.name}

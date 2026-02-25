@@ -2,7 +2,6 @@ import type { Route } from "./+types/artist";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-import Breadcrumb from "../components/Breadcrumb";
 
 type ActorDate = { date_type?: string; date_earliest?: string | number };
 
@@ -280,13 +279,6 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <Breadcrumb
-          className="mb-2"
-          items={[
-            { label: "Kabinett", href: "/" },
-            { label: artistName },
-          ]}
-        />
         <p className="text-[0.75rem] uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>

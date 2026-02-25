@@ -283,11 +283,10 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
-      <div className="pt-4 px-4 md:px-6 lg:px-8 lg:max-w-5xl lg:mx-auto">
+      <div className="pt-3 px-4 md:px-6 lg:px-8 max-w-3xl mx-auto">
         <Breadcrumb
           className="mb-2"
           items={[
-            { label: "Kabinett", href: "/" },
             { label: collectionLabel, href: collectionHref },
             { label: artworkTitle },
           ]}

@@ -190,7 +190,6 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 className="mb-1"
                 variant="dark"
                 items={[
-                  { label: "Kabinett", href: "/" },
                   { label: "Vandringar", href: "/walks" },
                   { label: walkInfo.title },
                 ]}
