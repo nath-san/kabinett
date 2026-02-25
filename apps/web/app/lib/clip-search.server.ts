@@ -96,7 +96,7 @@ const RICH_PROMPTS: Record<string, string> = {
 
 const translationCache = new Map<string, string>();
 
-function lookupTranslate(text: string): { result: string; allFound: boolean } {
+export function lookupTranslate(text: string): { result: string; allFound: boolean } {
   const words = text.split(/\s+/);
   let allFound = true;
   const translated = words.map((w) => {
