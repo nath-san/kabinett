@@ -217,16 +217,16 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 
   const topArtists = db.prepare(
-    `SELECT artists, COUNT(*) as cnt
-     FROM artworks
-     WHERE artists IS NOT NULL
-       AND artists != ''
-       AND artists != '[]'
-       AND artists != '[null]'
-       AND artists NOT LIKE '%Okänd%'
-       AND artists NOT LIKE '%okänd%'
+    `SELECT a.artists, COUNT(*) as cnt
+     FROM artworks a
+     WHERE a.artists IS NOT NULL
+       AND a.artists != ''
+       AND a.artists != '[]'
+       AND a.artists != '[null]'
+       AND a.artists NOT LIKE '%Okänd%'
+       AND a.artists NOT LIKE '%okänd%'
        AND ${sourceA.sql}
-     GROUP BY artists
+     GROUP BY a.artists
      ORDER BY cnt DESC
      LIMIT 20`
   ).all(...sourceA.params) as Array<{ artists: string | null }>;
