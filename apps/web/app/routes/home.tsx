@@ -408,7 +408,7 @@ const ArtworkCard = React.memo(function ArtworkCard({ item, index, showMuseumBad
           e.currentTarget.classList.add("is-broken");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover object-[center_35%]",
+          "absolute inset-0 w-full h-full object-cover",
           eager ? "" : "opacity-0 lg:opacity-100",
         ].join(" ")}
       />
