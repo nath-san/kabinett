@@ -37,6 +37,10 @@ export const links = ({ data }: { data?: { canonicalUrl?: string } } = {}) => {
   return [{ rel: "canonical", href: data.canonicalUrl }];
 };
 
+function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/<\//g, "\\u003C/");
+}
+
 function parseDimensions(json: string | null): string | null {
   if (!json) return null;
   try {
@@ -267,7 +271,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(artworkJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
       {/* Hero image with color bg */}
       <div

@@ -9,6 +9,10 @@ import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import type Database from "better-sqlite3";
 
+function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/<\//g, "\\u003C/");
+}
+
 let _statsCache: { total: number; museums: number; paintings: number; yearsSpan: number } | null = null;
 function getCachedStats(db: Database.Database) {
   if (_statsCache) return _statsCache;
@@ -358,7 +362,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen overflow-x-hidden">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">

@@ -27,7 +27,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     .prepare(
       `SELECT (year_start / 10) * 10 as decade, COUNT(*) as count
        FROM artworks
-       INDEXED BY idx_artworks_year
        WHERE year_start BETWEEN ? AND ?
          AND iiif_url IS NOT NULL
          AND LENGTH(iiif_url) > 40
@@ -44,16 +43,15 @@ export async function loader({ request }: Route.LoaderArgs) {
          SELECT
            id,
            title_sv,
-           title_en,
-           iiif_url,
-           dominant_color,
-           artists,
-           dating_text,
-           year_start,
-           (year_start / 10) * 10 as decade,
-           ROW_NUMBER() OVER (PARTITION BY (year_start / 10) * 10 ORDER BY id DESC) as rn
+         title_en,
+         iiif_url,
+         dominant_color,
+         artists,
+          dating_text,
+          year_start,
+          (year_start / 10) * 10 as decade,
+          ROW_NUMBER() OVER (PARTITION BY (year_start / 10) * 10 ORDER BY id DESC) as rn
          FROM artworks
-         INDEXED BY idx_artworks_year
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -121,7 +119,6 @@ export async function loader({ request }: Route.LoaderArgs) {
       db.prepare(
         `SELECT COUNT(*) as count
          FROM artworks
-         INDEXED BY idx_artworks_year
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
@@ -134,7 +131,6 @@ export async function loader({ request }: Route.LoaderArgs) {
       .prepare(
         `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start
          FROM artworks
-         INDEXED BY idx_artworks_year
          WHERE year_start BETWEEN ? AND ?
            AND iiif_url IS NOT NULL
            AND LENGTH(iiif_url) > 40
