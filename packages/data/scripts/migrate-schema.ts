@@ -159,6 +159,7 @@ function ensureFts(db: Database.Database) {
 
 function ensureIndexes(db: Database.Database) {
   db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_artworks_year ON artworks(year_start);
     CREATE INDEX IF NOT EXISTS idx_artworks_source ON artworks(source);
     CREATE INDEX IF NOT EXISTS idx_artworks_last_updated ON artworks(last_updated);
     CREATE INDEX IF NOT EXISTS idx_artworks_color ON artworks(color_r, color_g, color_b);
