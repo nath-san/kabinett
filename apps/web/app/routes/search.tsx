@@ -471,7 +471,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-charcoal">{label || "Sök"}</h1>
-        <AutocompleteSearch defaultValue={query} museum={museum || undefined} />
+        <AutocompleteSearch defaultValue={label || query} museum={museum || undefined} />
 
         {showMuseumFilters && (
           <div className="mt-4">
