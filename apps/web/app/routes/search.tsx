@@ -524,7 +524,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <p aria-live="polite" className="text-sm text-warm-gray mb-6">
             {results.length > 0
-              ? `${results.length} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
+              ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
               : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
           </p>
           {results.length > 0 && (
