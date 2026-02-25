@@ -274,13 +274,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 function getCardVariant(positionInFeed: number): CardVariant {
-  // Pattern per 9 cards = 3 rows of 3 columns:
+  // Pattern per 6 cards = 2 rows of 3 columns:
   // Row 1: large(2) + small(1) = 3
   // Row 2: small(1) + small(1) + small(1) = 3
-  // Row 3: small(1) + medium(2) = 3
-  const p = positionInFeed % 9;
+  const p = positionInFeed % 6;
   if (p === 0) return "large";
-  if (p === 7) return "medium";
   return "small";
 }
 
