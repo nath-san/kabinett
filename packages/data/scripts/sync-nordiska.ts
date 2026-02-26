@@ -129,7 +129,11 @@ function parseEntity(entity: any) {
     }
   }
   const datingText = dateTexts[0] || null;
-  const { start, end } = extractYears(dateTexts.join(" ") || title, { minYear: 1400 });
+  // Only extract years from actual date fields — never from title
+  // (titles contain inventory numbers like "inv.nr 208836" that look like years)
+  const { start, end } = dateTexts.length > 0
+    ? extractYears(dateTexts.join(" "), { minYear: 1400 })
+    : { start: null, end: null };
 
   const imageUrl = extractImageUrl(entity);
   if (!imageUrl) return null;

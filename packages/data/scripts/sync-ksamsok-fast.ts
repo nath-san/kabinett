@@ -87,7 +87,9 @@ async function fetchObjectMeta(objectUri: string) {
         const t = getText(v); if (t) dateTexts.push(t);
       }
     }
-    const { start, end } = extractYears(dateTexts.join(" "));
+    const { start, end } = dateTexts.length > 0
+      ? extractYears(dateTexts.join(" "))
+      : { start: null, end: null };
     const techniques = findAll(parsed, "termMaterialsTech").map(v => getText(v)).filter(Boolean);
 
     const meta = {
