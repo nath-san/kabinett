@@ -43,7 +43,8 @@ export default function Favorites() {
   return (
     <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
       <div className="max-w-6xl mx-auto p-6">
-        <p className="mt-2 text-[rgba(245,240,232,0.55)] text-[0.85rem]">
+        <h1 className="font-serif text-[2rem] text-[#F5F0E8]">Sparade</h1>
+        <p className="mt-1 text-[rgba(245,240,232,0.55)] text-[0.85rem]">
           Tryck länge eller svep i sidled för att ta bort.
         </p>
 

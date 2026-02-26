@@ -508,6 +508,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-14 bg-[#1C1916] text-[#F5F0E8]">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <h1 className="font-serif text-[2rem] text-[#F5F0E8] mb-4">Sök</h1>
         <AutocompleteSearch defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
 
         {showMuseumFilters && (
