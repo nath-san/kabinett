@@ -178,7 +178,7 @@ const CURATED_POOL = [
 
 // --- In-memory cache for home loader (read-only DB, safe to cache) ---
 let _homeCache: { data: any; ts: number } | null = null;
-const HOME_CACHE_TTL_MS = 60_000; // 60 seconds
+const HOME_CACHE_TTL_MS = 300_000; // 5 minutes — DB is read-only, safe to cache longer
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -263,9 +263,8 @@ export async function loader({ request }: Route.LoaderArgs) {
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
          WHERE a.artists = ?
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+           AND a.iiif_url IS NOT NULL
            AND ${sourceA.sql}
-         ORDER BY RANDOM()
          LIMIT 5`
       ).all(pickedArtist, ...sourceA.params) as Omit<FeedItem, "imageUrl">[];
 
