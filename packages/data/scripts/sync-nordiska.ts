@@ -119,31 +119,47 @@ function parseEntity(entity: any) {
 
   const className = getText(findFirst(entity, "itemClassName"))?.trim() || null;
 
-  // Dating — only from production/creation contexts, not accession/usage
-  const PRODUCTION_LABELS = new Set([
-    "produktion", "tillverkning", "skapande", "utförande",
-    "datering", "fotografering", "tryckning",
-  ]);
-  const dateTexts: string[] = [];
+  // Dating — priority: Produktion > old Fotografering > nothing
+  // "Fotografering" with modern dates (2000+) is digitization, not creation
+  const PRODUCTION_LABELS = new Set(["produktion", "tillverkning", "skapande", "utförande", "datering", "tryckning"]);
   const contexts = findAll(entity, "Context");
+
+  let productionDates: string[] = [];
+  let photoDates: string[] = [];
+
   for (const ctx of contexts) {
     const label = getText(findFirst(ctx, "contextLabel"))?.trim().toLowerCase() || "";
     const superType = getText(findFirst(ctx, "contextSuperType")) || "";
-    // Only use dates from creation-related contexts
-    if (PRODUCTION_LABELS.has(label) || superType.includes("create") || superType.includes("produce")) {
-      for (const key of ["fromTime", "toTime"]) {
-        const t = getText(findFirst(ctx, key))?.trim();
-        if (t) dateTexts.push(t);
-      }
+    const isCreate = superType.includes("create") || superType.includes("produce");
+    if (!isCreate) continue;
+
+    const dates: string[] = [];
+    for (const key of ["fromTime", "toTime"]) {
+      const t = getText(findFirst(ctx, key))?.trim();
+      if (t) dates.push(t);
+    }
+    if (dates.length === 0) continue;
+
+    if (PRODUCTION_LABELS.has(label)) {
+      productionDates.push(...dates);
+    } else if (label === "fotografering") {
+      photoDates.push(...dates);
     }
   }
-  // Fallback: displayDate / eventDate (top-level, usually reliable)
-  if (dateTexts.length === 0) {
-    for (const key of ["displayDate", "eventDate"]) {
-      const t = getText(findFirst(entity, key))?.trim();
-      if (t) dateTexts.push(t);
+
+  // Use production dates if available
+  let dateTexts = productionDates;
+
+  // Fall back to photo dates only if they look historical (before 1990)
+  // Modern photo dates (1990+) are almost always digitization dates
+  if (dateTexts.length === 0 && photoDates.length > 0) {
+    const photoYears = extractYears(photoDates.join(" "), { minYear: 1200 });
+    if (photoYears.start && photoYears.start < 1990) {
+      dateTexts = photoDates;
     }
+    // else: skip — it's a digitization date, not meaningful for the artwork
   }
+
   const datingText = dateTexts[0] || null;
   const { start, end } = dateTexts.length > 0
     ? extractYears(dateTexts.join(" "), { minYear: 1200 })
