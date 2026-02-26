@@ -225,18 +225,22 @@ async function main() {
     const visionModel = await CLIPVisionModelWithProjection.from_pretrained("Xenova/clip-vit-base-patch32");
     console.log("   Model loaded!\n");
 
-    // Use rowid-based pagination that works with negative IDs (Nordiska/SHM)
-    const selectBatch = db.prepare(`
-      SELECT a.id, a.iiif_url, a.rowid as _rowid
+    // Collect all IDs that need embedding upfront, then batch through them
+    console.log("   Collecting artwork IDs to embed...");
+    const allIds = db.prepare(`
+      SELECT a.id
       FROM artworks a
       LEFT JOIN clip_embeddings c ON c.artwork_id = a.id
       WHERE a.iiif_url IS NOT NULL
         AND LENGTH(a.iiif_url) > 40
         AND c.artwork_id IS NULL
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-        AND a.rowid > ?
-      ORDER BY a.rowid ASC
-      LIMIT ?
+      ORDER BY a.id
+    `).all() as { id: number }[];
+    console.log(`   Found ${allIds.length} artworks to embed\n`);
+
+    const selectById = db.prepare(`
+      SELECT id, iiif_url FROM artworks WHERE id = ?
     `);
 
     const upsertEmbedding = db.prepare(
@@ -248,13 +252,14 @@ async function main() {
 
     let processed = 0;
     let failed = 0;
-    let lastRowid = 0;
+    let idOffset = 0;
 
-    while (true) {
-      const rows = selectBatch.all(lastRowid, BATCH_SIZE) as (ArtworkRow & { _rowid: number })[];
+    while (idOffset < allIds.length) {
+      const batchIds = allIds.slice(idOffset, idOffset + BATCH_SIZE);
+      const rows = batchIds.map(({ id }) => selectById.get(id) as ArtworkRow).filter(Boolean);
       if (rows.length === 0) break;
 
-      lastRowid = rows[rows.length - 1]._rowid;
+      idOffset += BATCH_SIZE;
 
       for (let index = 0; index < rows.length; index += CONCURRENCY) {
         const chunk = rows.slice(index, index + CONCURRENCY);
