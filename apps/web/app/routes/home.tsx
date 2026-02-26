@@ -534,23 +534,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        {/* Search band — slim, elegant, lets the art breathe */}
-        <div className="pt-[4.2rem] pb-5 px-4 md:px-2 lg:px-0 lg:pt-[4.5rem] lg:pb-6">
-          <p className="font-serif text-[1.15rem] md:text-[1.3rem] lg:text-[1.4rem] text-[rgba(245,240,232,0.85)] text-center leading-[1.3]">
-            Sök bland {loaderData.stats.total.toLocaleString("sv-SE")} verk från Sveriges museer
-          </p>
-          <form onSubmit={submitHeroSearch} className="mt-3 md:mt-4 max-w-xl mx-auto">
+        {/* Search hero — the main attraction */}
+        <div className="pt-[3.8rem] pb-2 px-5 md:px-2 lg:px-0 lg:pt-[4.2rem] lg:pb-3">
+          <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-[#F5F0E8] text-center leading-[1.15] tracking-[-0.01em]">
+            {loaderData.stats.total.toLocaleString("sv-SE")} konstverk.{" "}
+            <span className="text-[rgba(245,240,232,0.45)]">Sök på vad som helst.</span>
+          </h1>
+          <form onSubmit={submitHeroSearch} className="mt-4 md:mt-5 max-w-lg mx-auto">
             <label htmlFor="hero-search" className="sr-only">Sök bland konstverk</label>
-            <div className="flex items-center gap-2 rounded-full bg-[rgba(245,240,232,0.08)] backdrop-blur-[12px] border border-[rgba(245,240,232,0.15)] px-4 py-[0.55rem] transition-all duration-200 focus-within:border-[rgba(245,240,232,0.35)] focus-within:bg-[rgba(245,240,232,0.12)] focus-within:shadow-[0_0_20px_rgba(245,240,232,0.06)]">
+            <div className="flex items-center gap-3 rounded-2xl bg-[rgba(245,240,232,0.1)] backdrop-blur-[12px] border border-[rgba(245,240,232,0.18)] px-5 py-3.5 transition-all duration-200 focus-within:border-[rgba(201,176,142,0.45)] focus-within:bg-[rgba(245,240,232,0.14)] focus-within:shadow-[0_0_30px_rgba(201,176,142,0.08)]">
               <svg
                 aria-hidden="true"
-                width="16"
-                height="16"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"
-                className="text-[rgba(245,240,232,0.4)] shrink-0"
+                className="text-[rgba(201,176,142,0.6)] shrink-0"
               >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
@@ -560,37 +561,35 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 type="search"
                 value={heroQuery}
                 onChange={(event) => setHeroQuery(event.target.value)}
-                placeholder='Prova: "solnedgång vid havet"'
-                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.3)] text-[0.9rem] px-1 py-1.5 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
+                placeholder="solnedgång vid havet, röda blommor…"
+                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={clearSearch}
                   aria-label="Rensa sökning"
-                  className="text-[rgba(245,240,232,0.5)] hover:text-[rgba(245,240,232,0.8)] transition-colors p-1 focus-ring"
+                  className="text-[rgba(245,240,232,0.45)] hover:text-[rgba(245,240,232,0.8)] transition-colors p-1 focus-ring"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 6L6 18M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
           </form>
-          {/* Search status bar */}
-          {/* Fixed-height status bar — no layout shift */}
-          <div className="h-6 mt-3 flex items-center justify-center gap-4">
+          <div className="h-5 mt-2 flex items-center justify-center gap-4">
             {searching ? (
-              <p className="text-[0.8rem] text-[rgba(245,240,232,0.4)]">Söker…</p>
+              <p className="text-[0.78rem] text-[rgba(245,240,232,0.4)]">Söker…</p>
             ) : searchQuery && searchResults ? (
               <>
-                <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
+                <p className="text-[0.78rem] text-[rgba(245,240,232,0.45)]">
                   {searchResults.length} träffar för "{searchQuery}"
                 </p>
                 {searchResults.length > 0 && (
                   <a
                     href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                    className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
+                    className="text-[0.73rem] text-[rgba(201,176,142,0.6)] no-underline hover:text-[rgba(201,176,142,0.9)] transition-colors focus-ring"
                   >
                     Visa alla →
                   </a>
