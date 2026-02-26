@@ -61,6 +61,7 @@ export function meta({ data }: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
+  const shouldAutoFocus = url.searchParams.get("focus") === "1";
   const query = (url.searchParams.get("q") || "")
     .replace(/[\u0000-\u001F\u007F]/g, "")
     .trim()
@@ -94,7 +95,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const showMuseumBadge = enabledMuseums.length > 1;
   const museum = museumParam && isMuseumEnabled(museumParam) ? museumParam : "";
   if (!query && !museum) {
-    return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip" as SearchMode, cursor: null };
+    return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip" as SearchMode, cursor: null, shouldAutoFocus };
   }
   if (!query && museum) {
     const randomSeed = Math.floor(Date.now() / 60_000);
@@ -120,6 +121,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       showMuseumBadge,
       searchMode: "clip" as SearchMode,
       cursor: null,
+      shouldAutoFocus,
     };
   }
 
@@ -147,6 +149,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       showMuseumBadge,
       searchMode: "color" as SearchMode,
       cursor: nextCursor(rows.length),
+      shouldAutoFocus,
     };
   }
 
@@ -163,6 +166,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         showMuseumBadge,
         searchMode: "clip" as SearchMode,
         cursor: nextCursor(clipResults.length),
+        shouldAutoFocus,
       };
     }
   } catch (err) {
@@ -191,6 +195,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         showMuseumBadge,
         searchMode: "fts" as SearchMode,
         cursor: null,
+        shouldAutoFocus,
       };
     }
 
@@ -246,6 +251,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     showMuseumBadge,
     searchMode: "fts" as SearchMode,
     cursor: nextCursor(results.length),
+    shouldAutoFocus,
   };
 }
 
@@ -262,10 +268,29 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; museum?: string }) {
+function AutocompleteSearch({
+  defaultValue,
+  museum,
+  autoFocus = false,
+}: {
+  defaultValue: string;
+  museum?: string;
+  autoFocus?: boolean;
+}) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const input = inputRef.current;
+    if (!input) return;
+    window.requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  }, [autoFocus]);
 
   const fetchSuggestions = useCallback((val: string) => {
     if (timer.current) clearTimeout(timer.current);
@@ -339,6 +364,7 @@ function AutocompleteSearch({ defaultValue, museum }: { defaultValue: string; mu
           {museum && <input type="hidden" name="museum" value={museum} />}
           <label htmlFor="search-input" className="sr-only">Sök</label>
           <input
+            ref={inputRef}
             id="search-input"
             type="search" name="q"
             defaultValue={defaultValue}
@@ -407,6 +433,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     showMuseumBadge,
     searchMode,
     cursor: initialCursor,
+    shouldAutoFocus,
   } = loaderData;
   const displayQuery = query;
   const [results, setResults] = useState<SearchResult[]>(initialResults as SearchResult[]);
@@ -482,7 +509,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-14 bg-cream">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
-        <AutocompleteSearch defaultValue={query} museum={museum || undefined} />
+        <AutocompleteSearch defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
 
         {showMuseumFilters && (
           <div className="mt-4">
