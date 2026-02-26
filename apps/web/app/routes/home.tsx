@@ -578,24 +578,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
           </form>
           {/* Search status bar */}
-          {searching && (
-            <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.4)] mt-3">Söker…</p>
-          )}
-          {searchQuery && searchResults && !searching && (
-            <div className="flex items-center justify-center gap-4 mt-3">
-              <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
-                {searchResults.length} träffar för "{searchQuery}"
-              </p>
-              {searchResults.length > 0 && (
-                <a
-                  href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                  className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
-                >
-                  Visa alla →
-                </a>
-              )}
-            </div>
-          )}
+          {/* Fixed-height status bar — no layout shift */}
+          <div className="h-6 mt-3 flex items-center justify-center gap-4">
+            {searching ? (
+              <p className="text-[0.8rem] text-[rgba(245,240,232,0.4)]">Söker…</p>
+            ) : searchQuery && searchResults ? (
+              <>
+                <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
+                  {searchResults.length} träffar för "{searchQuery}"
+                </p>
+                {searchResults.length > 0 && (
+                  <a
+                    href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                    className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
+                  >
+                    Visa alla →
+                  </a>
+                )}
+              </>
+            ) : null}
+          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {searchResults ? (
