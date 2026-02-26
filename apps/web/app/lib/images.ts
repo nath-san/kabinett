@@ -8,7 +8,7 @@ const SIZE_MAP = [
  * Build the raw external URL for a museum image at a given width.
  * Used internally and as the source URL for the image proxy.
  */
-function externalImageUrl(iiifOrDirect: string, width: number): string {
+export function externalImageUrl(iiifOrDirect: string, width: number): string {
   const normalized = iiifOrDirect.replace("http://", "https://");
 
   const shmMatch = normalized.match(/\/(thumb|thumbnail|medium|full)(\?.*)?$/);

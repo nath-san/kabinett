@@ -15,7 +15,7 @@ import {
   RawImage,
 } from "@xenova/transformers";
 import sharp from "sharp";
-import { buildImageUrl } from "../../../apps/web/app/lib/images";
+import { externalImageUrl } from "../../../apps/web/app/lib/images";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
@@ -265,7 +265,7 @@ async function main() {
         const chunk = rows.slice(index, index + CONCURRENCY);
         const results = await Promise.all(
           chunk.map(async (row) => {
-            const imageUrl = buildImageUrl(row.iiif_url, IMAGE_WIDTH);
+            const imageUrl = externalImageUrl(row.iiif_url, IMAGE_WIDTH);
 
             try {
               const response = await fetchWithRetry(imageUrl);
