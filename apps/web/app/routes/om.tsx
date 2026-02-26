@@ -54,7 +54,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
-      <div className="max-w-4xl mx-auto px-4 lg:px-6">
+      <div className="max-w-6xl mx-auto px-4 lg:px-6">
         <div className="pt-6">
           <h1 className="font-serif text-[2rem] text-[#F5F0E8] m-0">Om Kabinett</h1>
           <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-[rgba(245,240,232,0.55)]">

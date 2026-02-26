@@ -170,17 +170,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
-      <header id="top" className="pt-10 px-5 pb-0 md:max-w-6xl md:mx-auto md:px-6 lg:pt-14 lg:px-8">
-        <p className="text-[0.75rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.55)]">
-          Tidslinje
-        </p>
-        <h1 className="font-serif text-[2.2rem] mt-[0.4rem]">
-          800 år av konst
-        </h1>
-        <p className="mt-[0.6rem] max-w-[36rem] text-[rgba(245,240,232,0.7)]">
-          Från medeltid till modernism, decennium för decennium.
-        </p>
-      </header>
+      <div id="top" className="pt-6 md:pt-8" />
 
       <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
