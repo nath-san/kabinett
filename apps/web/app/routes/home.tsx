@@ -166,9 +166,19 @@ const CURATED_POOL = [
   26295, 24204, 18837, 36992,
 ];
 
+// --- In-memory cache for home loader (read-only DB, safe to cache) ---
+let _homeCache: { data: any; ts: number } | null = null;
+const HOME_CACHE_TTL_MS = 60_000; // 60 seconds
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const canonicalUrl = `${url.origin}${url.pathname}`;
+
+  // Return cached result if fresh
+  if (_homeCache && Date.now() - _homeCache.ts < HOME_CACHE_TTL_MS) {
+    return { ..._homeCache.data, canonicalUrl };
+  }
+
   const enabledMuseums = getEnabledMuseums();
   const sourceA = sourceFilter("a");
 
@@ -259,7 +269,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return {
+  const result = {
     initialItems: [...curated, ...restItems],
     initialCursor: initial.nextCursor,
     initialHasMore: initial.hasMore,
@@ -271,6 +281,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     canonicalUrl,
     origin: url.origin,
   };
+
+  _homeCache = { data: result, ts: Date.now() };
+  return result;
 }
 
 function getCardVariant(positionInFeed: number): CardVariant {

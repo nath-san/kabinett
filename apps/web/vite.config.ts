@@ -7,11 +7,13 @@ export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   ssr: {
     noExternal: [],
+    external: ["sharp", "better-sqlite3", "sqlite-vec"],
   },
   optimizeDeps: {
     exclude: ["better-sqlite3"],
   },
   server: {
+    host: true,
     fs: {
       allow: ["../.."],
     },

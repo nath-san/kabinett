@@ -87,32 +87,33 @@ export async function fetchFeed(options: {
     const offset = Math.max(0, cursor || 0);
     let rows: FeedItemRow[];
     try {
-    rows = db
+    // Fetch extra rows and dedupe in JS to avoid expensive window function
+    const overFetch = (limit + offset) * 3;
+    const rawRows = db
       .prepare(
-        `WITH ranked AS (
-           SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                  m.name as museum_name,
-                  bm25(artworks_fts) as relevance,
-                  ROW_NUMBER() OVER (
-                    PARTITION BY a.iiif_url
-                    ORDER BY bm25(artworks_fts) ASC, a.id DESC
-                  ) as dedupe_rank
-           FROM artworks_fts
-           JOIN artworks a ON a.id = artworks_fts.rowid
-           LEFT JOIN museums m ON m.id = a.source
-           WHERE artworks_fts MATCH ?
-             AND a.iiif_url IS NOT NULL
-             AND LENGTH(a.iiif_url) > 40
-             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-             AND ${sourceA.sql}
-         )
-         SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material, museum_name
-         FROM ranked
-         WHERE dedupe_rank = 1
-         ORDER BY relevance ASC, id DESC
-         LIMIT ? OFFSET ?`
+        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                m.name as museum_name,
+                artworks_fts.rank as relevance
+         FROM artworks_fts
+         JOIN artworks a ON a.id = artworks_fts.rowid
+         LEFT JOIN museums m ON m.id = a.source
+         WHERE artworks_fts MATCH ?
+           AND a.iiif_url IS NOT NULL
+           AND LENGTH(a.iiif_url) > 40
+           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceA.sql}
+         ORDER BY artworks_fts.rank ASC, a.id DESC
+         LIMIT ?`
       )
-      .all(mood.fts, ...sourceA.params, limit, offset) as FeedItemRow[];
+      .all(mood.fts, ...sourceA.params, overFetch) as (FeedItemRow & { relevance: number })[];
+    const seen = new Set<string>();
+    const deduped: FeedItemRow[] = [];
+    for (const row of rawRows) {
+      if (row.iiif_url && seen.has(row.iiif_url)) continue;
+      if (row.iiif_url) seen.add(row.iiif_url);
+      deduped.push(row);
+    }
+    rows = deduped.slice(offset, offset + limit);
     } catch (err) {
       console.error("FTS mood query failed (artworks_fts may be missing):", err);
       rows = [];
@@ -143,10 +144,8 @@ export async function fetchFeed(options: {
   let computedOrderSelect = "NULL as color_distance";
 
   if (filter === "Alla") {
-    // Mix museums with deterministic hash to avoid NM-only feed
-    // (NM has positive IDs, Nordiska negative — plain DESC shows only NM)
-    dedupeOrderBy = "ABS(a.id) DESC";
-    finalOrderBy = "ABS(id) DESC";
+    dedupeOrderBy = "a.id DESC";
+    finalOrderBy = "id DESC";
     mode = "cursor_desc";
   }
 
@@ -177,39 +176,37 @@ export async function fetchFeed(options: {
   }
 
   if (mode === "cursor_desc" && cursor) {
-    if (filter === "Alla") {
-      cursorConditions.push("ABS(id) < ABS(?)");
-    } else {
-      cursorConditions.push("id < ?");
-    }
+    cursorConditions.push("id < ?");
     cursorParams.push(cursor);
   }
 
   const baseWhere = baseConditions.join(" AND ");
-  const fromClause = mode === "cursor_desc" ? "artworks a NOT INDEXED" : tablePrefix;
+  const fromClause = tablePrefix;
   const cursorWhere = cursorConditions.length > 0 ? ` AND ${cursorConditions.join(" AND ")}` : "";
 
-  const rows = db
+  // Fetch more than needed, dedupe in JS to avoid expensive window function
+  const overFetchLimit = limit * 3;
+  const rawRows = db
     .prepare(
-      `WITH ranked AS (
-         SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                m.name as museum_name,
-                ${computedOrderSelect},
-                ROW_NUMBER() OVER (
-                  PARTITION BY a.iiif_url
-                  ORDER BY ${dedupeOrderBy}
-                ) as dedupe_rank
-         FROM ${fromClause}
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE ${baseWhere}
-       )
-       SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material, museum_name
-       FROM ranked
-       WHERE dedupe_rank = 1${cursorWhere}
-       ORDER BY ${finalOrderBy}
+      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+              m.name as museum_name
+       FROM ${fromClause}
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE ${baseWhere}${cursorWhere}
+       ORDER BY ${dedupeOrderBy}
        LIMIT ?`
     )
-    .all(...baseParams, ...cursorParams, limit) as FeedItemRow[];
+    .all(...baseParams, ...cursorParams, overFetchLimit) as FeedItemRow[];
+
+  // Deduplicate by iiif_url in JS
+  const seen = new Set<string>();
+  const rows: FeedItemRow[] = [];
+  for (const row of rawRows) {
+    if (row.iiif_url && seen.has(row.iiif_url)) continue;
+    if (row.iiif_url) seen.add(row.iiif_url);
+    rows.push(row);
+    if (rows.length >= limit) break;
+  }
 
   const nextCursor = rows.length > 0 ? rows[rows.length - 1].id : cursor;
 
