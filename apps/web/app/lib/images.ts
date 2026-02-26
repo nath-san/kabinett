@@ -27,14 +27,15 @@ function externalImageUrl(iiifOrDirect: string, width: number): string {
 }
 
 /**
- * Build an image URL. Uses direct external URLs by default.
- * The /api/img proxy exists but is too CPU-heavy for small Fly instances
- * when processing many images simultaneously. Use proxyImageUrl() for
- * individual images where format conversion matters.
+ * Build an image URL through the /api/img proxy.
+ * Proxy has disk cache + concurrency limit (max 2 simultaneous).
+ * First request per image is slow, all subsequent are instant from cache.
+ * With Cloudflare in front, each image is processed at most once globally.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
-  return externalImageUrl(iiifOrDirect, width);
+  const src = externalImageUrl(iiifOrDirect, width);
+  return `/api/img?url=${encodeURIComponent(src)}&w=${width}`;
 }
 
 /**
