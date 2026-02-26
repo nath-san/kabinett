@@ -27,15 +27,12 @@ function externalImageUrl(iiifOrDirect: string, width: number): string {
 }
 
 /**
- * Build an image URL through the /api/img proxy.
- * Proxy has disk cache + concurrency limit (max 2 simultaneous).
- * First request per image is slow, all subsequent are instant from cache.
- * With Cloudflare in front, each image is processed at most once globally.
+ * Build an image URL. Direct external URL for feeds (many images at once).
+ * Use proxyImageUrl() for single images (artwork detail) where WebP matters.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
-  const src = externalImageUrl(iiifOrDirect, width);
-  return `/api/img?url=${encodeURIComponent(src)}&w=${width}`;
+  return externalImageUrl(iiifOrDirect, width);
 }
 
 /**
