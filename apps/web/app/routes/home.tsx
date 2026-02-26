@@ -398,6 +398,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const acRef = useRef<HTMLDivElement>(null);
+  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doSearch = useCallback(async (q: string) => {
     if (abortRef.current) abortRef.current.abort();
@@ -462,7 +464,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     setSearchResults(null);
     setSearching(false);
     setHeroQuery("");
+    if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; }
   }, []);
+
+  const fetchAc = useCallback((val: string) => {
+    if (acTimer.current) clearTimeout(acTimer.current);
+    const dd = acRef.current;
+    if (!dd) return;
+    if (val.length < 2) { dd.innerHTML = ""; dd.classList.add("hidden"); return; }
+    acTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
+        const data = await r.json() as { value: string; type: string }[];
+        if (data.length === 0) { dd.classList.add("hidden"); dd.innerHTML = ""; return; }
+        const labels: Record<string, string> = { artist: "Konstnär", title: "Verk", category: "Kategori" };
+        dd.classList.remove("hidden");
+        dd.innerHTML = data.map((s, i) =>
+          `<div class="ac-item px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-[#2E2820] ${i > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : ""}" data-value="${encodeURIComponent(s.value)}" role="button" tabindex="0">
+            <span class="text-[#F5F0E8] truncate">${s.value.replace(/</g,"&lt;")}</span>
+            <span class="text-xs text-[rgba(245,240,232,0.4)] ml-2 shrink-0">${labels[s.type] || ""}</span>
+          </div>`
+        ).join("");
+      } catch { dd.classList.add("hidden"); }
+    }, 200);
+  }, []);
+
+  const pickAc = useCallback((value: string) => {
+    setHeroQuery(value);
+    if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; }
+    doSearch(value);
+  }, [doSearch]);
 
   async function loadMore() {
     if (loading || !hasMore) return;
@@ -561,7 +592,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 id="hero-search"
                 type="search"
                 value={heroQuery}
-                onChange={(event) => setHeroQuery(event.target.value)}
+                onChange={(event) => { setHeroQuery(event.target.value); fetchAc(event.target.value); }}
+                onBlur={() => setTimeout(() => { if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; } }, 150)}
                 placeholder="porträtt, blå himmel, stilleben…"
                 className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
@@ -579,6 +611,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               )}
             </div>
           </form>
+          <div
+            ref={acRef}
+            onPointerDown={(e) => {
+              const item = (e.target as HTMLElement).closest(".ac-item") as HTMLElement;
+              if (!item) return;
+              e.preventDefault();
+              pickAc(decodeURIComponent(item.dataset.value || ""));
+            }}
+            className="hidden relative z-50 max-w-lg mx-auto mt-1 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
+          />
           <div className="h-5 mt-2 flex items-center justify-center gap-4">
             {searching ? (
               <p className="text-[0.78rem] text-[rgba(245,240,232,0.4)]">Söker…</p>
