@@ -395,22 +395,32 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => { mql.removeEventListener("change", update); document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
 
-  const submitHeroSearch = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmed = heroQuery.trim();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (abortRef.current) abortRef.current.abort();
+    const trimmed = q.trim();
     if (!trimmed) {
-      // Clear search, restore feed
       setSearchQuery(null);
       setSearchResults(null);
+      setSearching(false);
       return;
     }
     setSearching(true);
     setSearchQuery(trimmed);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
-      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`);
-      if (!res.ok) throw new Error("Search failed");
-      const data = await res.json();
-      // Map CLIP results to FeedItem shape
+      // Try CLIP first, fall back to FTS
+      let res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`, { signal: controller.signal });
+      let data = res.ok ? await res.json() : [];
+      if (data.length === 0) {
+        // Fallback to FTS
+        res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30&mode=fts`, { signal: controller.signal });
+        data = res.ok ? await res.json() : [];
+      }
+      if (controller.signal.aborted) return;
       const items: FeedItem[] = data.map((r: any) => ({
         id: r.id,
         title_sv: r.title || r.title_sv || null,
@@ -423,17 +433,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         museum_name: r.museum_name || null,
       }));
       setSearchResults(items);
-    } catch {
-      // Fallback: navigate to search page
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
       window.location.href = `/search?q=${encodeURIComponent(trimmed)}`;
     } finally {
-      setSearching(false);
+      if (!controller.signal.aborted) setSearching(false);
     }
-  }, [heroQuery]);
+  }, []);
+
+  // Auto-search after 3 characters with debounce
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const trimmed = heroQuery.trim();
+    if (trimmed.length >= 3) {
+      searchTimer.current = setTimeout(() => doSearch(trimmed), 400);
+    } else if (trimmed.length === 0 && searchQuery) {
+      setSearchQuery(null);
+      setSearchResults(null);
+    }
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [heroQuery, doSearch]);
+
+  const submitHeroSearch = useCallback((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    doSearch(heroQuery);
+  }, [heroQuery, doSearch]);
 
   const clearSearch = useCallback(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (abortRef.current) abortRef.current.abort();
     setSearchQuery(null);
     setSearchResults(null);
+    setSearching(false);
     setHeroQuery("");
   }, []);
 
