@@ -412,14 +412,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      // Try CLIP first, fall back to FTS
-      let res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`, { signal: controller.signal });
-      let data = res.ok ? await res.json() : [];
-      if (data.length === 0) {
-        // Fallback to FTS
-        res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30&mode=fts`, { signal: controller.signal });
-        data = res.ok ? await res.json() : [];
-      }
+      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`, { signal: controller.signal });
+      const data = res.ok ? await res.json() : [];
       if (controller.signal.aborted) return;
       const items: FeedItem[] = data.map((r: any) => ({
         id: r.id,
@@ -588,17 +582,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.4)] mt-3">Söker…</p>
           )}
           {searchQuery && searchResults && !searching && (
-            <div className="flex items-center justify-center gap-4 mt-3">
-              <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
-                {searchResults.length} träffar för "{searchQuery}"
+            searchResults.length > 0 ? (
+              <div className="flex items-center justify-center gap-4 mt-3">
+                <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
+                  {searchResults.length} träffar för "{searchQuery}"
+                </p>
+                <a
+                  href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                  className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
+                >
+                  Visa alla →
+                </a>
+              </div>
+            ) : (
+              <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.45)] mt-3">
+                Semantisk sökning förbereds — snart klar
               </p>
-              <a
-                href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
-              >
-                Visa alla →
-              </a>
-            </div>
+            )
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
