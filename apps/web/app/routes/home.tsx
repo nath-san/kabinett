@@ -378,22 +378,24 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Dark mode — use first artwork's color
-  const firstColor = useMemo(() => {
+  // Dark mode — darken dominant color to ~15% brightness for artsy-but-readable bg
+  const bgColor = useMemo(() => {
     const firstArt = feed.find((entry) => entry.type === "art") as ArtCard | undefined;
-    return firstArt?.item.dominant_color || "#1A1815";
+    const hex = firstArt?.item.dominant_color || "#1A1815";
+    // Parse hex → darken to 15% mix with black
+    const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+    if (!m) return "#0F0E0D";
+    const mix = 0.15; // keep 15% of the original color
+    const r = Math.round(parseInt(m[1], 16) * mix);
+    const g = Math.round(parseInt(m[2], 16) * mix);
+    const b = Math.round(parseInt(m[3], 16) * mix);
+    return `rgb(${r},${g},${b})`;
   }, [feed]);
   useEffect(() => {
-    // On mobile: use artwork color. On desktop: always dark neutral
-    const mql = window.matchMedia("(min-width: 1024px)");
-    const update = () => {
-      document.body.style.backgroundColor = mql.matches ? "#0F0E0D" : firstColor;
-      document.body.style.color = "#F5F0E8";
-    };
-    update();
-    mql.addEventListener("change", update);
-    return () => { mql.removeEventListener("change", update); document.body.style.backgroundColor = ""; document.body.style.color = ""; };
-  }, [firstColor]);
+    document.body.style.backgroundColor = bgColor;
+    document.body.style.color = "#F5F0E8";
+    return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
+  }, [bgColor]);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
