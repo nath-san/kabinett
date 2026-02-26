@@ -119,20 +119,34 @@ function parseEntity(entity: any) {
 
   const className = getText(findFirst(entity, "itemClassName"))?.trim() || null;
 
-  // Dating from various fields
+  // Dating — only from production/creation contexts, not accession/usage
+  const PRODUCTION_LABELS = new Set([
+    "produktion", "tillverkning", "skapande", "utförande",
+    "datering", "fotografering", "tryckning",
+  ]);
   const dateTexts: string[] = [];
-  for (const key of ["eventDate", "displayDate", "fromTime", "toTime", "eventTime"]) {
-    const vals = findAll(entity, key);
-    for (const v of vals) {
-      const t = getText(v)?.trim();
+  const contexts = findAll(entity, "Context");
+  for (const ctx of contexts) {
+    const label = getText(findFirst(ctx, "contextLabel"))?.trim().toLowerCase() || "";
+    const superType = getText(findFirst(ctx, "contextSuperType")) || "";
+    // Only use dates from creation-related contexts
+    if (PRODUCTION_LABELS.has(label) || superType.includes("create") || superType.includes("produce")) {
+      for (const key of ["fromTime", "toTime"]) {
+        const t = getText(findFirst(ctx, key))?.trim();
+        if (t) dateTexts.push(t);
+      }
+    }
+  }
+  // Fallback: displayDate / eventDate (top-level, usually reliable)
+  if (dateTexts.length === 0) {
+    for (const key of ["displayDate", "eventDate"]) {
+      const t = getText(findFirst(entity, key))?.trim();
       if (t) dateTexts.push(t);
     }
   }
   const datingText = dateTexts[0] || null;
-  // Only extract years from actual date fields — never from title
-  // (titles contain inventory numbers like "inv.nr 208836" that look like years)
   const { start, end } = dateTexts.length > 0
-    ? extractYears(dateTexts.join(" "), { minYear: 1400 })
+    ? extractYears(dateTexts.join(" "), { minYear: 1200 })
     : { start: null, end: null };
 
   const imageUrl = extractImageUrl(entity);

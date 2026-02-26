@@ -81,10 +81,27 @@ async function fetchObjectMeta(objectUri: string) {
     const title = getText(findFirst(parsed, "itemLabel")) || "Utan titel";
     const className = getText(findFirst(parsed, "itemClassName")) || null;
     const collection = getText(findFirst(parsed, "collection")) || null;
+    // Dating — only from production/creation contexts
+    const PRODUCTION_LABELS = new Set([
+      "produktion", "tillverkning", "skapande", "utförande",
+      "datering", "fotografering", "tryckning",
+    ]);
     const dateTexts: string[] = [];
-    for (const key of ["eventDate", "displayDate", "fromTime", "toTime"]) {
-      for (const v of findAll(parsed, key)) {
-        const t = getText(v); if (t) dateTexts.push(t);
+    const contexts = findAll(parsed, "Context");
+    for (const ctx of contexts) {
+      const label = getText(findFirst(ctx, "contextLabel"))?.trim().toLowerCase() || "";
+      const superType = getText(findFirst(ctx, "contextSuperType")) || "";
+      if (PRODUCTION_LABELS.has(label) || superType.includes("create") || superType.includes("produce")) {
+        for (const key of ["fromTime", "toTime"]) {
+          const t = getText(findFirst(ctx, key))?.trim();
+          if (t) dateTexts.push(t);
+        }
+      }
+    }
+    if (dateTexts.length === 0) {
+      for (const key of ["displayDate", "eventDate"]) {
+        const t = getText(findFirst(parsed, key))?.trim();
+        if (t) dateTexts.push(t);
       }
     }
     const { start, end } = dateTexts.length > 0
