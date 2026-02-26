@@ -317,9 +317,9 @@ function AutocompleteSearch({
           const encodedValue = encodeURIComponent(s.value);
           const safeValue = escapeHtml(s.value);
           const safeType = escapeHtml(TYPE_LABELS[s.type] || "");
-          return `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-cream ${i > 0 ? "border-t border-stone/5" : ""}" data-value="${encodedValue}" role="button" tabindex="0">
-            <span class="text-charcoal truncate">${safeValue}</span>
-            <span class="text-xs text-stone ml-2 shrink-0">${safeType}</span>
+          return `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-[#2E2820] ${i > 0 ? "border-t border-stone/5" : ""}" data-value="${encodedValue}" role="button" tabindex="0">
+            <span class="text-[#F5F0E8] truncate">${safeValue}</span>
+            <span class="text-xs text-[rgba(245,240,232,0.4)] ml-2 shrink-0">${safeType}</span>
           </div>`
         }).join("");
       } catch {
@@ -371,7 +371,7 @@ function AutocompleteSearch({
             onInput={(e) => fetchSuggestions((e.target as HTMLInputElement).value)}
             placeholder="Konstnär, titel, teknik…"
             autoComplete="off"
-            className="flex-1 px-4 py-3 rounded-xl bg-linen text-charcoal placeholder:text-stone
+            className="flex-1 px-4 py-3 rounded-xl bg-[#252019] text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.4)]
                        text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring"
           />
           <button type="submit"
@@ -396,7 +396,7 @@ function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: 
   const artist = r.artist || parseArtist(r.artists ?? null);
   return (
     <a key={r.id} href={`/artwork/${r.id}`}
-      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-linen group focus-ring">
+      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-[#252019] group focus-ring">
       <div
         style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
         className="overflow-hidden aspect-[3/4]"
@@ -412,13 +412,13 @@ function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: 
           style={{ objectPosition: focalObjectPosition(r.focal_x, r.focal_y) }} />
       </div>
       <div className="p-3">
-        <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">
+        <p className="text-sm font-medium text-[#F5F0E8] leading-snug line-clamp-2">
           {title}</p>
-        <p className="text-xs text-warm-gray mt-1">{artist}</p>
+        <p className="text-xs text-[rgba(245,240,232,0.55)] mt-1">{artist}</p>
         {showMuseumBadge && r.museum_name && (
-          <p className="text-[0.65rem] text-warm-gray mt-0.5">{r.museum_name}</p>
+          <p className="text-[0.65rem] text-[rgba(245,240,232,0.55)] mt-0.5">{r.museum_name}</p>
         )}
-        {(r.year || r.dating_text) && <p className="text-xs text-stone mt-0.5">{r.year || r.dating_text}</p>}
+        {(r.year || r.dating_text) && <p className="text-xs text-[rgba(245,240,232,0.4)] mt-0.5">{r.year || r.dating_text}</p>}
       </div>
     </a>
   );
@@ -506,14 +506,14 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   };
 
   return (
-    <div className="min-h-screen pt-14 bg-cream">
+    <div className="min-h-screen pt-14 bg-[#1C1916] text-[#F5F0E8]">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-3xl font-bold text-charcoal">Sök</h1>
+        <h1 className="font-serif text-3xl font-bold text-[#F5F0E8]">Sök</h1>
         <AutocompleteSearch defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
 
         {showMuseumFilters && (
           <div className="mt-4">
-            <p className="text-xs text-warm-gray mb-2">Museer</p>
+            <p className="text-xs text-[rgba(245,240,232,0.55)] mb-2">Museer</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={buildSearchUrl()}
@@ -521,7 +521,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
                   "focus-ring",
                   museum
-                    ? "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal"
+                    ? "bg-[#252019] text-[rgba(245,240,232,0.55)] hover:bg-[#2E2820] hover:text-[#F5F0E8]"
                     : "bg-charcoal text-cream",
                 ].join(" ")}
               >
@@ -536,7 +536,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                     "focus-ring",
                     museum === option.id
                       ? "bg-charcoal text-cream"
-                      : "bg-linen text-warm-gray hover:bg-stone hover:text-charcoal",
+                      : "bg-[#252019] text-[rgba(245,240,232,0.55)] hover:bg-[#2E2820] hover:text-[#F5F0E8]",
                   ].join(" ")}
                 >
                   {option.name}
@@ -548,12 +548,12 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {!query && (
           <div className="mt-6">
-            <p className="text-xs text-warm-gray mb-3">Prova:</p>
+            <p className="text-xs text-[rgba(245,240,232,0.55)] mb-3">Prova:</p>
             <div className="flex flex-wrap gap-2">
               {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
                 <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
-                  className="px-3 py-1.5 min-h-11 inline-flex items-center rounded-full bg-linen text-warm-gray text-sm font-medium
-                             hover:bg-stone hover:text-charcoal transition-colors focus-ring">{s}</a>
+                  className="px-3 py-1.5 min-h-11 inline-flex items-center rounded-full bg-[#252019] text-[rgba(245,240,232,0.55)] text-sm font-medium
+                             hover:bg-[#2E2820] hover:text-[#F5F0E8] transition-colors focus-ring">{s}</a>
               ))}
             </div>
           </div>
@@ -562,7 +562,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
       {showResults && (
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <p aria-live="polite" className="text-sm text-warm-gray mb-6">
+          <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)] mb-6">
             {results.length > 0
               ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
               : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
@@ -576,7 +576,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           )}
           {hasMore && (
             <div ref={sentinelRef} className="text-center mt-8 py-4">
-              {loading && <p aria-live="polite" className="text-sm text-warm-gray">Laddar fler…</p>}
+              {loading && <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)]">Laddar fler…</p>}
             </div>
           )}
         </div>

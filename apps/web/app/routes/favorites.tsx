@@ -41,21 +41,21 @@ export default function Favorites() {
   }, [idsKey]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-cream">
+    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
       <div className="max-w-[64rem] lg:max-w-6xl mx-auto p-6">
-        <h1 className="font-serif text-[2rem] text-charcoal">
+        <h1 className="font-serif text-[2rem] text-[#F5F0E8]">
           Favoriter
         </h1>
-        <p className="mt-[0.35rem] text-warm-gray text-[0.95rem]">
+        <p className="mt-[0.35rem] text-[rgba(245,240,232,0.55)] text-[0.95rem]">
           Tryck länge eller svep i sidled för att ta bort.
         </p>
 
         {loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-warm-gray">Hämtar favoriter…</div>
+          <div aria-live="polite" className="py-8 text-[rgba(245,240,232,0.55)]">Hämtar favoriter…</div>
         )}
 
         {!loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-warm-gray">
+          <div aria-live="polite" className="py-8 text-[rgba(245,240,232,0.55)]">
             Inga sparade verk än. Tryck på hjärtat för att spara.
           </div>
         )}
@@ -139,10 +139,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
         />
       </div>
       <div className="p-3">
-        <p className="text-[0.9rem] font-semibold text-charcoal m-0">
+        <p className="text-[0.9rem] font-semibold text-[#F5F0E8] m-0">
           {item.title}
         </p>
-        <p className="mt-[0.2rem] text-[0.75rem] text-warm-gray">
+        <p className="mt-[0.2rem] text-[0.75rem] text-[rgba(245,240,232,0.55)]">
           {parseArtist(item.artists)}
         </p>
       </div>

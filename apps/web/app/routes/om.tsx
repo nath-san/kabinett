@@ -53,18 +53,18 @@ export default function About({ loaderData }: Route.ComponentProps) {
   const { stats, museums } = loaderData;
 
   return (
-    <div className="min-h-screen pt-16 bg-cream">
+    <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
       <div className="max-w-4xl mx-auto px-4 lg:px-6">
         <div className="pt-6">
-          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0">Om Kabinett</h1>
-          <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-warm-gray">
+          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-[#F5F0E8] m-0">Om Kabinett</h1>
+          <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-[rgba(245,240,232,0.55)]">
             Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över {stats.totalWorks.toLocaleString("sv")} verk från {museums.map(m => m.name).slice(0, -1).join(", ")} och {museums[museums.length - 1]?.name} — med semantisk sökning som förstår vad du letar efter.
           </p>
         </div>
 
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">Så fungerar det</h2>
-          <p className="mt-2 text-[0.95rem] text-warm-gray">
+          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8]">Så fungerar det</h2>
+          <p className="mt-2 text-[0.95rem] text-[rgba(245,240,232,0.55)]">
             Vi använder CLIP, en AI-modell, för att förstå bildernas innehåll. Det betyder att du kan söka på "solnedgång över havet" och hitta relevanta verk — även om de inte är taggade med de orden.
           </p>
         </section>
@@ -72,20 +72,20 @@ export default function About({ loaderData }: Route.ComponentProps) {
         <section className="pt-8">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
-              <p className="text-[1.6rem] font-serif text-charcoal mt-2">
+              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Verk</p>
+              <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {stats.totalWorks.toLocaleString("sv")}
               </p>
             </div>
             <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Museer</p>
-              <p className="text-[1.6rem] font-serif text-charcoal mt-2">
+              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Museer</p>
+              <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {stats.museums.toLocaleString("sv")}
               </p>
             </div>
             <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Tidsomfång</p>
-              <p className="text-[1.6rem] font-serif text-charcoal mt-2">
+              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Tidsomfång</p>
+              <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {formatRange(stats.minYear, stats.maxYear)}
               </p>
             </div>
@@ -93,20 +93,20 @@ export default function About({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">Datakällor</h2>
-          <p className="mt-2 text-[0.95rem] text-warm-gray">
+          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8]">Datakällor</h2>
+          <p className="mt-2 text-[0.95rem] text-[rgba(245,240,232,0.55)]">
             All metadata är CC0. Bilderna är i Public Domain. Data hämtas via K-samsök (Riksantikvarieämbetets aggregator) och Nationalmuseums API.
           </p>
         </section>
 
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">Samlingar</h2>
+          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8]">Samlingar</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {museums.map((m) => (
               <a
                 key={m.name}
                 href={`/samling/${encodeURIComponent(m.name)}`}
-                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-linen text-ink no-underline hover:bg-stone transition-colors focus-ring"
+                className="text-[0.85rem] px-3 py-[0.35rem] rounded-full bg-[#252019] text-[#F5F0E8] no-underline hover:bg-[#2E2820] transition-colors focus-ring"
               >
                 {m.name}
               </a>

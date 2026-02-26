@@ -109,7 +109,9 @@ document.addEventListener('DOMContentLoaded',function(){
 function Header() {
   const location = useLocation();
   const path = location.pathname;
-  const isHome = path === "/";
+  // Light header only on artwork detail page
+  const isLight = path.startsWith("/artwork/") || path.startsWith("/artist/");
+  const isHome = !isLight;
 
   return (
     <header
@@ -186,8 +188,8 @@ function BottomNav() {
   const { count } = useFavorites();
   const path = location.pathname;
 
-  const isHome = path === "/";
-  const isDark = path === "/" || path === "/timeline";
+  const isLight = path.startsWith("/artwork/") || path.startsWith("/artist/");
+  const isDark = !isLight;
 
   const tabs = [
     {
