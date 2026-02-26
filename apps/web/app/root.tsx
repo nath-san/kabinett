@@ -252,6 +252,7 @@ function BottomNav() {
         </svg>
       ),
     },
+    /* Om moved to header menu — keep bottom nav to 5 items
     {
       href: "/om",
       label: "Om",
@@ -264,6 +265,7 @@ function BottomNav() {
         </svg>
       ),
     },
+    */
   ];
 
   return (

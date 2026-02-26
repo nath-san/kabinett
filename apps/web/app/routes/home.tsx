@@ -697,12 +697,12 @@ const ArtworkCard = React.memo(function ArtworkCard({
       ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[20rem]"
       : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[32rem]";
 
-  // Mobile: large = full screen, medium = shorter/cinematic, small = 75vh
+  // Mobile: large = tall but peeks next card, medium = cinematic, small = compact
   const mobileHeight = variant === "large"
-    ? "h-[100vh] md:h-[85vh]"
+    ? "h-[70vh] md:h-[75vh]"
     : variant === "medium"
-      ? "h-[60vh] md:h-[50vh]"
-      : "h-[75vh] md:h-[70vh]";
+      ? "h-[55vh] md:h-[50vh]"
+      : "h-[65vh] md:h-[60vh]";
 
   return (
     <a
