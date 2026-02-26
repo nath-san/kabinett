@@ -712,6 +712,8 @@ const ArtworkCard = React.memo(function ArtworkCard({
     >
       <img
         src={item.imageUrl}
+        srcSet={`${buildImageUrl(item.iiif_url, 200)} 200w, ${buildImageUrl(item.iiif_url, 400)} 400w, ${buildImageUrl(item.iiif_url, 800)} 800w`}
+        sizes={variant === "large" ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
         alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
         loading={eager ? "eager" : "lazy"}
         decoding="auto"

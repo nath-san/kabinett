@@ -290,6 +290,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       >
         <img
           src={artwork.imageUrl}
+          srcSet={`${artwork.thumbUrl} 400w, ${artwork.imageUrl} 800w`}
+          sizes="(max-width: 768px) 100vw, 800px"
           alt={`${artwork.title} — ${artist}`}
           loading="eager"
           fetchPriority="high"

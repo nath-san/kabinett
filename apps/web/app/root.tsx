@@ -22,8 +22,10 @@ export function headers() {
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" as const },
   { rel: "preconnect", href: "https://nationalmuseumse.iiifhosting.com" },
-  { rel: "preconnect", href: "https://media.samlingar.shm.se" },
+  // SHM preconnect disabled until SHM is enabled
+  // { rel: "preconnect", href: "https://media.samlingar.shm.se" },
   { rel: "preconnect", href: "https://ems.dimu.org" },
   {
     rel: "stylesheet",
