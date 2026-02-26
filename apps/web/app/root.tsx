@@ -6,7 +6,9 @@ import {
   Scripts,
   ScrollRestoration,
   useLocation,
+  useNavigate,
 } from "react-router";
+import { useEffect, useState } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -108,8 +110,24 @@ document.addEventListener('DOMContentLoaded',function(){
 
 function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const path = location.pathname;
+  const searchParams = new URLSearchParams(location.search);
   const isHome = path === "/";
+  const [query, setQuery] = useState(() => searchParams.get("q") || "");
+
+  useEffect(() => {
+    setQuery(searchParams.get("q") || "");
+  }, [location.search]);
+
+  const submitSearch = () => {
+    const trimmed = query.trim();
+    const params = new URLSearchParams();
+    if (trimmed) {
+      params.set("q", trimmed);
+    }
+    navigate(params.toString() ? `/search?${params.toString()}` : "/search");
+  };
 
   return (
     <header
@@ -154,13 +172,65 @@ function Header() {
           >
             Tidslinje
           </a>
-          <a
-            href="/search"
-            aria-current={path === "/search" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+          <div
+            className={[
+              "relative w-[18.5rem] transition-all duration-200 ease-out focus-within:w-[20rem]",
+            ].join(" ")}
           >
-            Sök
-          </a>
+            <label htmlFor="header-search" className="sr-only">Sök bland konstverk</label>
+            <input
+              id="header-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submitSearch();
+                }
+              }}
+              placeholder="Sök bland konstverk…"
+              className={[
+                "w-full h-10 pl-10 pr-11 rounded-full text-[0.86rem] border outline-none transition-all duration-200",
+                "focus:ring-2 focus:ring-[rgba(201,176,142,0.28)] focus:border-[rgba(201,176,142,0.55)]",
+                isHome
+                  ? "bg-[rgba(20,18,16,0.45)] text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.55)] border-[rgba(245,240,232,0.2)]"
+                  : "bg-[rgba(250,247,242,0.9)] text-charcoal placeholder:text-[rgba(102,95,84,0.65)] border-[rgba(212,205,195,0.55)]",
+              ].join(" ")}
+            />
+            <svg
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className={[
+                "absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none",
+                isHome ? "text-[rgba(245,240,232,0.7)]" : "text-[rgba(61,56,49,0.7)]",
+              ].join(" ")}
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <button
+              type="button"
+              aria-label="Sök"
+              onClick={submitSearch}
+              className={[
+                "absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full inline-flex items-center justify-center transition-colors focus-ring",
+                isHome
+                  ? "text-[rgba(245,240,232,0.82)] hover:bg-[rgba(245,240,232,0.14)]"
+                  : "text-[rgba(61,56,49,0.8)] hover:bg-[rgba(61,56,49,0.08)]",
+              ].join(" ")}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </button>
+          </div>
           <a
             href="/favorites"
             aria-current={path === "/favorites" ? "page" : undefined}
@@ -229,7 +299,7 @@ function BottomNav() {
       ),
     },
     {
-      href: "/search",
+      href: "/search?focus=1",
       label: "Sök",
       active: path === "/search",
       icon: (color: string) => (
