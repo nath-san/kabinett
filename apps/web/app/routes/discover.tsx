@@ -25,6 +25,8 @@ type Collection = {
   imageTitle?: string;
   imageArtist?: string;
   color?: string;
+  focalX?: number | null;
+  focalY?: number | null;
 };
 
 type TopArtist = {
@@ -34,6 +36,8 @@ type TopArtist = {
   imageTitle: string;
   imageArtist: string;
   color: string;
+  focalX?: number | null;
+  focalY?: number | null;
 };
 
 type MuseumSummary = {
@@ -78,14 +82,14 @@ export async function loader() {
       if (c.imageIds?.length) {
         const pickedId = c.imageIds[Math.floor((randomSeed + index) % c.imageIds.length)];
         row = db.prepare(
-          `SELECT iiif_url, dominant_color, title_sv, title_en, artists FROM artworks WHERE id = ?`
+          `SELECT iiif_url, dominant_color, title_sv, title_en, artists, focal_x, focal_y FROM artworks WHERE id = ?`
         ).get(pickedId);
       }
       if (!row) {
         const searchText = c.query || c.title;
         const terms = searchText.split(" ").join(" OR ");
         const rows = db.prepare(`
-          SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists FROM artworks_fts
+          SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y FROM artworks_fts
           JOIN artworks a ON a.id = artworks_fts.rowid
           WHERE artworks_fts MATCH ?
             AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
@@ -103,6 +107,8 @@ export async function loader() {
         imageTitle: row?.title_sv || row?.title_en || "Utan titel",
         imageArtist: parseArtist(row?.artists || null),
         color: row?.dominant_color || "#2B2A27",
+        focalX: row?.focal_x ?? null,
+        focalY: row?.focal_y ?? null,
       };
     } catch {
       return { ...c, color: "#2B2A27" };
@@ -111,7 +117,7 @@ export async function loader() {
 
   // Quiz image
   const quizImg = db.prepare(`
-    SELECT iiif_url, title_sv, title_en, artists FROM artworks
+    SELECT iiif_url, title_sv, title_en, artists, focal_x, focal_y FROM artworks
     WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
@@ -150,6 +156,8 @@ export async function loader() {
         a.title_sv,
         a.title_en,
         a.artists,
+        a.focal_x,
+        a.focal_y,
         ROW_NUMBER() OVER (
           PARTITION BY ta.name
           ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
@@ -161,7 +169,7 @@ export async function loader() {
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
         AND ${sourceA.sql}
     )
-    SELECT name, cnt, iiif_url, dominant_color, title_sv, title_en, artists
+    SELECT name, cnt, iiif_url, dominant_color, title_sv, title_en, artists, focal_x, focal_y
     FROM ranked
     WHERE rn = 1
     ORDER BY cnt DESC
@@ -173,6 +181,8 @@ export async function loader() {
     title_sv: string | null;
     title_en: string | null;
     artists: string | null;
+    focal_x: number | null;
+    focal_y: number | null;
   }>;
 
   const mappedArtists: TopArtist[] = artistsWithImages.map((artistRow) => ({
@@ -182,6 +192,8 @@ export async function loader() {
     imageTitle: artistRow.title_sv || artistRow.title_en || "Utan titel",
     imageArtist: parseArtist(artistRow.artists || null),
     color: artistRow.dominant_color || "#D4CDC3",
+    focalX: artistRow.focal_x,
+    focalY: artistRow.focal_y,
   }));
 
   // Stats
@@ -216,6 +228,8 @@ export async function loader() {
           url: buildImageUrl(quizImg.iiif_url, 600),
           title: quizImg?.title_sv || quizImg?.title_en || "Utan titel",
           artist: parseArtist(quizImg?.artists || null),
+          focalX: quizImg?.focal_x ?? null,
+          focalY: quizImg?.focal_y ?? null,
         }
       : undefined,
     topArtists: mappedArtists,
@@ -240,7 +254,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Hero — Quiz CTA */}
         <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline focus-ring">
           {quizImage && (
-            <img src={quizImage.url} alt={`${quizImage.title} — ${quizImage.artist}`} className="absolute inset-0 w-full h-full object-cover" />
+            <img src={quizImage.url} alt={`${quizImage.title} — ${quizImage.artist}`} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(quizImage.focalX ?? 0.5) * 100}% ${(quizImage.focalY ?? 0.5) * 100}%` }} />
           )}
           <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
           <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
@@ -280,6 +294,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                       event.currentTarget.classList.add("is-broken");
                     }}
                     className="absolute inset-0 w-full h-full object-cover"
+                    style={{ objectPosition: `${(c.focalX ?? 0.5) * 100}% ${(c.focalY ?? 0.5) * 100}%` }}
                   />
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
@@ -315,6 +330,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                         event.currentTarget.classList.add("is-broken");
                       }}
                       className="w-full h-full object-cover"
+                      style={{ objectPosition: `${(a.focalX ?? 0.5) * 100}% ${(a.focalY ?? 0.5) * 100}%` }}
                     />
                   )}
                 </div>

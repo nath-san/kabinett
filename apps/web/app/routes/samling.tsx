@@ -12,6 +12,8 @@ type FeaturedRow = {
   dominant_color: string | null;
   artists: string | null;
   dating_text: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 const FEATURED_CACHE_TTL_MS = 60 * 1000;
@@ -102,7 +104,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   const featuredRows = cachedFeatured && cachedFeatured.expiresAt > now
     ? cachedFeatured.rows
     : (db.prepare(`
-        SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text
+        SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text, a.focal_x, a.focal_y
         FROM artworks a LEFT JOIN museums m ON m.id = a.source
         WHERE ${whereClause}
           AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
@@ -125,6 +127,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     datingText: row.dating_text || null,
     imageUrl: buildImageUrl(row.iiif_url, 400),
     color: row.dominant_color || "#D4CDC3",
+    focal_x: row.focal_x,
+    focal_y: row.focal_y,
   }));
 
   const ogImageUrl = featuredRows[0]?.iiif_url ? buildImageUrl(featuredRows[0].iiif_url, 800) : null;
@@ -192,6 +196,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
                         event.currentTarget.classList.add("is-broken");
                       }}
                       className="absolute inset-0 w-full h-full object-cover"
+                      style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
                     />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
                   </div>

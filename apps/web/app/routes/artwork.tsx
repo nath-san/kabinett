@@ -178,6 +178,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     acquisitionYear: row.acquisition_year,
     imageUrl: buildImageUrl(row.iiif_url, 800),
     thumbUrl: buildImageUrl(row.iiif_url, 400),
+    focalX: row.focal_x,
+    focalY: row.focal_y,
     color: row.dominant_color || "#D4CDC3",
     colorR: row.color_r,
     colorG: row.color_g,
@@ -201,7 +203,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 
   // Similar by CLIP embedding (semantic/visual similarity)
-  let similar: Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }> = [];
+  let similar: Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }> = [];
   try {
     similar = db
       .prepare(
@@ -211,7 +213,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
            a.iiif_url,
            a.dominant_color,
            a.artists,
-           a.dating_text
+           a.dating_text,
+           a.focal_x,
+           a.focal_y
          FROM vec_artworks v
          JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
          JOIN artworks a ON a.id = map.artwork_id
@@ -225,7 +229,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
          ORDER BY v.distance
          LIMIT ?`
       )
-      .all(row.id, 48, row.id, ...source.params, 8) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null }>;
+      .all(row.id, 48, row.id, ...source.params, 8) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }>;
   } catch {
     // Fall back to no similar
   }
@@ -236,14 +240,14 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const randomSeed = Math.floor(Date.now() / 60_000);
   const sameArtist = knownArtist
     ? (db.prepare(
-        `SELECT id, title_sv, iiif_url, dominant_color, dating_text
+        `SELECT id, title_sv, iiif_url, dominant_color, dating_text, focal_x, focal_y
          FROM artworks
          WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
            AND id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${source.sql}
          ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
          LIMIT 6`
-      ).all(row.id, `%${artistName}%`, ...source.params, randomSeed) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null }>)
+      ).all(row.id, `%${artistName}%`, ...source.params, randomSeed) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }>)
     : [];
 
   return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
@@ -257,6 +261,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
   const canExpandDescription =
     descriptionSections.some((section) => section.content.length > 360) ||
     descriptionSections.reduce((sum, section) => sum + section.content.length, 0) > 700;
+  const focalObjectPosition = `${(artwork.focalX ?? 0.5) * 100}% ${(artwork.focalY ?? 0.5) * 100}%`;
 
   const artworkJsonLd = {
     "@context": "https://schema.org",
@@ -291,6 +296,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             event.currentTarget.classList.add("is-broken");
           }}
           className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
+          style={{ objectPosition: focalObjectPosition }}
         />
       </div>
 
@@ -478,7 +484,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                     onError={(event) => {
                       event.currentTarget.classList.add("is-broken");
                     }}
-                    className="w-full h-full object-cover" />
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `${(s.focal_x ?? 0.5) * 100}% ${(s.focal_y ?? 0.5) * 100}%` }} />
                 </div>
                 <div className="p-2">
                   <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
@@ -511,7 +518,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                     onError={(event) => {
                       event.currentTarget.classList.add("is-broken");
                     }}
-                    className="w-full h-full object-cover" />
+                    className="w-full h-full object-cover"
+                    style={{ objectPosition: `${(s.focal_x ?? 0.5) * 100}% ${(s.focal_y ?? 0.5) * 100}%` }} />
                 </div>
                 <div className="p-2">
                   <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">

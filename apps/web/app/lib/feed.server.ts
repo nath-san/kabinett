@@ -13,6 +13,8 @@ type FeedItemRow = {
   category: string | null;
   technique_material: string | null;
   museum_name: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 export type FeedItem = {
@@ -26,6 +28,8 @@ export type FeedItem = {
   technique_material: string | null;
   imageUrl: string;
   museum_name: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 const COLOR_TARGETS: Record<string, { r: number; g: number; b: number }> = {
@@ -68,6 +72,8 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
     technique_material: row.technique_material,
     imageUrl: buildImageUrl(row.iiif_url, 400),
     museum_name: row.museum_name,
+    focal_x: row.focal_x,
+    focal_y: row.focal_y,
   }));
 }
 
@@ -92,6 +98,7 @@ export async function fetchFeed(options: {
     const rawRows = db
       .prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                a.focal_x, a.focal_y,
                 m.name as museum_name,
                 artworks_fts.rank as relevance
          FROM artworks_fts
@@ -137,7 +144,6 @@ export async function fetchFeed(options: {
   const baseParams: Array<string | number> = [...sourceA.params];
   const cursorConditions: string[] = [];
   const cursorParams: Array<string | number> = [];
-  let mode: "cursor" | "cursor_desc" = "cursor";
   const tablePrefix = "artworks a";
   let dedupeOrderBy = "a.id ASC";
   let finalOrderBy = "id ASC";
@@ -153,6 +159,7 @@ export async function fetchFeed(options: {
       const cursorP = cursor ? [cursor] : [];
       const museumRows = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                a.focal_x, a.focal_y,
                 m.name as museum_name
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
@@ -218,13 +225,8 @@ export async function fetchFeed(options: {
     baseParams.push(century.from, century.to);
   }
 
-  if (mode === "cursor" && cursor) {
+  if (cursor) {
     cursorConditions.push("id > ?");
-    cursorParams.push(cursor);
-  }
-
-  if (mode === "cursor_desc" && cursor) {
-    cursorConditions.push("id < ?");
     cursorParams.push(cursor);
   }
 
@@ -237,6 +239,7 @@ export async function fetchFeed(options: {
   const rawRows = db
     .prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM ${fromClause}
        LEFT JOIN museums m ON m.id = a.source

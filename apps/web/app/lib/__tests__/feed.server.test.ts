@@ -11,6 +11,7 @@ vi.mock("../db.server", () => ({
 }));
 
 vi.mock("../museums.server", () => ({
+  getEnabledMuseums: () => ["nm"],
   sourceFilter: (prefix?: string) => ({
     sql: prefix ? `${prefix}.source IN (?)` : "source IN (?)",
     params: ["nm"],

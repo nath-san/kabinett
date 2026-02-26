@@ -19,7 +19,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const source = sourceFilter();
   const rows = db
     .prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
+      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, focal_x, focal_y
        FROM artworks
        WHERE id IN (${ids.map(() => "?").join(",")})
          AND id NOT IN (SELECT artwork_id FROM broken_images)
@@ -34,6 +34,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       dominant_color: string | null;
       artists: string | null;
       dating_text: string | null;
+      focal_x: number | null;
+      focal_y: number | null;
     }>;
 
   const results = rows.map((row) => {
@@ -44,6 +46,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       dating_text: row.dating_text || "",
       dominant_color: row.dominant_color || "#D4CDC3",
       imageUrl: row.iiif_url ? buildImageUrl(row.iiif_url, 400) : "",
+      focal_x: row.focal_x,
+      focal_y: row.focal_y,
     };
   });
 

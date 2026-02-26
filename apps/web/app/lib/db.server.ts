@@ -39,6 +39,8 @@ export interface ArtworkRow {
   color_r: number | null;
   color_g: number | null;
   color_b: number | null;
+  focal_x: number | null;
+  focal_y: number | null;
   sub_museum: string | null;
   descriptions_sv: string | null;
   dimensions_json: string | null;

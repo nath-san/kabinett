@@ -15,6 +15,8 @@ type FavoriteItem = {
   artists: string | null;
   dominant_color: string;
   imageUrl: string;
+  focal_x?: number | null;
+  focal_y?: number | null;
 };
 
 export default function Favorites() {
@@ -133,6 +135,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
             event.currentTarget.classList.add("is-broken");
           }}
           className="w-full h-full object-cover"
+          style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
         />
       </div>
       <div className="p-3">

@@ -21,6 +21,8 @@ type SearchResult = {
   year?: string;
   artist?: string;
   color?: string;
+  focal_x?: number | null;
+  focal_y?: number | null;
 };
 type Suggestion = { value: string; type: string };
 type SearchMode = "fts" | "clip" | "color";
@@ -37,6 +39,12 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
 
 function nextCursor(length: number): number | null {
   return length >= PAGE_SIZE ? length : null;
+}
+
+function focalObjectPosition(focalX: number | null | undefined, focalY: number | null | undefined): string {
+  const x = Number.isFinite(focalX) ? focalX as number : 0.5;
+  const y = Number.isFinite(focalY) ? focalY as number : 0.5;
+  return `${x * 100}% ${y * 100}%`;
 }
 
 export function headers() {
@@ -92,6 +100,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const randomSeed = Math.floor(Date.now() / 60_000);
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
@@ -118,6 +127,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (colorTarget) {
     const rows = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
@@ -186,6 +196,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM artworks_fts
        JOIN artworks a ON a.id = artworks_fts.rowid
@@ -212,6 +223,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const like = `%${query}%`;
     results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
@@ -370,7 +382,8 @@ function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: 
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          style={{ objectPosition: focalObjectPosition(r.focal_x, r.focal_y) }} />
       </div>
       <div className="p-3">
         <p className="text-sm font-medium text-charcoal leading-snug line-clamp-2">

@@ -65,6 +65,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     try {
       const results = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+                a.focal_x, a.focal_y,
                 m.name as museum_name
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
@@ -99,6 +100,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
               m.name as museum_name
        FROM artworks_fts
        JOIN artworks a ON a.id = artworks_fts.rowid
@@ -118,6 +120,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const like = `%${q}%`;
       const results = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+                a.focal_x, a.focal_y,
                 m.name as museum_name
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source

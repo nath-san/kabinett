@@ -24,7 +24,15 @@ type FeedItem = {
   technique_material: string | null;
   imageUrl: string;
   museum_name: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
+
+function focalObjectPosition(focalX: number | null | undefined, focalY: number | null | undefined): string {
+  const x = Number.isFinite(focalX) ? focalX as number : 0.5;
+  const y = Number.isFinite(focalY) ? focalY as number : 0.5;
+  return `${x * 100}% ${y * 100}%`;
+}
 
 type ThemeSection = {
   type: "theme";
@@ -189,6 +197,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const pickedIds = shuffled.slice(0, 5);
   const curatedRows = db.prepare(
     `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+            a.focal_x, a.focal_y,
             COALESCE(a.sub_museum, m.name) as museum_name
      FROM artworks a
      LEFT JOIN museums m ON m.id = a.source
@@ -247,6 +256,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     if (pickedArtist) {
       const spotlightRows = db.prepare(
         `SELECT a.id, a.title_sv, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                a.focal_x, a.focal_y,
                 COALESCE(a.sub_museum, m.name) as museum_name
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
@@ -412,7 +422,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             });
           }
         } catch { /* skip theme on error */ }
-        setThemeIndex((prev) => prev + 1);
+        setThemeIndex((prev: number) => prev + 1);
       }
 
       setFeed((prev) => [...prev, ...newEntries]);
@@ -567,6 +577,7 @@ const ArtworkCard = React.memo(function ArtworkCard({
           "absolute inset-0 w-full h-full object-cover",
           eager ? "" : "opacity-0 lg:opacity-100",
         ].join(" ")}
+        style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
       />
       <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.85)_0%,rgba(0,0,0,0.4)_30%,transparent_55%)] pointer-events-none lg:opacity-70 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
       <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-7" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.6), 0 0 12px rgba(0,0,0,0.3)" }}>
@@ -647,6 +658,7 @@ function SpotlightCard({ spotlight }: { spotlight: SpotlightCardEntry }) {
                 e.currentTarget.classList.add("is-broken");
               }}
               className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
+              style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
             />
           </a>
         ))}
@@ -753,6 +765,7 @@ function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMu
                   e.currentTarget.classList.add("is-broken");
                 }}
                 className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
+                style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
               />
             </div>
             <div className="py-[0.6rem] px-3">

@@ -40,6 +40,8 @@ type FeaturedItem = {
   datingText: string | null;
   imageUrl: string;
   color: string;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 type FeaturedRow = {
@@ -50,6 +52,8 @@ type FeaturedRow = {
   dominant_color: string | null;
   artists: string | null;
   dating_text: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 const FEATURED_CACHE_TTL_MS = 60 * 1000;
@@ -107,7 +111,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     ? cachedFeatured.rows
     : (db
         .prepare(
-          `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
+          `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, focal_x, focal_y
            FROM artworks
            WHERE source = ?
              AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
@@ -131,6 +135,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     datingText: row.dating_text || null,
     imageUrl: buildImageUrl(row.iiif_url, 400),
     color: row.dominant_color || "#D4CDC3",
+    focal_x: row.focal_x,
+    focal_y: row.focal_y,
   }));
 
   const ogImageUrl = featuredRows[0]?.iiif_url
@@ -256,6 +262,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                         event.currentTarget.classList.add("is-broken");
                       }}
                       className="absolute inset-0 w-full h-full object-cover"
+                      style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
                     />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
                   </div>
