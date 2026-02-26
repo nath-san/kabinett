@@ -81,22 +81,42 @@ async function fetchObjectMeta(objectUri: string) {
     const title = getText(findFirst(parsed, "itemLabel")) || "Utan titel";
     const className = getText(findFirst(parsed, "itemClassName")) || null;
     const collection = getText(findFirst(parsed, "collection")) || null;
-    // Dating — only from production/creation contexts
+    // Dating — with context type tracking
     const PRODUCTION_LABELS = new Set([
       "produktion", "tillverkning", "skapande", "utförande",
-      "datering", "fotografering", "tryckning",
+      "datering", "tryckning",
     ]);
-    const dateTexts: string[] = [];
     const contexts = findAll(parsed, "Context");
+    let productionDates: string[] = [];
+    let photoDates: string[] = [];
+    let datingType: string | null = null;
+
     for (const ctx of contexts) {
       const label = getText(findFirst(ctx, "contextLabel"))?.trim().toLowerCase() || "";
+      const labelRaw = getText(findFirst(ctx, "contextLabel"))?.trim() || "";
       const superType = getText(findFirst(ctx, "contextSuperType")) || "";
-      if (PRODUCTION_LABELS.has(label) || superType.includes("create") || superType.includes("produce")) {
-        for (const key of ["fromTime", "toTime"]) {
-          const t = getText(findFirst(ctx, key))?.trim();
-          if (t) dateTexts.push(t);
-        }
+      const isCreate = superType.includes("create") || superType.includes("produce");
+      if (!isCreate) continue;
+
+      const dates: string[] = [];
+      for (const key of ["fromTime", "toTime"]) {
+        const t = getText(findFirst(ctx, key))?.trim();
+        if (t) dates.push(t);
       }
+      if (dates.length === 0) continue;
+
+      if (PRODUCTION_LABELS.has(label)) {
+        productionDates.push(...dates);
+        if (!datingType) datingType = labelRaw;
+      } else if (label === "fotografering") {
+        photoDates.push(...dates);
+      }
+    }
+
+    let dateTexts = productionDates;
+    if (dateTexts.length === 0 && photoDates.length > 0) {
+      dateTexts = photoDates;
+      datingType = "Fotografering";
     }
     if (dateTexts.length === 0) {
       for (const key of ["displayDate", "eventDate"]) {
@@ -112,6 +132,7 @@ async function fetchObjectMeta(objectUri: string) {
     const meta = {
       title, className, collection,
       datingText: dateTexts[0] || null,
+      datingType,
       yearStart: start, yearEnd: end,
       technique: techniques.join(", ") || null,
     };
@@ -126,12 +147,13 @@ async function fetchObjectMeta(objectUri: string) {
 // --- DB ---
 const upsert = db.prepare(`
   INSERT INTO artworks (
-    id, inventory_number, title_sv, category, technique_material, dating_text,
+    id, inventory_number, title_sv, category, technique_material, dating_text, dating_type,
     year_start, year_end, iiif_url, source, sub_museum, synced_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now'))
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now'))
   ON CONFLICT(id) DO UPDATE SET
     title_sv=excluded.title_sv, category=excluded.category,
     technique_material=excluded.technique_material, dating_text=excluded.dating_text,
+    dating_type=excluded.dating_type,
     year_start=excluded.year_start, year_end=excluded.year_end,
     iiif_url=excluded.iiif_url, source='shm', sub_museum=excluded.sub_museum, synced_at=datetime('now')
 `);
@@ -200,6 +222,7 @@ async function main() {
           meta.className,
           meta.technique,
           meta.datingText,
+          meta.datingType,
           meta.yearStart,
           meta.yearEnd,
           `https://media.samlingar.shm.se/item/${mediaUuid}/medium`,

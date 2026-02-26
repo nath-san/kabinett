@@ -174,6 +174,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     techniqueMaterial: row.technique_material,
     artists,
     datingText: row.dating_text,
+    datingType: row.dating_type as string | null,
     yearStart: row.year_start,
     acquisitionYear: row.acquisition_year,
     imageUrl: buildImageUrl(row.iiif_url, 800),
@@ -342,7 +343,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Details grid */}
         <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-linen">
-          {artwork.datingText && <Detail label="Datering" value={artwork.datingText} />}
+          {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
           {artwork.category && <Detail label="Kategori" value={artwork.category} />}
           {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
           {artwork.dimensions && <Detail label="Mått" value={artwork.dimensions} />}

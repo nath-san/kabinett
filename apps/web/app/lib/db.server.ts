@@ -32,6 +32,7 @@ export interface ArtworkRow {
   technique_material: string | null;
   artists: string | null;
   dating_text: string | null;
+  dating_type: string | null;
   year_start: number | null;
   acquisition_year: number | null;
   iiif_url: string;

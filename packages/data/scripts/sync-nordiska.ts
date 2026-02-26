@@ -44,15 +44,16 @@ function hashId(uuid: string): number {
 
 const upsert = db.prepare(`
   INSERT INTO artworks (
-    id, inventory_number, title_sv, category, dating_text,
+    id, inventory_number, title_sv, category, dating_text, dating_type,
     year_start, year_end, iiif_url, source, synced_at
   ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, 'nordiska', datetime('now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nordiska', datetime('now')
   )
   ON CONFLICT(id) DO UPDATE SET
     title_sv = excluded.title_sv,
     category = excluded.category,
     dating_text = excluded.dating_text,
+    dating_type = excluded.dating_type,
     year_start = excluded.year_start,
     year_end = excluded.year_end,
     iiif_url = excluded.iiif_url,
@@ -153,13 +154,23 @@ function parseEntity(entity: any) {
     }
   }
 
-  // Use production dates first (best signal)
-  let dateTexts = productionDates;
+  // Use production dates first (best signal), then photo dates
+  let dateTexts: string[] = [];
+  let datingType: string | null = null;
 
-  // For photos: the photo IS the work, so Fotografering date is valid
-  // For objects: Fotografering is just digitization — skip it
-  if (dateTexts.length === 0 && photoDates.length > 0 && isPhotoType) {
+  if (productionDates.length > 0) {
+    dateTexts = productionDates;
+    // Find the actual production label used
+    for (const ctx of contexts) {
+      const label = getText(findFirst(ctx, "contextLabel"))?.trim() || "";
+      if (PRODUCTION_LABELS.has(label.toLowerCase())) {
+        datingType = label; // e.g. "Produktion", "Tillverkning"
+        break;
+      }
+    }
+  } else if (photoDates.length > 0) {
     dateTexts = photoDates;
+    datingType = "Fotografering";
   }
 
   const datingText = dateTexts[0] || null;
@@ -176,6 +187,7 @@ function parseEntity(entity: any) {
     title_sv: title.length > 200 ? title.slice(0, 197) + "…" : title,
     category: className,
     dating_text: datingText,
+    dating_type: datingType,
     year_start: start,
     year_end: end,
     iiif_url: imageUrl,
@@ -203,6 +215,7 @@ function processPage(
         item.title_sv,
         item.category,
         item.dating_text,
+        item.dating_type,
         item.year_start,
         item.year_end,
         item.iiif_url,
