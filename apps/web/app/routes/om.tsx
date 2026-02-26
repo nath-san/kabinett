@@ -78,7 +78,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
               </p>
             </div>
             <div className="bg-[#252019] rounded-2xl p-4">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Museer</p>
+              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Samlingar</p>
               <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {stats.museums.toLocaleString("sv")}
               </p>

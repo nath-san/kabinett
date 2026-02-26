@@ -513,7 +513,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {showMuseumFilters && (
           <div className="mt-4">
-            <p className="text-xs text-[rgba(245,240,232,0.55)] mb-2">Museer</p>
+            <p className="text-xs text-[rgba(245,240,232,0.55)] mb-2">Samlingar</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={buildSearchUrl()}

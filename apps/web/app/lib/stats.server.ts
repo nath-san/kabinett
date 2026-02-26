@@ -16,8 +16,8 @@ function querySiteStats(db: Database.Database): SiteStats {
   const source = sourceFilter();
   const sourceA = sourceFilter("a");
   const minYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
-  const maxYear = (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
   const currentYear = new Date().getFullYear();
+  const maxYear = (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND COALESCE(year_end, year_start) <= ? AND ${source.sql}`).get(currentYear, ...source.params) as any).c as number | null;
 
   return {
     totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c as number,

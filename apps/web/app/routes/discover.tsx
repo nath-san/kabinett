@@ -355,7 +355,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
 
-        {/* Museer */}
+        {/* Samlingar */}
         {museums.length > 0 && (
           <section className="pt-8 px-4">
             <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mb-3">Samlingar</h2>
