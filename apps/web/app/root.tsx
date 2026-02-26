@@ -9,6 +9,7 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import "./fonts.css";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
 
@@ -21,16 +22,10 @@ export function headers() {
 }
 
 export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" as const },
   { rel: "preconnect", href: "https://nationalmuseumse.iiifhosting.com" },
   // SHM preconnect disabled until SHM is enabled
   // { rel: "preconnect", href: "https://media.samlingar.shm.se" },
   { rel: "preconnect", href: "https://ems.dimu.org" },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap",
-  },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
