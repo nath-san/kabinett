@@ -45,18 +45,54 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (!q) return Response.json([]);
 
   const scoped = museum && isMuseumEnabled(museum) ? museum : undefined;
+  const db = getDb();
+  const sourceA = sourceFilter("a");
+
   if (mode === "clip") {
     try {
-      const results = await clipSearch(q, limit, offset, scoped);
-      return Response.json(results);
+      // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps
+      const [clipResults, ftsResults] = await Promise.all([
+        clipSearch(q, limit, offset, scoped).catch(() => [] as any[]),
+        (async () => {
+          const ftsQuery = buildFtsQuery(q);
+          if (!ftsQuery) return [];
+          try {
+            return db.prepare(
+              `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+                      a.focal_x, a.focal_y,
+                      m.name as museum_name
+               FROM artworks_fts
+               JOIN artworks a ON a.id = artworks_fts.rowid
+               LEFT JOIN museums m ON m.id = a.source
+               WHERE artworks_fts MATCH ?
+                 AND a.iiif_url IS NOT NULL
+                 AND LENGTH(a.iiif_url) > 40
+                 AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+                 AND ${sourceA.sql}
+                 ${scoped ? "AND a.source = ?" : ""}
+               ORDER BY rank LIMIT ? OFFSET ?`
+            ).all(ftsQuery, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
+          } catch {
+            return [];
+          }
+        })(),
+      ]);
+
+      // Merge: CLIP first, then FTS-unique items
+      const seenIds = new Set(clipResults.map((r: any) => r.id));
+      const merged = [...clipResults];
+      for (const r of ftsResults) {
+        if (!seenIds.has(r.id)) {
+          seenIds.add(r.id);
+          merged.push(r);
+        }
+      }
+      return Response.json(merged.slice(0, limit));
     } catch (err) {
       console.error(err);
       return errorResponse();
     }
   }
-
-  const db = getDb();
-  const sourceA = sourceFilter("a");
 
   if (mode === "color") {
     const colorTarget = COLOR_TERMS[q.toLowerCase()];

@@ -582,23 +582,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.4)] mt-3">Söker…</p>
           )}
           {searchQuery && searchResults && !searching && (
-            searchResults.length > 0 ? (
-              <div className="flex items-center justify-center gap-4 mt-3">
-                <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
-                  {searchResults.length} träffar för "{searchQuery}"
-                </p>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
+                {searchResults.length} träffar för "{searchQuery}"
+              </p>
+              {searchResults.length > 0 && (
                 <a
                   href={`/search?q=${encodeURIComponent(searchQuery)}`}
                   className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
                 >
                   Visa alla →
                 </a>
-              </div>
-            ) : (
-              <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.45)] mt-3">
-                Semantisk sökning förbereds — snart klar
-              </p>
-            )
+              )}
+            </div>
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
