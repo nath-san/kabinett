@@ -27,13 +27,22 @@ function externalImageUrl(iiifOrDirect: string, width: number): string {
 }
 
 /**
- * Build an image URL that goes through our /api/img proxy.
- * The proxy handles WebP/AVIF conversion and sets immutable cache headers.
- * Falls back to direct URL in SSR/build contexts.
+ * Build an image URL. Uses direct external URLs by default.
+ * The /api/img proxy exists but is too CPU-heavy for small Fly instances
+ * when processing many images simultaneously. Use proxyImageUrl() for
+ * individual images where format conversion matters.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
+  return externalImageUrl(iiifOrDirect, width);
+}
 
+/**
+ * Proxied image URL — WebP/AVIF conversion via /api/img.
+ * Use sparingly (e.g. hero image, single artwork view).
+ */
+export function proxyImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
+  if (!iiifOrDirect?.trim()) return "";
   const src = externalImageUrl(iiifOrDirect, width);
   return `/api/img?url=${encodeURIComponent(src)}&w=${width}`;
 }
