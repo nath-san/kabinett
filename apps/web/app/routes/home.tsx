@@ -374,17 +374,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1); // skip preloaded themes
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
   const [heroQuery, setHeroQuery] = useState("");
-  const [heroScroll, setHeroScroll] = useState(0);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  const totalFormatted = useMemo(
-    () => loaderData.stats.total.toLocaleString("sv-SE"),
-    [loaderData.stats.total]
-  );
-
-  const heroOpacity = Math.max(0, 1 - heroScroll / 260);
-  const heroParallax = Math.min(heroScroll * 0.2, 56);
 
   // Dark mode — use first artwork's color
   const firstColor = useMemo(() => {
@@ -402,23 +393,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     mql.addEventListener("change", update);
     return () => { mql.removeEventListener("change", update); document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
-
-  useEffect(() => {
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        setHeroScroll(window.scrollY);
-        frame = 0;
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
 
   const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -500,57 +474,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
-      <div className="relative md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        <div className="pointer-events-none absolute top-0 left-0 right-0 z-20">
-          <div
-            className="h-[70vh] md:h-[72vh] lg:h-[76vh] bg-[linear-gradient(to_bottom,rgba(8,7,6,0.72)_0%,rgba(8,7,6,0.6)_24%,rgba(8,7,6,0.36)_54%,rgba(8,7,6,0.12)_74%,rgba(8,7,6,0)_100%)]"
-            style={{
-              opacity: heroOpacity,
-              transform: `translateY(${heroParallax}px)`,
-            }}
-          >
-            <div className="pointer-events-auto px-(--spacing-page) pt-24 md:pt-28 lg:pt-32 md:px-6 lg:px-10 max-w-3xl">
-              <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[rgba(245,240,232,0.72)]">Kabinett</p>
-              <h1 className="mt-3 font-serif text-[2.1rem] md:text-[3.1rem] lg:text-[3.55rem] leading-[0.97] text-[#F5F0E8]">
-                Utforska Sveriges kulturarv
-              </h1>
-              <p className="mt-3 text-[0.9rem] md:text-[1rem] text-[rgba(245,240,232,0.8)]">
-                {totalFormatted} verk från {loaderData.stats.museums} samlingar
-              </p>
-              <form onSubmit={submitHeroSearch} className="mt-6 md:mt-7">
-                <label htmlFor="hero-search" className="sr-only">Sök bland konstverk</label>
-                <div className="flex items-center gap-2 rounded-full bg-[rgba(250,247,242,0.95)] border border-[rgba(250,247,242,0.35)] shadow-[0_10px_30px_rgba(0,0,0,0.22)] px-2 py-2">
-                  <svg
-                    aria-hidden="true"
-                    width="17"
-                    height="17"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.9"
-                    className="text-[rgba(61,56,49,0.72)] ml-2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
-                  <input
-                    id="hero-search"
-                    type="search"
-                    value={heroQuery}
-                    onChange={(event) => setHeroQuery(event.target.value)}
-                    placeholder='Sök på vad som helst — "solnedgång vid havet", "röda blommor"…'
-                    className="flex-1 bg-transparent text-charcoal placeholder:text-[rgba(61,56,49,0.58)] text-[0.95rem] md:text-[1rem] px-1.5 py-2.5 border-none outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="h-10 px-5 rounded-full bg-charcoal text-[#F5F0E8] text-[0.86rem] font-medium tracking-[0.01em] border border-transparent hover:bg-ink transition-colors focus-ring"
-                  >
-                    Sök
-                  </button>
-                </div>
-              </form>
+      <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+        {/* Search band — slim, elegant, lets the art breathe */}
+        <div className="pt-[4.2rem] pb-5 px-4 md:px-2 lg:px-0 lg:pt-[4.5rem] lg:pb-6">
+          <p className="font-serif text-[1.15rem] md:text-[1.3rem] lg:text-[1.4rem] text-[rgba(245,240,232,0.85)] text-center leading-[1.3]">
+            Sök bland {loaderData.stats.total.toLocaleString("sv-SE")} verk från Sveriges museer
+          </p>
+          <form onSubmit={submitHeroSearch} className="mt-3 md:mt-4 max-w-xl mx-auto">
+            <label htmlFor="hero-search" className="sr-only">Sök bland konstverk</label>
+            <div className="flex items-center gap-2 rounded-full bg-[rgba(245,240,232,0.08)] backdrop-blur-[12px] border border-[rgba(245,240,232,0.15)] px-4 py-[0.55rem] transition-all duration-200 focus-within:border-[rgba(245,240,232,0.35)] focus-within:bg-[rgba(245,240,232,0.12)] focus-within:shadow-[0_0_20px_rgba(245,240,232,0.06)]">
+              <svg
+                aria-hidden="true"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="text-[rgba(245,240,232,0.4)] shrink-0"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                id="hero-search"
+                type="search"
+                value={heroQuery}
+                onChange={(event) => setHeroQuery(event.target.value)}
+                placeholder='Prova: "solnedgång vid havet"'
+                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.3)] text-[0.9rem] px-1 py-1.5 border-none outline-none"
+              />
             </div>
-          </div>
+          </form>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {(() => {
