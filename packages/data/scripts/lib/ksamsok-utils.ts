@@ -52,9 +52,16 @@ export function extractYears(
   options: { minYear?: number; maxYear?: number } = {},
 ): { start: number | null; end: number | null } {
   const minYear = options.minYear ?? 500;
-  const maxYear = options.maxYear ?? 2100;
+  const maxYear = options.maxYear ?? new Date().getFullYear();
 
-  const years = (text.match(/\d{4}/g) || [])
+  // Strip inventory numbers (e.g. "inv.nr 208836", "NM 204774", "EU 2086")
+  // before extracting years — these look like years but aren't
+  const cleaned = text
+    .replace(/inv\.?\s*n?r?\.?\s*\d+/gi, "")
+    .replace(/\bNM\s*\d+/g, "")
+    .replace(/\bEU\s*\d+/g, "");
+
+  const years = (cleaned.match(/\d{4}/g) || [])
     .map((year) => parseInt(year, 10))
     .filter((year) => year >= minYear && year <= maxYear);
 
