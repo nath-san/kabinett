@@ -225,16 +225,17 @@ async function main() {
     const visionModel = await CLIPVisionModelWithProjection.from_pretrained("Xenova/clip-vit-base-patch32");
     console.log("   Model loaded!\n");
 
+    // Use rowid-based pagination that works with negative IDs (Nordiska/SHM)
     const selectBatch = db.prepare(`
-      SELECT a.id, a.iiif_url
+      SELECT a.id, a.iiif_url, a.rowid as _rowid
       FROM artworks a
       LEFT JOIN clip_embeddings c ON c.artwork_id = a.id
       WHERE a.iiif_url IS NOT NULL
         AND LENGTH(a.iiif_url) > 40
         AND c.artwork_id IS NULL
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-        AND a.id > ?
-      ORDER BY a.id ASC
+        AND a.rowid > ?
+      ORDER BY a.rowid ASC
       LIMIT ?
     `);
 
@@ -247,13 +248,13 @@ async function main() {
 
     let processed = 0;
     let failed = 0;
-    let lastId = 0;
+    let lastRowid = 0;
 
     while (true) {
-      const rows = selectBatch.all(lastId, BATCH_SIZE) as ArtworkRow[];
+      const rows = selectBatch.all(lastRowid, BATCH_SIZE) as (ArtworkRow & { _rowid: number })[];
       if (rows.length === 0) break;
 
-      lastId = rows[rows.length - 1].id;
+      lastRowid = rows[rows.length - 1]._rowid;
 
       for (let index = 0; index < rows.length; index += CONCURRENCY) {
         const chunk = rows.slice(index, index + CONCURRENCY);
