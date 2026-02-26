@@ -561,7 +561,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 value={heroQuery}
                 onChange={(event) => setHeroQuery(event.target.value)}
                 placeholder='Prova: "solnedgång vid havet"'
-                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.3)] text-[0.9rem] px-1 py-1.5 border-none outline-none"
+                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.3)] text-[0.9rem] px-1 py-1.5 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
               {searchQuery && (
                 <button
