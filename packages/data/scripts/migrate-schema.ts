@@ -27,6 +27,8 @@ function ensureArtworkColumns(db: Database.Database) {
   ensureArtworkColumn(db, "color_r", "INTEGER");
   ensureArtworkColumn(db, "color_g", "INTEGER");
   ensureArtworkColumn(db, "color_b", "INTEGER");
+  ensureArtworkColumn(db, "focal_x", "REAL DEFAULT 0.5");
+  ensureArtworkColumn(db, "focal_y", "REAL DEFAULT 0.5");
 }
 
 function ensureTables(db: Database.Database) {
