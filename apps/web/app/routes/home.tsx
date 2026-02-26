@@ -1,6 +1,5 @@
 import type { Route } from "./+types/home";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // Search removed — now lives at /search via bottom nav
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
@@ -309,7 +308,6 @@ function getCardVariant(positionInFeed: number): CardVariant {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const navigate = useNavigate();
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -374,6 +372,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1); // skip preloaded themes
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
   const [heroQuery, setHeroQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<FeedItem[] | null>(null);
+  const [searching, setSearching] = useState(false);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -394,15 +395,47 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => { mql.removeEventListener("change", update); document.body.style.backgroundColor = ""; document.body.style.color = ""; };
   }, [firstColor]);
 
-  const submitHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitHeroSearch = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = heroQuery.trim();
-    const params = new URLSearchParams();
-    if (trimmed) {
-      params.set("q", trimmed);
+    if (!trimmed) {
+      // Clear search, restore feed
+      setSearchQuery(null);
+      setSearchResults(null);
+      return;
     }
-    navigate(params.toString() ? `/search?${params.toString()}` : "/search");
-  };
+    setSearching(true);
+    setSearchQuery(trimmed);
+    try {
+      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`);
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      // Map CLIP results to FeedItem shape
+      const items: FeedItem[] = data.map((r: any) => ({
+        id: r.id,
+        title_sv: r.title || r.title_sv || null,
+        artists: r.artist ? JSON.stringify([{ name: r.artist }]) : r.artists || null,
+        iiif_url: r.heroUrl ? r.heroUrl.replace(/\/full\/800,\//, "/full/400,/") : r.iiif_url || "",
+        imageUrl: r.imageUrl || buildImageUrl(r.iiif_url, 400),
+        dominant_color: r.color || r.dominant_color || "#1A1815",
+        focal_x: r.focalX ?? r.focal_x ?? 0.5,
+        focal_y: r.focalY ?? r.focal_y ?? 0.5,
+        museum_name: r.museum_name || null,
+      }));
+      setSearchResults(items);
+    } catch {
+      // Fallback: navigate to search page
+      window.location.href = `/search?q=${encodeURIComponent(trimmed)}`;
+    } finally {
+      setSearching(false);
+    }
+  }, [heroQuery]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery(null);
+    setSearchResults(null);
+    setHeroQuery("");
+  }, []);
 
   async function loadMore() {
     if (loading || !hasMore) return;
@@ -504,11 +537,51 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 placeholder='Prova: "solnedgång vid havet"'
                 className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.3)] text-[0.9rem] px-1 py-1.5 border-none outline-none"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  aria-label="Rensa sökning"
+                  className="text-[rgba(245,240,232,0.5)] hover:text-[rgba(245,240,232,0.8)] transition-colors p-1 focus-ring"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
           </form>
+          {/* Search status bar */}
+          {searching && (
+            <p className="text-center text-[0.8rem] text-[rgba(245,240,232,0.4)] mt-3">Söker…</p>
+          )}
+          {searchQuery && searchResults && !searching && (
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <p className="text-[0.8rem] text-[rgba(245,240,232,0.5)]">
+                {searchResults.length} träffar för "{searchQuery}"
+              </p>
+              <a
+                href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                className="text-[0.75rem] text-[rgba(245,240,232,0.6)] no-underline hover:text-[rgba(245,240,232,0.85)] transition-colors focus-ring"
+              >
+                Visa alla →
+              </a>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
-          {(() => {
+          {searchResults ? (
+            // CLIP search results — show as artwork cards
+            searchResults.map((item, i) => (
+              <ArtworkCard
+                key={`search-${item.id}-${i}`}
+                item={item}
+                index={i}
+                variant={getCardVariant(i)}
+                showMuseumBadge={loaderData.showMuseumBadge}
+              />
+            ))
+          ) : (() => {
             let artPosition = -1;
             return feed.map((entry, i) => {
               if (entry.type === "art") {
@@ -556,7 +629,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             });
           })()}
         </div>
-        <div ref={sentinelRef} className="h-px" />
+        {!searchResults && <div ref={sentinelRef} className="h-px" />}
         {loading && (
           <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
             Laddar mer konst…
