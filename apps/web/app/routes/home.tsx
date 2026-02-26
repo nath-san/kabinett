@@ -412,7 +412,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=30`, { signal: controller.signal });
+      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=100`, { signal: controller.signal });
       const data = res.ok ? await res.json() : [];
       if (controller.signal.aborted) return;
       const items: FeedItem[] = data.map((r: any) => ({
@@ -584,7 +584,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             ) : searchQuery && searchResults ? (
               <>
                 <p className="text-[0.78rem] text-[rgba(245,240,232,0.45)]">
-                  {searchResults.length} träffar för "{searchQuery}"
+                  {searchResults.length >= 100 ? "100+" : searchResults.length} träffar för "{searchQuery}"
                 </p>
                 {searchResults.length > 0 && (
                   <a
