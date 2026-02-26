@@ -119,10 +119,16 @@ function parseEntity(entity: any) {
 
   const className = getText(findFirst(entity, "itemClassName"))?.trim() || null;
 
-  // Dating — priority: Produktion > old Fotografering > nothing
-  // "Fotografering" with modern dates (2000+) is digitization, not creation
+  // Dating — uses K-samsök context blocks with priority:
+  // 1. "Produktion"/"Tillverkning" (create) = actual object creation date
+  // 2. "Fotografering" (create) = when photo was taken
+  //    - For itemType=photo: the photo IS the work → always use
+  //    - For itemType=object: photo of object → digitization, skip
+  // 3. Nothing → no reliable date
   const PRODUCTION_LABELS = new Set(["produktion", "tillverkning", "skapande", "utförande", "datering", "tryckning"]);
   const contexts = findAll(entity, "Context");
+  const itemTypeRaw = getText(findFirst(entity, "itemType")) || "";
+  const isPhotoType = itemTypeRaw.includes("photo");
 
   let productionDates: string[] = [];
   let photoDates: string[] = [];
@@ -147,17 +153,13 @@ function parseEntity(entity: any) {
     }
   }
 
-  // Use production dates if available
+  // Use production dates first (best signal)
   let dateTexts = productionDates;
 
-  // Fall back to photo dates only if they look historical (before 1990)
-  // Modern photo dates (1990+) are almost always digitization dates
-  if (dateTexts.length === 0 && photoDates.length > 0) {
-    const photoYears = extractYears(photoDates.join(" "), { minYear: 1200 });
-    if (photoYears.start && photoYears.start < 1990) {
-      dateTexts = photoDates;
-    }
-    // else: skip — it's a digitization date, not meaningful for the artwork
+  // For photos: the photo IS the work, so Fotografering date is valid
+  // For objects: Fotografering is just digitization — skip it
+  if (dateTexts.length === 0 && photoDates.length > 0 && isPhotoType) {
+    dateTexts = photoDates;
   }
 
   const datingText = dateTexts[0] || null;
