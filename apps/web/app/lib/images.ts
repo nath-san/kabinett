@@ -48,16 +48,6 @@ export function buildImageUrl(iiifOrDirect: string | null | undefined, width: nu
 }
 
 /**
- * Proxied image URL — WebP/AVIF conversion via /api/img.
- * Use sparingly (e.g. hero image, single artwork view).
- */
-export function proxyImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
-  if (!iiifOrDirect?.trim()) return "";
-  const src = externalImageUrl(iiifOrDirect, width);
-  return `/api/img?url=${encodeURIComponent(src)}&w=${width}`;
-}
-
-/**
  * Direct external URL (for OG images, etc. that need absolute URLs)
  */
 export function buildDirectImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
