@@ -1,17 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { lookupTranslate } from "../clip-search.server";
+import { MULTILINGUAL_CLIP_TEXT_MODEL } from "../clip-search.server";
 
-describe("lookupTranslate", () => {
-  it("maps known Swedish words to English", () => {
-    expect(lookupTranslate("djur").result).toContain("animals");
-    expect(lookupTranslate("häst").result).toContain("horse");
-    expect(lookupTranslate("äpple").result).toContain("apple");
-  });
-
-  it("passes unknown words through unchanged", () => {
-    const result = lookupTranslate("okäntord");
-
-    expect(result.result).toBe("okäntord");
-    expect(result.allFound).toBe(false);
+describe("clip multilingual model", () => {
+  it("uses the multilingual sentence-transformers checkpoint", () => {
+    expect(MULTILINGUAL_CLIP_TEXT_MODEL).toBe("sentence-transformers/clip-ViT-B-32-multilingual-v1");
   });
 });
