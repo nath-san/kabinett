@@ -56,7 +56,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
       <div className="max-w-4xl mx-auto px-4 lg:px-6">
         <div className="pt-6">
-          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-[#F5F0E8] m-0">Om Kabinett</h1>
+          <h1 className="font-serif text-[2rem] text-[#F5F0E8] m-0">Om Kabinett</h1>
           <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-[rgba(245,240,232,0.55)]">
             Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över {stats.totalWorks.toLocaleString("sv")} verk från {museums.map(m => m.name).slice(0, -1).join(", ")} och {museums[museums.length - 1]?.name} — med semantisk sökning som förstår vad du letar efter.
           </p>
@@ -71,19 +71,19 @@ export default function About({ loaderData }: Route.ComponentProps) {
 
         <section className="pt-8">
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+            <div className="bg-[#252019] rounded-2xl p-4">
               <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Verk</p>
               <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {stats.totalWorks.toLocaleString("sv")}
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+            <div className="bg-[#252019] rounded-2xl p-4">
               <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Museer</p>
               <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {stats.museums.toLocaleString("sv")}
               </p>
             </div>
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
+            <div className="bg-[#252019] rounded-2xl p-4">
               <p className="text-[0.7rem] uppercase tracking-[0.16em] text-[rgba(245,240,232,0.55)] m-0">Tidsomfång</p>
               <p className="text-[1.6rem] font-serif text-[#F5F0E8] mt-2">
                 {formatRange(stats.minYear, stats.maxYear)}

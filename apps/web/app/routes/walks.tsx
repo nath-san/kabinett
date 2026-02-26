@@ -122,14 +122,14 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
   const { walkPreviews, artworks, selected, walkInfo } = loaderData;
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-cream">
+    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
       {/* Header */}
       {!selected && (
         <div className="pt-10 px-4 pb-6 md:max-w-5xl lg:max-w-5xl md:mx-auto md:px-6 lg:px-8">
-          <h1 className="font-serif text-[2rem] font-bold text-charcoal">
+          <h1 className="font-serif text-[2rem] font-bold text-[#F5F0E8]">
             Vandringar
           </h1>
-          <p className="text-warm-gray text-[0.9rem] mt-2 leading-[1.5]">
+          <p className="text-[rgba(245,240,232,0.55)] text-[0.9rem] mt-2 leading-[1.5]">
             Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.
           </p>
         </div>
@@ -222,10 +222,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   </div>
                   <div className="p-4">
                     <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>
-                    <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
+                    <p className="font-serif text-[1.125rem] font-semibold text-[#F5F0E8] leading-[1.3]">
                       {a.title_sv || a.title_en || "Utan titel"}
                     </p>
-                    <p className="text-[0.8rem] text-warm-gray mt-[0.375rem]">
+                    <p className="text-[0.8rem] text-[rgba(245,240,232,0.55)] mt-[0.375rem]">
                       {parseArtist(a.artists)}
                     </p>
                     {a.dating_text && (

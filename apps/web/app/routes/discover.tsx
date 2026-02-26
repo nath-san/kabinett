@@ -251,6 +251,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
       <div className="md:max-w-4xl lg:max-w-5xl md:mx-auto md:px-4 lg:px-6">
+        <h1 className="font-serif text-[2rem] text-[#F5F0E8] px-4 pt-4 pb-2">Upptäck</h1>
         {/* Hero — Quiz CTA */}
         <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline focus-ring">
           {quizImage && (
