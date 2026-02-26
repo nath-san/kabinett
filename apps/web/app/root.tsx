@@ -214,6 +214,7 @@ function BottomNav() {
         </svg>
       ),
     },
+    /* Tidslinje moved out of bottom nav — accessible via home/discover
     {
       href: "/timeline",
       label: "Tidslinje",
@@ -230,6 +231,7 @@ function BottomNav() {
         </svg>
       ),
     },
+    */
     {
       href: "/search?focus=1",
       label: "Sök",
