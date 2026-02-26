@@ -7,7 +7,7 @@ import { parseArtist } from "../lib/parsing";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Vandringar — Kabinett" },
-    { name: "description", content: "Curaterade vandringar genom Sveriges kulturarv." },
+    { name: "description", content: "Utvalda vandringar genom Sveriges kulturarv." },
   ];
 }
 
@@ -130,7 +130,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
             Vandringar
           </h1>
           <p className="text-warm-gray text-[0.9rem] mt-2 leading-[1.5]">
-            Curaterade resor genom samlingen. Varje vandring har ett tema och en berättelse.
+            Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.
           </p>
         </div>
       )}

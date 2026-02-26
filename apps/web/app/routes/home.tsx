@@ -825,7 +825,7 @@ function WalkPromoCard() {
         Upptäck konstvandringar
       </p>
       <p className="mt-2 text-[0.85rem] text-[rgba(245,240,232,0.65)]">
-        Curaterade resor genom samlingarna
+        Utvalda resor genom samlingarna
       </p>
       <a href="/walks" className="inline-block mt-5 text-[0.76rem] tracking-[0.08em] uppercase text-[rgba(245,240,232,0.8)] no-underline focus-ring">
         Till vandringarna →
