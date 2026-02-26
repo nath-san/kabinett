@@ -55,7 +55,7 @@ export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
   return [
     { title: q ? `"${q}" — Kabinett` : "Sök — Kabinett" },
-    { name: "description", content: "Sök bland över en miljon verk från nio svenska samlingar." },
+    { name: "description", content: "Sök bland hundratusentals verk från Sveriges museer — med AI som förstår vad du letar efter." },
   ];
 }
 

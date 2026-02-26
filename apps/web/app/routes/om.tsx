@@ -10,9 +10,9 @@ export function headers() {
 export function meta() {
   return [
     { title: "Om Kabinett — Kabinett" },
-    { name: "description", content: "Kabinett samlar Sveriges kulturarv på ett ställe." },
+    { name: "description", content: "Kabinett samlar Sveriges kulturarv på ett ställe — med semantisk sökning som förstår vad du letar efter." },
     { property: "og:title", content: "Om Kabinett" },
-    { property: "og:description", content: "Kabinett samlar Sveriges kulturarv på ett ställe." },
+    { property: "og:description", content: "Kabinett samlar Sveriges kulturarv på ett ställe — med semantisk sökning som förstår vad du letar efter." },
     { property: "og:type", content: "website" },
   ];
 }
@@ -58,7 +58,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
         <div className="pt-6">
           <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0">Om Kabinett</h1>
           <p className="mt-3 text-[1rem] lg:text-[1.05rem] text-warm-gray">
-            Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över en miljon verk från Nationalmuseum, Livrustkammaren, Hallwylska museet, Nordiska museet och fler — med semantisk sökning som förstår vad du letar efter.
+            Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över {stats.totalWorks.toLocaleString("sv")} verk från {museums.map(m => m.name).slice(0, -1).join(", ")} och {museums[museums.length - 1]?.name} — med semantisk sökning som förstår vad du letar efter.
           </p>
         </div>
 

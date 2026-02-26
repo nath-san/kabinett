@@ -12,7 +12,7 @@ export function headers() {
 export function meta() {
   return [
     { title: "Upptäck — Kabinett" },
-    { name: "description", content: "Utforska över en miljon verk från nio svenska samlingar." },
+    { name: "description", content: "Utforska hundratusentals verk från Sveriges museer." },
   ];
 }
 

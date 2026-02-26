@@ -77,7 +77,7 @@ const THEMES = [
 
 export function meta({ data }: Route.MetaArgs) {
   const title = "Kabinett — Utforska Sveriges kulturarv";
-  const description = "Upptäck över en miljon verk från nio svenska samlingar.";
+  const description = `Upptäck över ${Math.floor(loaderData.stats.total / 1000) * 1000} verk från ${loaderData.stats.museums} svenska samlingar.`;
   const tags = [
     { title },
     { name: "description", content: description },
