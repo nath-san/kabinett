@@ -385,7 +385,7 @@ function AutocompleteSearch({
         onPointerDown={handleDropdownClick}
         onKeyDown={handleDropdownKeyDown}
         role="listbox"
-        className="hidden absolute left-0 right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-stone/20 overflow-hidden"
+        className="hidden absolute left-0 right-0 top-full mt-1 z-50 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
       />
     </div>
   );

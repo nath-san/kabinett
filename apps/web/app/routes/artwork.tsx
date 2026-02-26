@@ -1,7 +1,7 @@
 import type { Route } from "./+types/artwork";
 import { useMemo, useState } from "react";
 import { getDb, type ArtworkRow } from "../lib/db.server";
-import { buildImageUrl, buildDirectImageUrl, proxyImageUrl } from "../lib/images";
+import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 
@@ -177,8 +177,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     datingType: row.dating_type as string | null,
     yearStart: row.year_start,
     acquisitionYear: row.acquisition_year,
-    imageUrl: proxyImageUrl(row.iiif_url, 800),
-    thumbUrl: proxyImageUrl(row.iiif_url, 400),
+    imageUrl: buildImageUrl(row.iiif_url, 800),
+    thumbUrl: buildImageUrl(row.iiif_url, 400),
     focalX: row.focal_x,
     focalY: row.focal_y,
     color: row.dominant_color || "#D4CDC3",
