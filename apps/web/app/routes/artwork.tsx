@@ -1,7 +1,7 @@
 import type { Route } from "./+types/artwork";
 import { useMemo, useState } from "react";
 import { getDb, type ArtworkRow } from "../lib/db.server";
-import { buildImageUrl } from "../lib/images";
+import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 
@@ -158,7 +158,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         ? "https://www.nordiskamuseet.se"
         : row.museum_url || null;
   const ogImageUrl = row.iiif_url
-    ? (row.source === "nationalmuseum" ? buildImageUrl(row.iiif_url, 800) : row.iiif_url)
+    ? (row.source === "nationalmuseum" ? buildDirectImageUrl(row.iiif_url, 800) : row.iiif_url)
     : null;
   const ogDescriptionParts = [
     artists[0]?.name || "Okänd konstnär",

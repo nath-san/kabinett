@@ -22,4 +22,5 @@ export default [
   route("api/artworks", "routes/api.artworks.tsx"),
   route("quiz", "routes/quiz.tsx"),
   route("api/quiz-match", "routes/api.quiz-match.tsx"),
+  route("api/img", "routes/api.img.tsx"),
 ] satisfies RouteConfig;

@@ -4,9 +4,11 @@ const SIZE_MAP = [
   { max: Infinity, shm: "full" },
 ];
 
-export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
-  if (!iiifOrDirect?.trim()) return "";
-
+/**
+ * Build the raw external URL for a museum image at a given width.
+ * Used internally and as the source URL for the image proxy.
+ */
+function externalImageUrl(iiifOrDirect: string, width: number): string {
   const normalized = iiifOrDirect.replace("http://", "https://");
 
   const shmMatch = normalized.match(/\/(thumb|thumbnail|medium|full)(\?.*)?$/);
@@ -22,4 +24,24 @@ export function buildImageUrl(iiifOrDirect: string | null | undefined, width: nu
 
   const iiifBase = normalized.endsWith("/") ? normalized : `${normalized}/`;
   return `${iiifBase}full/${width},/0/default.jpg`;
+}
+
+/**
+ * Build an image URL that goes through our /api/img proxy.
+ * The proxy handles WebP/AVIF conversion and sets immutable cache headers.
+ * Falls back to direct URL in SSR/build contexts.
+ */
+export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
+  if (!iiifOrDirect?.trim()) return "";
+
+  const src = externalImageUrl(iiifOrDirect, width);
+  return `/api/img?url=${encodeURIComponent(src)}&w=${width}`;
+}
+
+/**
+ * Direct external URL (for OG images, etc. that need absolute URLs)
+ */
+export function buildDirectImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
+  if (!iiifOrDirect?.trim()) return "";
+  return externalImageUrl(iiifOrDirect, width);
 }

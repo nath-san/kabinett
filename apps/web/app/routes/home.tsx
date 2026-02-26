@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
 import { useFavorites } from "../lib/favorites";
-import { buildImageUrl } from "../lib/images";
+import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats } from "../lib/stats.server";
@@ -215,7 +215,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       ...r,
       imageUrl: buildImageUrl(r.iiif_url, 400),
     }));
-  const ogImageUrl = curated[0]?.imageUrl || null;
+  const ogImageUrl = curated[0]?.iiif_url ? buildDirectImageUrl(curated[0].iiif_url, 800) : null;
 
   // Load first rows + 3 themes in parallel
   const preloadThemes = THEMES.slice(0, 3);
