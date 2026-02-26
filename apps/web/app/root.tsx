@@ -150,13 +150,6 @@ function Header() {
             Upptäck
           </a>
           <a
-            href="/timeline"
-            aria-current={path === "/timeline" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
-          >
-            Tidslinje
-          </a>
-          <a
             href="/search"
             aria-current={path === "/search" ? "page" : undefined}
             className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
