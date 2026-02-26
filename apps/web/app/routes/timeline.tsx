@@ -173,6 +173,12 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
       <div id="top" className="pt-6 md:pt-8" />
 
       <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <p className="px-5 md:px-0 pb-4 font-serif text-[1.1rem] text-[rgba(245,240,232,0.5)]">
+          800 år av konst — från medeltid till modernism
+        </p>
+      </div>
+
+      <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
           {decades.map((decade) => (
             <div key={decade.decade} className="timeline-column">
