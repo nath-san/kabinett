@@ -535,7 +535,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         {/* Search hero — the main attraction */}
-        <div className="pt-[3.8rem] pb-2 px-5 md:px-2 lg:px-0 lg:pt-[4.2rem] lg:pb-3">
+        <div className="pt-[4.8rem] pb-4 px-5 md:px-2 lg:px-0 lg:pt-[5rem] lg:pb-4">
           <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-[#F5F0E8] text-center leading-[1.15] tracking-[-0.01em]">
             {loaderData.stats.total.toLocaleString("sv-SE")} konstverk.{" "}
             <span className="text-[rgba(245,240,232,0.45)]">Sök på vad som helst.</span>
