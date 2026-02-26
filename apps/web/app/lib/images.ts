@@ -27,12 +27,24 @@ function externalImageUrl(iiifOrDirect: string, width: number): string {
 }
 
 /**
- * Build an image URL. Direct external URL for feeds (many images at once).
- * Use proxyImageUrl() for single images (artwork detail) where WebP matters.
+ * Build an image URL routed through Cloudflare CDN edge cache.
+ * Falls back to direct URL for hosts not in the CDN allowlist.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
-  return externalImageUrl(iiifOrDirect, width);
+  const src = externalImageUrl(iiifOrDirect, width);
+  try {
+    const hostname = new URL(src).hostname;
+    const cdnHosts = [
+      "nationalmuseumse.iiifhosting.com",
+      "media.samlingar.shm.se",
+      "ems.dimu.org",
+    ];
+    if (cdnHosts.includes(hostname)) {
+      return `/cdn/img?url=${encodeURIComponent(src)}`;
+    }
+  } catch {}
+  return src;
 }
 
 /**
