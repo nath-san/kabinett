@@ -53,7 +53,7 @@ Tre källor och nio samlingar är en medveten avgränsning för att validera kon
 
 Kabinett bygger direkt på den infrastruktur RAÄ förvaltar. K-samsök är den största enskilda datakällan, med 800 000+ verk via SHM. Projektet visar vad som är möjligt när öppna kulturarvsdata möter modern sökteknik — och det nya K-samsök som lanseras i år gör timingen rätt.
 
-Vi visar gärna Kabinett och diskuterar hur det kan komplettera ert arbete.
+Jag visar gärna Kabinett och diskuterar hur det kan komplettera ert arbete.
 
 ---
 
