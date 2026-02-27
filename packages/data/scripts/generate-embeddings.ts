@@ -330,6 +330,11 @@ async function main() {
           }
         }
 
+        const pct = totalRemaining > 0
+          ? ((processed / totalRemaining) * 100).toFixed(1)
+          : "100.0";
+        console.log(`   ${processed}/${totalRemaining} (${pct}%) [${failed} failed]`);
+
         const pctNum = totalRemaining > 0
           ? (processed / totalRemaining) * 100
           : 100;
