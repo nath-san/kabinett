@@ -6,12 +6,7 @@ import StatsSection, { type StatsCardData } from "../components/StatsSection";
 import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
-import { getDb } from "../lib/db.server";
-import { fetchFeed } from "../lib/feed.server";
-import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
-import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
-import { parseArtist } from "../lib/parsing";
-import { getCachedSiteStats } from "../lib/stats.server";
+import { homeLoader, THEMES, type HomeLoaderData } from "./home.loader.server";
 import type { Route } from "./+types/home";
 
 function serializeJsonLd(value: unknown): string {
@@ -19,42 +14,13 @@ function serializeJsonLd(value: unknown): string {
 }
 
 type FeedItem = ArtworkDisplayItem;
-type FeedItemRow = Omit<FeedItem, "imageUrl">;
-
-type HomeLoaderData = {
-  initialItems: FeedItem[];
-  initialCursor: number | null;
-  initialHasMore: boolean;
-  preloadedThemes: ThemeCardSection[];
-  showMuseumBadge: boolean;
-  stats: StatsCardData;
-  spotlight: SpotlightCardData | null;
-  ogImageUrl: string | null;
-  canonicalUrl: string;
-  origin: string;
-};
 
 type ThemeSectionEntry = { type: "theme" } & ThemeCardSection;
 type StatsCardEntry = { type: "stats" } & StatsCardData;
 type ArtCard = { type: "art"; item: FeedItem };
 type SpotlightCardEntry = { type: "spotlight" } & SpotlightCardData;
-type WalkPromoCardEntry = {
-  type: "walkPromo";
-};
+type WalkPromoCardEntry = { type: "walkPromo" };
 type FeedEntry = ArtCard | ThemeSectionEntry | StatsCardEntry | SpotlightCardEntry | WalkPromoCardEntry;
-
-const THEMES = [
-  { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D" },
-  { title: "Havslandskap", subtitle: "Vatten, kust och hav", filter: "Havet", color: "#1A2A3A" },
-  { title: "I rött", subtitle: "Passion och drama", filter: "Rött", color: "#3A1A1A" },
-  { title: "Blommor", subtitle: "Natur i närbild", filter: "Blommor", color: "#2A2D1A" },
-  { title: "1800-talet", subtitle: "Romantik och realism", filter: "1800-tal", color: "#2A2520" },
-  { title: "Nattscener", subtitle: "Mörker och mystik", filter: "Natt", color: "#0F0F1A" },
-  { title: "I blått", subtitle: "Melankoli och hav", filter: "Blått", color: "#1A1A2E" },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", filter: "Porträtt", color: "#2E2620" },
-  { title: "1700-talet", subtitle: "Rokoko och upplysning", filter: "1700-tal", color: "#28261E" },
-  { title: "Skulptur", subtitle: "Form i tre dimensioner", filter: "Skulptur", color: "#222222" },
-];
 
 export function meta({ data }: Route.MetaArgs) {
   const title = "Kabinett — Utforska Sveriges kulturarv";
@@ -89,156 +55,8 @@ export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
 
-const CURATED_POOL = [
-  26034, 24215, 25407,
-  18693, 24409, 20407,
-  19423, 18654, 149858, 23703, 18506,
-  19459, 19189, 20173,
-  22514, 32542, 18870, 32544,
-  18703,
-  21452, 18510, 25383,
-  18684, 18559, 132606, 19347,
-  18899, 19456, 213756,
-  19353, 21632, 137836,
-  132618,
-  243405,
-  18013, 18402, 40203,
-  22255, 18743,
-  18157,
-  17583, 21617, 22374,
-  17611, 17603,
-  17771, 17775,
-  22701,
-  23023,
-  18131,
-  19582, 19713,
-  23465,
-  244352,
-  91112,
-  14799, 177393,
-  24217, 24219,
-  22642,
-  18868, 23281, 18856, 23115, 23843,
-  18876, 18888, 23924, 18887, 23434,
-  24311, 19218, 18633, 23461, 18895,
-  39240, 18486, 21202, 19600, 19198,
-  26295, 24204, 18837, 36992,
-];
-
-let homeCache: { data: HomeLoaderData; ts: number } | null = null;
-const HOME_CACHE_TTL_MS = 300_000;
-
 export async function loader({ request }: Route.LoaderArgs) {
-  const url = new URL(request.url);
-  const canonicalUrl = `${url.origin}${url.pathname}`;
-
-  if (homeCache && Date.now() - homeCache.ts < HOME_CACHE_TTL_MS) {
-    return { ...homeCache.data, canonicalUrl };
-  }
-
-  const enabledMuseums = getEnabledMuseums();
-  const sourceA = sourceFilter("a");
-  const db = getDb();
-
-  const shuffled = [...CURATED_POOL].sort(() => Math.random() - 0.5);
-  const pickedIds = shuffled.slice(0, 5);
-  const curatedRows = db.prepare(
-    `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-            a.focal_x, a.focal_y,
-            COALESCE(a.sub_museum, m.name) as museum_name
-     FROM artworks a
-     LEFT JOIN museums m ON m.id = a.source
-     WHERE a.id IN (${pickedIds.join(",")})
-       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-       AND ${sourceA.sql}`
-  ).all(...sourceA.params) as FeedItemRow[];
-
-  const curatedMap = new Map(curatedRows.map((row) => [row.id, row]));
-  const curated = pickedIds
-    .map((id) => curatedMap.get(id))
-    .filter((row): row is FeedItemRow => Boolean(row))
-    .map((row) => ({
-      ...row,
-      imageUrl: buildImageUrl(row.iiif_url, 400),
-    }));
-
-  const ogImageUrl = curated[0]?.iiif_url ? buildDirectImageUrl(curated[0].iiif_url, 800) : null;
-
-  const preloadThemes = THEMES.slice(0, 3);
-  const [initial, ...themeResults] = await Promise.all([
-    fetchFeed({ cursor: null, limit: 15, filter: "Alla" }),
-    ...preloadThemes.map((theme) => fetchFeed({ cursor: null, limit: 8, filter: theme.filter })),
-  ]);
-
-  const curatedIds = new Set(curated.map((item) => item.id));
-  const restItems = initial.items.filter((item) => !curatedIds.has(item.id));
-
-  const siteStats = getCachedSiteStats(db);
-  const stats: StatsCardData = {
-    total: siteStats.totalWorks,
-    museums: siteStats.museums,
-    paintings: siteStats.paintings,
-    yearsSpan: siteStats.yearsSpan,
-  };
-
-  const topArtists = db.prepare(
-    `SELECT a.artists, COUNT(*) as cnt
-     FROM artworks a
-     WHERE a.artists IS NOT NULL
-       AND a.artists != ''
-       AND a.artists != '[]'
-       AND a.artists != '[null]'
-       AND a.artists NOT LIKE '%Okänd%'
-       AND a.artists NOT LIKE '%okänd%'
-       AND ${sourceA.sql}
-     GROUP BY a.artists
-     ORDER BY cnt DESC
-     LIMIT 20`
-  ).all(...sourceA.params) as Array<{ artists: string | null }>;
-
-  let spotlight: SpotlightCardData | null = null;
-  if (topArtists.length > 0) {
-    const pickedArtist = topArtists[Math.floor(Math.random() * topArtists.length)]?.artists;
-    if (pickedArtist) {
-      const spotlightRows = db.prepare(
-        `SELECT a.id, a.title_sv, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name
-         FROM artworks a
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE a.artists = ?
-           AND a.iiif_url IS NOT NULL
-           AND ${sourceA.sql}
-         LIMIT 5`
-      ).all(pickedArtist, ...sourceA.params) as FeedItemRow[];
-
-      if (spotlightRows.length > 0) {
-        spotlight = {
-          artistName: parseArtist(pickedArtist),
-          items: spotlightRows.map((row) => ({
-            ...row,
-            imageUrl: buildImageUrl(row.iiif_url, 200),
-          })),
-        };
-      }
-    }
-  }
-
-  const result: HomeLoaderData = {
-    initialItems: [...curated, ...restItems],
-    initialCursor: initial.nextCursor,
-    initialHasMore: initial.hasMore,
-    preloadedThemes: preloadThemes.map((theme, i) => ({ ...theme, items: themeResults[i].items })).filter((theme) => theme.items.length > 0),
-    showMuseumBadge: enabledMuseums.length > 1,
-    stats,
-    spotlight,
-    ogImageUrl,
-    canonicalUrl,
-    origin: url.origin,
-  };
-
-  homeCache = { data: result, ts: Date.now() };
-  return result;
+  return homeLoader(request);
 }
 
 function getCardVariant(positionInFeed: number): CardVariant {

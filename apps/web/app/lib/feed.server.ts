@@ -146,8 +146,6 @@ export async function fetchFeed(options: {
   const cursorParams: Array<string | number> = [];
   const tablePrefix = "artworks a";
   let dedupeOrderBy = "a.id ASC";
-  let finalOrderBy = "id ASC";
-  let computedOrderSelect = "NULL as color_distance";
 
   if (filter === "Alla") {
     const overFetchLimit = limit * 4;
@@ -206,8 +204,6 @@ export async function fetchFeed(options: {
     const colorDistance = `ABS(a.color_r - ${color.r}) + ABS(a.color_g - ${color.g}) + ABS(a.color_b - ${color.b})`;
     baseConditions.push("a.color_r IS NOT NULL");
     dedupeOrderBy = `${colorDistance} ASC, a.id DESC`;
-    finalOrderBy = "color_distance ASC, id ASC";
-    computedOrderSelect = `${colorDistance} as color_distance`;
   }
 
   const century = CENTURIES[filter];
