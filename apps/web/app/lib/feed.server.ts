@@ -1,6 +1,6 @@
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
-import { getEnabledMuseums, sourceFilter } from "./museums.server";
+import { sourceFilter } from "./museums.server";
 
 type FeedItemRow = {
   id: number;
@@ -150,52 +150,43 @@ export async function fetchFeed(options: {
   let computedOrderSelect = "NULL as color_distance";
 
   if (filter === "Alla") {
-    // Interleave museums: fetch per-source and round-robin for variety
-    const museums = getEnabledMuseums();
-    const perMuseum = Math.ceil((limit * 3) / museums.length);
-    const allRows: FeedItemRow[] = [];
-    for (const museum of museums) {
-      const cursorCond = cursor ? "AND a.id < ?" : "";
-      const cursorP = cursor ? [cursor] : [];
-      const museumRows = db.prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+    const overFetchLimit = limit * 4;
+    const cursorSql = cursor ? "AND a.id < ?" : "";
+
+    const rawRows = db.prepare(
+      `WITH ranked AS (
+         SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
                 a.focal_x, a.focal_y,
-                m.name as museum_name
+                m.name as museum_name,
+                ROW_NUMBER() OVER (PARTITION BY a.source ORDER BY a.id DESC) as source_rank
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
-         WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+         WHERE a.iiif_url IS NOT NULL
+           AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND LENGTH(a.title_sv) < 60
-           AND a.source = ?
-           ${cursorCond}
-         ORDER BY a.id DESC
-         LIMIT ?`
-      ).all(museum, ...cursorP, perMuseum) as FeedItemRow[];
-      allRows.push(...museumRows);
-    }
-    // Round-robin interleave by museum
-    const byMuseum = new Map<string, FeedItemRow[]>();
-    for (const row of allRows) {
-      const key = row.museum_name || "unknown";
-      if (!byMuseum.has(key)) byMuseum.set(key, []);
-      byMuseum.get(key)!.push(row);
-    }
-    const iterators = [...byMuseum.values()].map(arr => ({ arr, idx: 0 }));
+           AND ${sourceA.sql}
+           ${cursorSql}
+       )
+       SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material,
+              focal_x, focal_y, museum_name
+       FROM ranked
+       ORDER BY source_rank ASC, id DESC
+       LIMIT ?`
+    ).all(...sourceA.params, ...(cursor ? [cursor] : []), overFetchLimit) as FeedItemRow[];
+
     const seen = new Set<string>();
     const rows: FeedItemRow[] = [];
-    let round = 0;
-    while (rows.length < limit && round < perMuseum) {
-      for (const it of iterators) {
-        if (it.idx >= it.arr.length) continue;
-        const row = it.arr[it.idx++];
-        if (row.iiif_url && seen.has(row.iiif_url)) continue;
-        if (row.iiif_url) seen.add(row.iiif_url);
-        rows.push(row);
-        if (rows.length >= limit) break;
-      }
-      round++;
+
+    for (const row of rawRows) {
+      if (row.iiif_url && seen.has(row.iiif_url)) continue;
+      if (row.iiif_url) seen.add(row.iiif_url);
+      rows.push(row);
+      if (rows.length >= limit) break;
     }
+
     const nextCursor = rows.length > 0 ? Math.min(...rows.map(r => r.id)) : cursor;
+
     return {
       items: mapRows(rows),
       nextCursor,

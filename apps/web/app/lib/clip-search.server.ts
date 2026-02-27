@@ -51,7 +51,11 @@ function normalize(vec: Float32Array): Float32Array {
 
 async function getTextExtractor() {
   if (!textExtractorPromise) {
-    textExtractorPromise = pipeline("feature-extraction", MULTILINGUAL_CLIP_TEXT_MODEL);
+    textExtractorPromise = pipeline("feature-extraction", MULTILINGUAL_CLIP_TEXT_MODEL)
+      .catch((error) => {
+        textExtractorPromise = null;
+        throw error;
+      });
   }
   return textExtractorPromise;
 }

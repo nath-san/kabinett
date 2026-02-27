@@ -11,7 +11,7 @@ describe("images", () => {
   it("buildImageUrl updates dimension param for Nordiska dimu URL", () => {
     const result = buildImageUrl("https://ems.dimu.org/image/022w?dimension=1200x1200", 200);
 
-    expect(result).toBe("https://ems.dimu.org/image/022w?dimension=200x200");
+    expect(result).toBe(`/cdn/img?url=${encodeURIComponent("https://ems.dimu.org/image/022w?dimension=200x200")}`);
   });
 
   it("buildImageUrl switches SHM size variants", () => {

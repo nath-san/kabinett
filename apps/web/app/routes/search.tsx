@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router";
 import type { Route } from "./+types/search";
+import Autocomplete from "../components/Autocomplete";
+import ArtworkCard from "../components/ArtworkCard";
+import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { getDb } from "../lib/db.server";
 import { clipSearch } from "../lib/clip-search.server";
 import { buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
-import { parseArtist } from "../lib/parsing";
 
 type MuseumOption = { id: string; name: string; count: number };
 type SearchResult = {
@@ -24,7 +27,6 @@ type SearchResult = {
   focal_x?: number | null;
   focal_y?: number | null;
 };
-type Suggestion = { value: string; type: string };
 type SearchMode = "fts" | "clip" | "color";
 
 const PAGE_SIZE = 60;
@@ -39,12 +41,6 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
 
 function nextCursor(length: number): number | null {
   return length >= PAGE_SIZE ? length : null;
-}
-
-function focalObjectPosition(focalX: number | null | undefined, focalY: number | null | undefined): string {
-  const x = Number.isFinite(focalX) ? focalX as number : 0.5;
-  const y = Number.isFinite(focalY) ? focalY as number : 0.5;
-  return `${x * 100}% ${y * 100}%`;
 }
 
 export function headers() {
@@ -255,20 +251,27 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  artist: "Konstnär", title: "Verk", category: "Kategori",
-};
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function toArtworkItem(result: SearchResult): ArtworkDisplayItem {
+  const title = result.title || result.title_sv || result.title_en || "Utan titel";
+  const imageUrl = result.imageUrl || (result.iiif_url ? buildImageUrl(result.iiif_url, 400) : "");
+  return {
+    id: result.id,
+    title_sv: title,
+    artists: result.artists || (result.artist ? JSON.stringify([{ name: result.artist }]) : null),
+    artist_name: result.artist || null,
+    dating_text: result.year || result.dating_text || null,
+    iiif_url: result.iiif_url || "",
+    dominant_color: result.color || result.dominant_color || "#D4CDC3",
+    category: null,
+    technique_material: null,
+    imageUrl,
+    museum_name: result.museum_name || null,
+    focal_x: result.focal_x ?? null,
+    focal_y: result.focal_y ?? null,
+  };
 }
 
-function AutocompleteSearch({
+function SearchAutocompleteForm({
   defaultValue,
   museum,
   autoFocus = false,
@@ -277,10 +280,13 @@ function AutocompleteSearch({
   museum?: string;
   autoFocus?: boolean;
 }) {
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [query, setQuery] = useState(defaultValue);
+
+  useEffect(() => {
+    setQuery(defaultValue);
+  }, [defaultValue]);
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -292,135 +298,52 @@ function AutocompleteSearch({
     });
   }, [autoFocus]);
 
-  const fetchSuggestions = useCallback((val: string) => {
-    if (timer.current) clearTimeout(timer.current);
-    const dropdown = dropdownRef.current;
-    if (!dropdown) return;
-
-    if (val.length < 2) {
-      dropdown.innerHTML = "";
-      dropdown.classList.add("hidden");
-      return;
-    }
-
-    timer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
-        const data = await r.json() as Suggestion[];
-        if (data.length === 0) {
-          dropdown.classList.add("hidden");
-          dropdown.innerHTML = "";
-          return;
-        }
-        dropdown.classList.remove("hidden");
-        dropdown.innerHTML = data.map((s, i) => {
-          const encodedValue = encodeURIComponent(s.value);
-          const safeValue = escapeHtml(s.value);
-          const safeType = escapeHtml(TYPE_LABELS[s.type] || "");
-          return `<div class="ac-item focus-ring px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-[#2E2820] ${i > 0 ? "border-t border-stone/5" : ""}" data-value="${encodedValue}" role="button" tabindex="0">
-            <span class="text-[#F5F0E8] truncate">${safeValue}</span>
-            <span class="text-xs text-[rgba(245,240,232,0.4)] ml-2 shrink-0">${safeType}</span>
-          </div>`
-        }).join("");
-      } catch {
-        dropdown.classList.add("hidden");
-      }
-    }, 200);
-  }, []);
-
-  const handleDropdownClick = useCallback((e: React.PointerEvent) => {
-    const item = (e.target as HTMLElement).closest(".ac-item") as HTMLElement;
-    if (!item) return;
-    e.preventDefault();
-    const val = decodeURIComponent(item.dataset.value || "");
-    const dropdown = dropdownRef.current;
-    if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
-    if (formRef.current) {
-      const inp = formRef.current.querySelector("input[name=q]") as HTMLInputElement;
-      if (inp) inp.value = val;
-      formRef.current.submit();
-    }
-  }, []);
-
-  const handleDropdownKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.classList.contains("ac-item")) return;
-    if (e.key !== "Enter" && e.key !== " ") return;
-    e.preventDefault();
-    const val = decodeURIComponent(target.dataset.value || "");
-    const dropdown = dropdownRef.current;
-    if (dropdown) { dropdown.classList.add("hidden"); dropdown.innerHTML = ""; }
-    if (formRef.current) {
-      const inp = formRef.current.querySelector("input[name=q]") as HTMLInputElement;
-      if (inp) inp.value = val;
-      formRef.current.submit();
-    }
-  }, []);
+  const submitSearch = useCallback((value: string) => {
+    const trimmed = value.trim();
+    const params = new URLSearchParams();
+    if (trimmed) params.set("q", trimmed);
+    if (museum) params.set("museum", museum);
+    const qs = params.toString();
+    navigate(qs ? `/search?${qs}` : "/search");
+  }, [museum, navigate]);
 
   return (
     <div className="relative mt-4">
-      <form ref={formRef} action="/search" method="get">
-        <div className="flex gap-2">
-          {museum && <input type="hidden" name="museum" value={museum} />}
-          <label htmlFor="search-input" className="sr-only">Sök</label>
-          <input
-            ref={inputRef}
-            id="search-input"
-            type="search" name="q"
-            defaultValue={defaultValue}
-            onInput={(e) => fetchSuggestions((e.target as HTMLInputElement).value)}
-            placeholder="Konstnär, titel, teknik…"
-            autoComplete="off"
-            className="flex-1 px-4 py-3 rounded-xl bg-[#252019] text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.4)]
-                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring"
-          />
-          <button type="submit"
-            className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0 focus-ring">
-            Sök
-          </button>
-        </div>
-      </form>
-      <div
-        ref={dropdownRef}
-        onPointerDown={handleDropdownClick}
-        onKeyDown={handleDropdownKeyDown}
-        role="listbox"
-        className="hidden absolute left-0 right-0 top-full mt-1 z-50 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
-      />
-    </div>
-  );
-}
-
-function ResultCard({ r, showMuseumBadge }: { r: SearchResult; showMuseumBadge: boolean }) {
-  const title = r.title || r.title_sv || r.title_en || "Utan titel";
-  const artist = r.artist || parseArtist(r.artists ?? null);
-  return (
-    <a key={r.id} href={`/artwork/${r.id}`}
-      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-[#252019] group focus-ring">
-      <div
-        style={{ backgroundColor: r.color || r.dominant_color || "#D4CDC3" }}
-        className="overflow-hidden aspect-[3/4]"
+      <Autocomplete
+        query={query}
+        onQueryChange={setQuery}
+        onSelect={submitSearch}
       >
-        <img src={r.imageUrl || (r.iiif_url ? buildImageUrl(r.iiif_url, 400) : "")}
-          loading="lazy"
-          decoding="async"
-          alt={`${title} — ${artist}`} width={400} height={533}
-          onError={(event) => {
-            event.currentTarget.classList.add("is-broken");
-          }}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          style={{ objectPosition: focalObjectPosition(r.focal_x, r.focal_y) }} />
-      </div>
-      <div className="p-3">
-        <p className="text-sm font-medium text-[#F5F0E8] leading-snug line-clamp-2">
-          {title}</p>
-        <p className="text-xs text-[rgba(245,240,232,0.55)] mt-1">{artist}</p>
-        {showMuseumBadge && r.museum_name && (
-          <p className="text-[0.65rem] text-[rgba(245,240,232,0.55)] mt-0.5">{r.museum_name}</p>
+        {({ inputProps }) => (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitSearch(query);
+            }}
+          >
+            <div className="flex gap-2">
+              <label htmlFor="search-input" className="sr-only">Sök</label>
+              <input
+                {...inputProps}
+                ref={inputRef}
+                id="search-input"
+                type="search"
+                name="q"
+                placeholder="Konstnär, titel, teknik…"
+                className="flex-1 px-4 py-3 rounded-xl bg-[#252019] text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.4)]
+                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring"
+              />
+              <button
+                type="submit"
+                className="px-5 py-3 bg-charcoal text-cream rounded-xl text-sm font-medium hover:bg-ink shrink-0 focus-ring"
+              >
+                Sök
+              </button>
+            </div>
+          </form>
         )}
-        {(r.year || r.dating_text) && <p className="text-xs text-[rgba(245,240,232,0.4)] mt-0.5">{r.year || r.dating_text}</p>}
-      </div>
-    </a>
+      </Autocomplete>
+    </div>
   );
 }
 
@@ -509,7 +432,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-14 bg-[#1C1916] text-[#F5F0E8]">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-[2rem] text-[#F5F0E8] mb-4">Sök</h1>
-        <AutocompleteSearch defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
+        <SearchAutocompleteForm defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
 
         {showMuseumFilters && (
           <div className="mt-4">
@@ -570,7 +493,13 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           {results.length > 0 && (
             <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
               {results.map((r) => (
-                <ResultCard key={r.id} r={r} showMuseumBadge={showMuseumBadge} />
+                <ArtworkCard
+                  key={r.id}
+                  item={toArtworkItem(r)}
+                  showMuseumBadge={showMuseumBadge}
+                  layout="search"
+                  yearLabel={r.year || r.dating_text || null}
+                />
               ))}
             </div>
           )}

@@ -11,6 +11,8 @@ export type SiteStats = {
 };
 
 let cachedStats: SiteStats | null = null;
+let cachedStatsTs = 0;
+const STATS_CACHE_TTL_MS = 300_000;
 
 function querySiteStats(db: Database.Database): SiteStats {
   const source = sourceFilter();
@@ -41,8 +43,10 @@ export function getSiteStats(db: Database.Database): SiteStats {
 }
 
 export function getCachedSiteStats(db: Database.Database): SiteStats {
-  if (!cachedStats) {
+  const now = Date.now();
+  if (!cachedStats || now - cachedStatsTs > STATS_CACHE_TTL_MS) {
     cachedStats = querySiteStats(db);
+    cachedStatsTs = now;
   }
   return cachedStats;
 }

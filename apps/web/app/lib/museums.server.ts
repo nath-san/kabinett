@@ -30,6 +30,8 @@ function sanitizeMuseumId(value: string): string | null {
 let enabledMuseumsCache: string[] | null = null;
 let enabledMuseumsCacheTime = 0;
 const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
+let sourceFilterCacheKey = "";
+const sourceFilterCache = new Map<string, { sql: string; params: string[] }>();
 
 export function getEnabledMuseums(): string[] {
   const now = Date.now();
@@ -76,10 +78,29 @@ export function getMuseumInfo(source: string): MuseumRow | null {
 
 export function sourceFilter(prefix?: string): { sql: string; params: string[] } {
   const museums = getEnabledMuseums();
-  if (museums.length === 0) return { sql: "1 = 0", params: [] };
+  const cacheKey = museums.join(",");
+  if (cacheKey !== sourceFilterCacheKey) {
+    sourceFilterCacheKey = cacheKey;
+    sourceFilterCache.clear();
+  }
+
+  const prefixKey = prefix || "";
+  const cached = sourceFilterCache.get(prefixKey);
+  if (cached) {
+    return cached;
+  }
+
+  if (museums.length === 0) {
+    const empty = { sql: "1 = 0", params: [] };
+    sourceFilterCache.set(prefixKey, empty);
+    return empty;
+  }
+
   const col = prefix ? `${prefix}.source` : "source";
-  return {
+  const result = {
     sql: `${col} IN (${museums.map(() => "?").join(",")})`,
     params: museums,
   };
+  sourceFilterCache.set(prefixKey, result);
+  return result;
 }

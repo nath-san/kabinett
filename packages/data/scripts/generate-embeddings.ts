@@ -35,6 +35,12 @@ type FocalPoint = {
   y: number;
 };
 
+type EmbeddingWrite = {
+  id: number;
+  embeddingBuffer: Buffer;
+  focalPoint: FocalPoint;
+};
+
 function ensureArtworkColumn(db: Database.Database, column: string, definition: string) {
   try {
     db.exec(`ALTER TABLE artworks ADD COLUMN ${column} ${definition}`);
@@ -249,6 +255,12 @@ async function main() {
     const updateFocal = db.prepare(
       `UPDATE artworks SET focal_x = ?, focal_y = ? WHERE id = ?`
     );
+    const writeBatch = db.transaction((writes: EmbeddingWrite[]) => {
+      for (const write of writes) {
+        upsertEmbedding.run(write.id, write.embeddingBuffer);
+        updateFocal.run(write.focalPoint.x, write.focalPoint.y, write.id);
+      }
+    });
 
     let processed = 0;
     let failed = 0;
@@ -260,6 +272,7 @@ async function main() {
       if (rows.length === 0) break;
 
       idOffset += BATCH_SIZE;
+      const pendingWrites: EmbeddingWrite[] = [];
 
       for (let index = 0; index < rows.length; index += CONCURRENCY) {
         const chunk = rows.slice(index, index + CONCURRENCY);
@@ -284,10 +297,14 @@ async function main() {
                 embedding.byteLength
               );
 
-              upsertEmbedding.run(row.id, embeddingBuffer);
-              updateFocal.run(focalPoint.x, focalPoint.y, row.id);
-
-              return { ok: true as const };
+              return {
+                ok: true as const,
+                write: {
+                  id: row.id,
+                  embeddingBuffer,
+                  focalPoint,
+                },
+              };
             } catch (error) {
               const message = error instanceof Error ? error.message : "Unknown error";
               return { ok: false as const, id: row.id, message };
@@ -297,6 +314,7 @@ async function main() {
 
         for (const result of results) {
           if (result.ok) {
+            pendingWrites.push(result.write);
             processed += 1;
           } else {
             failed += 1;
@@ -310,6 +328,10 @@ async function main() {
           ? ((processed / totalRemaining) * 100).toFixed(1)
           : "100.0";
         console.log(`   ${processed}/${totalRemaining} (${pct}%) [${failed} failed]`);
+      }
+
+      if (pendingWrites.length > 0) {
+        writeBatch(pendingWrites);
       }
     }
 

@@ -262,7 +262,7 @@ function BottomNav() {
 
   return (
     <nav
-      aria-label="Primär navigation"
+      aria-label="Snabbnavigering"
       className={[
         "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
         isDark
@@ -316,21 +316,48 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "Något gick fel.";
+  let message = "Något gick fel";
+  let details = "Ett oväntat fel uppstod. Ladda om sidan och försök igen.";
   let stack = "";
+
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Fel";
-    details = error.status === 404 ? "Den här sidan finns inte." : error.statusText || details;
+    if (error.status === 404) {
+      message = "Sidan hittades inte";
+      details = "Sidan du söker finns inte eller har flyttats.";
+    } else {
+      message = "Sidan kunde inte visas";
+      details = import.meta.env.DEV ? (error.statusText || details) : "Vi kunde inte visa sidan just nu.";
+    }
   } else if (error instanceof Error) {
-    details = error.message;
+    if (import.meta.env.DEV) {
+      details = error.message;
+    }
     stack = error.stack || "";
   }
+
   const showStack = import.meta.env.DEV;
+
   return (
-    <div className="py-[4rem] px-4 text-center min-h-screen flex flex-col items-center justify-center">
-      <h1 className="font-serif text-[3rem] font-bold text-charcoal">{message}</h1>
-      <p className="mt-4 text-warm-gray">{details}</p>
+    <div className="py-[4rem] px-4 min-h-screen flex items-center justify-center">
+      <div className="max-w-md text-center">
+        <h1 className="font-serif text-[2.2rem] md:text-[2.5rem] font-bold text-charcoal">{message}</h1>
+        <p className="mt-3 text-warm-gray leading-relaxed">{details}</p>
+        <div className="mt-6 flex flex-wrap gap-3 justify-center">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-sm font-medium border-none cursor-pointer focus-ring"
+          >
+            Försök igen
+          </button>
+          <a
+            href="/"
+            className="px-5 py-2.5 rounded-full border border-[rgba(61,56,49,0.22)] text-charcoal text-sm font-medium no-underline focus-ring"
+          >
+            Till startsidan
+          </a>
+        </div>
+      </div>
       {showStack && stack && (
         <pre className="mt-4 text-[0.65rem] text-[#999] text-left max-w-[90vw] overflow-auto whitespace-pre-wrap">
           {stack}

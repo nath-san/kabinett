@@ -1,66 +1,47 @@
-import type { Route } from "./+types/home";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-// Search removed — now lives at /search via bottom nav
+import { useEffect, useMemo, useRef, useState } from "react";
+import ArtworkCard, { type CardVariant } from "../components/ArtworkCard";
+import HeroSearch from "../components/HeroSearch";
+import SpotlightCard, { type SpotlightCardData } from "../components/SpotlightCard";
+import StatsSection, { type StatsCardData } from "../components/StatsSection";
+import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
+import WalkPromoCard from "../components/WalkPromoCard";
+import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
-import { useFavorites } from "../lib/favorites";
-import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
+import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats } from "../lib/stats.server";
+import type { Route } from "./+types/home";
 
 function serializeJsonLd(value: unknown): string {
   return JSON.stringify(value).replace(/<\//g, "\\u003C/");
 }
 
-type FeedItem = {
-  id: number;
-  title_sv: string | null;
-  artists: string | null;
-  dating_text: string | null;
-  iiif_url: string;
-  dominant_color: string | null;
-  category: string | null;
-  technique_material: string | null;
-  imageUrl: string;
-  museum_name: string | null;
-  focal_x: number | null;
-  focal_y: number | null;
+type FeedItem = ArtworkDisplayItem;
+type FeedItemRow = Omit<FeedItem, "imageUrl">;
+
+type HomeLoaderData = {
+  initialItems: FeedItem[];
+  initialCursor: number | null;
+  initialHasMore: boolean;
+  preloadedThemes: ThemeCardSection[];
+  showMuseumBadge: boolean;
+  stats: StatsCardData;
+  spotlight: SpotlightCardData | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string;
+  origin: string;
 };
 
-function focalObjectPosition(focalX: number | null | undefined, focalY: number | null | undefined): string {
-  const x = Number.isFinite(focalX) ? focalX as number : 0.5;
-  const y = Number.isFinite(focalY) ? focalY as number : 0.5;
-  return `${x * 100}% ${y * 100}%`;
-}
-
-type ThemeSection = {
-  type: "theme";
-  title: string;
-  subtitle: string;
-  filter: string;
-  color: string;
-  items: FeedItem[];
-};
-
-type StatsCard = {
-  type: "stats";
-  total: number;
-  museums: number;
-  paintings: number;
-  yearsSpan: number;
-};
+type ThemeSectionEntry = { type: "theme" } & ThemeCardSection;
+type StatsCardEntry = { type: "stats" } & StatsCardData;
 type ArtCard = { type: "art"; item: FeedItem };
-type SpotlightCardEntry = {
-  type: "spotlight";
-  artistName: string;
-  items: FeedItem[];
-};
+type SpotlightCardEntry = { type: "spotlight" } & SpotlightCardData;
 type WalkPromoCardEntry = {
   type: "walkPromo";
 };
-type CardVariant = "large" | "medium" | "small";
-type FeedEntry = ArtCard | ThemeSection | StatsCard | SpotlightCardEntry | WalkPromoCardEntry;
+type FeedEntry = ArtCard | ThemeSectionEntry | StatsCardEntry | SpotlightCardEntry | WalkPromoCardEntry;
 
 const THEMES = [
   { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D" },
@@ -108,67 +89,35 @@ export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
 
-// Pool of ~100 iconic artworks — 5 random picked each load
-// Curated for variety: max 2–3 per artist, mix of periods and styles
 const CURATED_POOL = [
-  // Carl Larsson
   26034, 24215, 25407,
-  // Anders Zorn
   18693, 24409, 20407,
-  // Bruno Liljefors
   19423, 18654, 149858, 23703, 18506,
-  // Ernst Josephson
   19459, 19189, 20173,
-  // Carl Fredrik Hill
   22514, 32542, 18870, 32544,
-  // Eugène Jansson
   18703,
-  // Richard Bergh
   21452, 18510, 25383,
-  // Nils Kreuger
   18684, 18559, 132606, 19347,
-  // Karl Nordström
   18899, 19456, 213756,
-  // Hanna Pauli
   19353, 21632, 137836,
-  // Eva Bonnier
   132618,
-  // Julia Beck
   243405,
-  // Alexander Roslin
   18013, 18402, 40203,
-  // Gustaf Cederström
   22255, 18743,
-  // Georg von Rosen
   18157,
-  // Rembrandt
   17583, 21617, 22374,
-  // Rubens
   17611, 17603,
-  // Boucher
   17771, 17775,
-  // Watteau
   22701,
-  // El Greco
   23023,
-  // Cranach
   18131,
-  // Albert Edelfelt
   19582, 19713,
-  // Jenny Nyström
   23465,
-  // Isaac Grünewald
   244352,
-  // Johan Tobias Sergel
   91112,
-  // David Klöcker Ehrenstrahl
   14799, 177393,
-  // Carl Larsson (Ett hem-serien)
   24217, 24219,
-  // Goya
   22642,
-  // Tiepolo — check if exists
-  // More variety
   18868, 23281, 18856, 23115, 23843,
   18876, 18888, 23924, 18887, 23434,
   24311, 19218, 18633, 23461, 18895,
@@ -176,25 +125,21 @@ const CURATED_POOL = [
   26295, 24204, 18837, 36992,
 ];
 
-// --- In-memory cache for home loader (read-only DB, safe to cache) ---
-let _homeCache: { data: any; ts: number } | null = null;
-const HOME_CACHE_TTL_MS = 300_000; // 5 minutes — DB is read-only, safe to cache longer
+let homeCache: { data: HomeLoaderData; ts: number } | null = null;
+const HOME_CACHE_TTL_MS = 300_000;
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const canonicalUrl = `${url.origin}${url.pathname}`;
 
-  // Return cached result if fresh
-  if (_homeCache && Date.now() - _homeCache.ts < HOME_CACHE_TTL_MS) {
-    return { ..._homeCache.data, canonicalUrl };
+  if (homeCache && Date.now() - homeCache.ts < HOME_CACHE_TTL_MS) {
+    return { ...homeCache.data, canonicalUrl };
   }
 
   const enabledMuseums = getEnabledMuseums();
   const sourceA = sourceFilter("a");
-
-  // Load curated hero artworks first
   const db = getDb();
-  // Pick 5 random from pool
+
   const shuffled = [...CURATED_POOL].sort(() => Math.random() - 0.5);
   const pickedIds = shuffled.slice(0, 5);
   const curatedRows = db.prepare(
@@ -206,31 +151,30 @@ export async function loader({ request }: Route.LoaderArgs) {
      WHERE a.id IN (${pickedIds.join(",")})
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
        AND ${sourceA.sql}`
-  ).all(...sourceA.params) as any[];
-  const curatedMap = new Map(curatedRows.map((r: any) => [r.id, r]));
+  ).all(...sourceA.params) as FeedItemRow[];
+
+  const curatedMap = new Map(curatedRows.map((row) => [row.id, row]));
   const curated = pickedIds
     .map((id) => curatedMap.get(id))
-    .filter(Boolean)
-    .map((r: any) => ({
-      ...r,
-      imageUrl: buildImageUrl(r.iiif_url, 400),
+    .filter((row): row is FeedItemRow => Boolean(row))
+    .map((row) => ({
+      ...row,
+      imageUrl: buildImageUrl(row.iiif_url, 400),
     }));
+
   const ogImageUrl = curated[0]?.iiif_url ? buildDirectImageUrl(curated[0].iiif_url, 800) : null;
 
-  // Load first rows + 3 themes in parallel
   const preloadThemes = THEMES.slice(0, 3);
   const [initial, ...themeResults] = await Promise.all([
     fetchFeed({ cursor: null, limit: 15, filter: "Alla" }),
-    ...preloadThemes.map(t => fetchFeed({ cursor: null, limit: 8, filter: t.filter })),
+    ...preloadThemes.map((theme) => fetchFeed({ cursor: null, limit: 8, filter: theme.filter })),
   ]);
 
-  // Prepend curated, deduplicate
-  const curatedIds = new Set(curated.map((c: any) => c.id));
-  const restItems = initial.items.filter((item: any) => !curatedIds.has(item.id));
+  const curatedIds = new Set(curated.map((item) => item.id));
+  const restItems = initial.items.filter((item) => !curatedIds.has(item.id));
 
-  // Stats for the collection card (cached in memory — read-only DB, never changes between deploys)
   const siteStats = getCachedSiteStats(db);
-  const stats = {
+  const stats: StatsCardData = {
     total: siteStats.totalWorks,
     museums: siteStats.museums,
     paintings: siteStats.paintings,
@@ -252,7 +196,7 @@ export async function loader({ request }: Route.LoaderArgs) {
      LIMIT 20`
   ).all(...sourceA.params) as Array<{ artists: string | null }>;
 
-  let spotlight: { artistName: string; items: FeedItem[] } | null = null;
+  let spotlight: SpotlightCardData | null = null;
   if (topArtists.length > 0) {
     const pickedArtist = topArtists[Math.floor(Math.random() * topArtists.length)]?.artists;
     if (pickedArtist) {
@@ -266,7 +210,7 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND a.iiif_url IS NOT NULL
            AND ${sourceA.sql}
          LIMIT 5`
-      ).all(pickedArtist, ...sourceA.params) as Omit<FeedItem, "imageUrl">[];
+      ).all(pickedArtist, ...sourceA.params) as FeedItemRow[];
 
       if (spotlightRows.length > 0) {
         spotlight = {
@@ -280,11 +224,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  const result = {
+  const result: HomeLoaderData = {
     initialItems: [...curated, ...restItems],
     initialCursor: initial.nextCursor,
     initialHasMore: initial.hasMore,
-    preloadedThemes: preloadThemes.map((t, i) => ({ ...t, items: themeResults[i].items })).filter(t => t.items.length > 0),
+    preloadedThemes: preloadThemes.map((theme, i) => ({ ...theme, items: themeResults[i].items })).filter((theme) => theme.items.length > 0),
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
     spotlight,
@@ -293,14 +237,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     origin: url.origin,
   };
 
-  _homeCache = { data: result, ts: Date.now() };
+  homeCache = { data: result, ts: Date.now() };
   return result;
 }
 
 function getCardVariant(positionInFeed: number): CardVariant {
-  // Pattern per 6 cards = 2 rows of 3 columns:
-  // Row 1: large(2) + small(1) = 3
-  // Row 2: small(1) + small(1) + small(1) = 3
   const p = positionInFeed % 6;
   if (p === 0) return "large";
   return "small";
@@ -325,24 +266,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const themes = loaderData.preloadedThemes || [];
     for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
-      // Theme 1 + walks promo after 3 cards
       if (i === 2 && themes[0]) {
         entries.push({ type: "theme", ...themes[0] });
         entries.push({ type: "walkPromo" });
       }
-      // Spotlight after 5 cards
       if (i === 4 && loaderData.spotlight) {
         entries.push({ type: "spotlight", ...loaderData.spotlight });
       }
-      // Theme 2 after 7 cards
       if (i === 6 && themes[1]) {
         entries.push({ type: "theme", ...themes[1] });
       }
-      // Stats after 9 cards
       if (i === 8) {
         entries.push({ type: "stats", ...loaderData.stats });
       }
-      // Theme 3 after 11 cards
       if (i === 10 && themes[2]) {
         entries.push({ type: "theme", ...themes[2] });
       }
@@ -368,139 +304,37 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1); // skip preloaded themes
-  const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((i: FeedItem) => i.id)));
-  const [heroQuery, setHeroQuery] = useState("");
-  const [searchQuery, setSearchQuery] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<FeedItem[] | null>(null);
-  const [searching, setSearching] = useState(false);
+  const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1);
+  const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Dark mode — darken dominant color to ~15% brightness for artsy-but-readable bg
   const bgColor = useMemo(() => {
-    const firstArt = feed.find((entry) => entry.type === "art") as ArtCard | undefined;
+    const firstArt = feed.find((entry): entry is ArtCard => entry.type === "art");
     const hex = firstArt?.item.dominant_color || "#1A1815";
-    // Parse hex → darken to 15% mix with black
     const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
     if (!m) return "#0F0E0D";
-    const mix = 0.15; // keep 15% of the original color
+    const mix = 0.15;
     const r = Math.round(parseInt(m[1], 16) * mix);
     const g = Math.round(parseInt(m[2], 16) * mix);
     const b = Math.round(parseInt(m[3], 16) * mix);
     return `rgb(${r},${g},${b})`;
   }, [feed]);
+
   useEffect(() => {
     document.body.style.backgroundColor = bgColor;
     document.body.style.color = "#F5F0E8";
-    return () => { document.body.style.backgroundColor = ""; document.body.style.color = ""; };
+    return () => {
+      document.body.style.backgroundColor = "";
+      document.body.style.color = "";
+    };
   }, [bgColor]);
-
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const acRef = useRef<HTMLDivElement>(null);
-  const acTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const doSearch = useCallback(async (q: string) => {
-    if (abortRef.current) abortRef.current.abort();
-    const trimmed = q.trim();
-    if (!trimmed) {
-      setSearchQuery(null);
-      setSearchResults(null);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    setSearchQuery(trimmed);
-    const controller = new AbortController();
-    abortRef.current = controller;
-    try {
-      const res = await fetch(`/api/clip-search?q=${encodeURIComponent(trimmed)}&limit=100`, { signal: controller.signal });
-      const data = res.ok ? await res.json() : [];
-      if (controller.signal.aborted) return;
-      const items: FeedItem[] = data.map((r: any) => ({
-        id: r.id,
-        title_sv: r.title || r.title_sv || null,
-        artists: r.artist ? JSON.stringify([{ name: r.artist }]) : r.artists || null,
-        iiif_url: r.heroUrl ? r.heroUrl.replace(/\/full\/800,\//, "/full/400,/") : r.iiif_url || "",
-        imageUrl: r.imageUrl || buildImageUrl(r.iiif_url, 400),
-        dominant_color: r.color || r.dominant_color || "#1A1815",
-        focal_x: r.focalX ?? r.focal_x ?? 0.5,
-        focal_y: r.focalY ?? r.focal_y ?? 0.5,
-        museum_name: r.museum_name || null,
-      }));
-      setSearchResults(items);
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
-      window.location.href = `/search?q=${encodeURIComponent(trimmed)}`;
-    } finally {
-      if (!controller.signal.aborted) setSearching(false);
-    }
-  }, []);
-
-  // Auto-search after 3 characters with debounce
-  useEffect(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    const trimmed = heroQuery.trim();
-    if (trimmed.length >= 3) {
-      searchTimer.current = setTimeout(() => doSearch(trimmed), 400);
-    } else if (trimmed.length === 0 && searchQuery) {
-      setSearchQuery(null);
-      setSearchResults(null);
-    }
-    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [heroQuery, doSearch]);
-
-  const submitHeroSearch = useCallback((event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    doSearch(heroQuery);
-  }, [heroQuery, doSearch]);
-
-  const clearSearch = useCallback(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (abortRef.current) abortRef.current.abort();
-    setSearchQuery(null);
-    setSearchResults(null);
-    setSearching(false);
-    setHeroQuery("");
-    if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; }
-  }, []);
-
-  const fetchAc = useCallback((val: string) => {
-    if (acTimer.current) clearTimeout(acTimer.current);
-    const dd = acRef.current;
-    if (!dd) return;
-    if (val.length < 2) { dd.innerHTML = ""; dd.classList.add("hidden"); return; }
-    acTimer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/autocomplete?q=${encodeURIComponent(val)}`);
-        const data = await r.json() as { value: string; type: string }[];
-        if (data.length === 0) { dd.classList.add("hidden"); dd.innerHTML = ""; return; }
-        const labels: Record<string, string> = { artist: "Konstnär", title: "Verk", category: "Kategori" };
-        dd.classList.remove("hidden");
-        dd.innerHTML = data.map((s, i) =>
-          `<div class="ac-item px-4 py-3 text-sm flex justify-between cursor-pointer hover:bg-[#2E2820] ${i > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : ""}" data-value="${encodeURIComponent(s.value)}" role="button" tabindex="0">
-            <span class="text-[#F5F0E8] truncate">${s.value.replace(/</g,"&lt;")}</span>
-            <span class="text-xs text-[rgba(245,240,232,0.4)] ml-2 shrink-0">${labels[s.type] || ""}</span>
-          </div>`
-        ).join("");
-      } catch { dd.classList.add("hidden"); }
-    }, 200);
-  }, []);
-
-  const pickAc = useCallback((value: string) => {
-    setHeroQuery(value);
-    if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; }
-    doSearch(value);
-  }, [doSearch]);
 
   async function loadMore() {
     if (loading || !hasMore) return;
     setLoading(true);
     setLoadError("");
     try {
-      // Fetch next batch of artworks
       const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursor ?? ""}`);
       if (!res.ok) throw new Error("Kunde inte hämta fler verk");
       const data = await res.json();
@@ -511,7 +345,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         newEntries.push({ type: "art", item });
       }
 
-      // Every load, try to insert a theme section
       if (themeIndex < THEMES.length) {
         const theme = THEMES[themeIndex];
         try {
@@ -519,7 +352,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
           const themeData = await themeRes.json();
           if (themeData.items?.length > 0) {
-            // Insert theme after ~5 artworks
             const insertAt = Math.min(5, newEntries.length);
             newEntries.splice(insertAt, 0, {
               type: "theme",
@@ -527,7 +359,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               items: themeData.items,
             });
           }
-        } catch { /* skip theme on error */ }
+        } catch {
+          // skip theme on error
+        }
         setThemeIndex((prev: number) => prev + 1);
       }
 
@@ -547,12 +381,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     }
   }
 
-  // Infinite scroll observer
   useEffect(() => {
     const target = sentinelRef.current;
     if (!target) return;
     const observer = new IntersectionObserver(
-      (entries) => { if (entries[0]?.isIntersecting) void loadMore(); },
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          void loadMore();
+        }
+      },
       { rootMargin: "600px" }
     );
     observer.observe(target);
@@ -566,101 +403,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        {/* Search hero — the main attraction */}
-        <div className="pt-[4.8rem] pb-4 px-5 md:px-2 lg:px-0 lg:pt-[5rem] lg:pb-4">
-          <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-[#F5F0E8] text-center leading-[1.15] tracking-[-0.01em]">
-            {loaderData.stats.total.toLocaleString("sv-SE")} konstverk.{" "}
-            <span className="text-[rgba(245,240,232,0.45)]">Sök på vad som helst.</span>
-          </h1>
-          <form onSubmit={submitHeroSearch} className="mt-4 md:mt-5 max-w-lg mx-auto">
-            <label htmlFor="hero-search" className="sr-only">Sök bland konstverk</label>
-            <div className="flex items-center gap-3 rounded-2xl bg-[rgba(245,240,232,0.1)] backdrop-blur-[12px] border border-[rgba(245,240,232,0.18)] px-5 py-3.5 transition-all duration-200 focus-within:border-[rgba(201,176,142,0.45)] focus-within:bg-[rgba(245,240,232,0.14)] focus-within:shadow-[0_0_30px_rgba(201,176,142,0.08)]">
-              <svg
-                aria-hidden="true"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="text-[rgba(201,176,142,0.6)] shrink-0"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                id="hero-search"
-                type="search"
-                value={heroQuery}
-                onChange={(event) => { setHeroQuery(event.target.value); fetchAc(event.target.value); }}
-                onBlur={() => setTimeout(() => { if (acRef.current) { acRef.current.classList.add("hidden"); acRef.current.innerHTML = ""; } }, 150)}
-                placeholder="porträtt, blå himmel, stilleben…"
-                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  aria-label="Rensa sökning"
-                  className="text-[rgba(245,240,232,0.45)] hover:text-[rgba(245,240,232,0.8)] transition-colors p-1 focus-ring"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          </form>
-          <div
-            ref={acRef}
-            onPointerDown={(e) => {
-              const item = (e.target as HTMLElement).closest(".ac-item") as HTMLElement;
-              if (!item) return;
-              e.preventDefault();
-              pickAc(decodeURIComponent(item.dataset.value || ""));
-            }}
-            className="hidden relative z-50 max-w-lg mx-auto mt-1 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
-          />
-          <div className="h-5 mt-2 flex items-center justify-center gap-4">
-            {searching ? (
-              <p className="text-[0.78rem] text-[rgba(245,240,232,0.4)]">Söker…</p>
-            ) : searchQuery && searchResults ? (
-              <>
-                <p className="text-[0.78rem] text-[rgba(245,240,232,0.45)]">
-                  {searchResults.length >= 100 ? "100+" : searchResults.length} träffar för "{searchQuery}"
-                </p>
-                {searchResults.length > 0 && (
-                  <a
-                    href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                    className="text-[0.73rem] text-[rgba(201,176,142,0.6)] no-underline hover:text-[rgba(201,176,142,0.9)] transition-colors focus-ring"
-                  >
-                    Visa alla →
-                  </a>
-                )}
-              </>
-            ) : null}
-          </div>
-        </div>
+        <HeroSearch totalWorks={loaderData.stats.total} />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
-          {searchResults ? (
-            // CLIP search results — show as artwork cards
-            searchResults.map((item, i) => (
-              <ArtworkCard
-                key={`search-${item.id}-${i}`}
-                item={item}
-                index={i}
-                variant={getCardVariant(i)}
-                showMuseumBadge={loaderData.showMuseumBadge}
-              />
-            ))
-          ) : (() => {
+          {(() => {
             let artPosition = -1;
-            return feed.map((entry, i) => {
+            return feed.map((entry, index) => {
               if (entry.type === "art") {
                 artPosition += 1;
                 return (
                   <ArtworkCard
-                    key={`art-${entry.item.id}-${i}`}
+                    key={`art-${entry.item.id}-${index}`}
                     item={entry.item}
                     index={artPosition}
                     variant={getCardVariant(artPosition)}
@@ -679,7 +432,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               if (entry.type === "spotlight") {
                 return (
-                  <div key={`spotlight-${entry.artistName}-${i}`} className="lg:col-span-3">
+                  <div key={`spotlight-${entry.artistName}-${index}`} className="lg:col-span-3">
                     <SpotlightCard spotlight={entry} />
                   </div>
                 );
@@ -687,21 +440,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               if (entry.type === "walkPromo") {
                 return (
-                  <div key={`walks-${i}`} className="lg:col-span-3">
+                  <div key={`walks-${index}`} className="lg:col-span-3">
                     <WalkPromoCard />
                   </div>
                 );
               }
 
               return (
-                <div key={`theme-${entry.title}-${i}`} className="lg:col-span-3">
+                <div key={`theme-${entry.title}-${index}`} className="lg:col-span-3">
                   <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
                 </div>
               );
             });
           })()}
         </div>
-        {!searchResults && <div ref={sentinelRef} className="h-px" />}
+
+        <div ref={sentinelRef} className="h-px" />
         {loading && (
           <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
             Laddar mer konst…
@@ -713,276 +467,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-const ArtworkCard = React.memo(function ArtworkCard({
-  item,
-  index,
-  variant = "small",
-  showMuseumBadge,
-}: {
-  item: FeedItem;
-  index: number;
-  variant?: CardVariant;
-  showMuseumBadge: boolean;
-}) {
-  const eager = index < 3;
-  const { isFavorite, toggle } = useFavorites();
-  const saved = isFavorite(item.id);
-  const [pulsing, setPulsing] = useState(false);
-  const variantClass = variant === "large"
-    ? "lg:col-span-2 lg:aspect-[3/2] lg:max-h-[32rem]"
-    : variant === "medium"
-      ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[20rem]"
-      : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[32rem]";
-
-  // Mobile: sized so next card always peeks below fold
-  const mobileHeight = variant === "large"
-    ? "h-[50vh] md:h-[70vh]"
-    : variant === "medium"
-      ? "h-[40vh] md:h-[45vh]"
-      : "h-[45vh] md:h-[55vh]";
-
-  return (
-    <a
-      href={`/artwork/${item.id}`}
-      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card focus-ring ${variantClass}`}
-      style={{ backgroundColor: item.dominant_color || "#1A1815" }}
-    >
-      <img
-        src={item.imageUrl}
-        srcSet={`${buildImageUrl(item.iiif_url, 200)} 200w, ${buildImageUrl(item.iiif_url, 400)} 400w, ${buildImageUrl(item.iiif_url, 800)} 800w`}
-        sizes={variant === "large" ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
-        alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
-        loading={eager ? "eager" : "lazy"}
-        decoding="auto"
-        fetchPriority={eager ? "high" : undefined}
-        onLoad={eager ? undefined : (e) => {
-          const img = e.currentTarget;
-          img.classList.remove("opacity-0");
-          img.classList.add("opacity-100");
-        }}
-        onError={(e) => {
-          e.currentTarget.classList.add("is-broken");
-        }}
-        className={[
-          "absolute inset-0 w-full h-full object-cover",
-          eager ? "" : "opacity-0 lg:opacity-100",
-        ].join(" ")}
-        style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
-      />
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.85)_0%,rgba(0,0,0,0.4)_30%,transparent_55%)] pointer-events-none lg:opacity-70 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
-      <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-7" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.6), 0 0 12px rgba(0,0,0,0.3)" }}>
-        <p className="font-serif text-[1.5rem] lg:text-[1.7rem] font-semibold text-white leading-[1.2] mb-[0.35rem] line-clamp-2">
-          {item.title_sv || "Utan titel"}
-        </p>
-        <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.75)]">
-          {parseArtist(item.artists)}
-        </p>
-        {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
-          <p className="text-[0.75rem] text-[rgba(255,255,255,0.45)] mt-[0.2rem]">
-            {item.museum_name}
-          </p>
-        )}
-      </div>
-      <button
-        type="button"
-        aria-label={saved ? "Ta bort favorit" : "Spara som favorit"}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!saved) {
-            setPulsing(true);
-            window.setTimeout(() => setPulsing(false), 350);
-          }
-          toggle(item.id);
-        }}
-        className={[
-          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-11 h-11 lg:w-[2.75rem] lg:h-[2.75rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
-          "focus-ring",
-          saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
-          pulsing ? "heart-pulse" : "",
-        ].join(" ")}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-          <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
-        </svg>
-      </button>
-    </a>
-  );
-});
-
-function SpotlightCard({ spotlight }: { spotlight: SpotlightCardEntry }) {
-  return (
-    <section className="bg-[#1E1D1A] rounded-none lg:rounded-[1.5rem] px-4 py-6 md:px-6 md:py-7 lg:px-8 lg:py-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-      <div className="lg:max-w-[24rem]">
-        <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.45)]">Konstnär i fokus</p>
-        <h2 className="font-serif text-[2rem] md:text-[2.2rem] text-[#F5F0E8] leading-[1.05] mt-2">
-          {spotlight.artistName}
-        </h2>
-        <a
-          href={`/search?q=${encodeURIComponent(spotlight.artistName)}`}
-          className="inline-block mt-4 text-[0.8rem] tracking-[0.02em] text-[rgba(245,240,232,0.75)] no-underline focus-ring"
-        >
-          Utforska konstnären →
-        </a>
-      </div>
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-        {spotlight.items.map((item) => (
-          <a
-            key={item.id}
-            href={`/artwork/${item.id}`}
-            className="shrink-0 w-[7.5rem] h-[7.5rem] rounded-lg overflow-hidden block focus-ring"
-            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
-          >
-            <img
-              src={item.imageUrl}
-              alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
-              loading="lazy"
-              width={120}
-              height={120}
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                img.classList.remove("opacity-0");
-                img.classList.add("opacity-100");
-              }}
-              onError={(e) => {
-                e.currentTarget.classList.add("is-broken");
-              }}
-              className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
-              style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
-            />
-          </a>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function WalkPromoCard() {
-  return (
-    <section className="bg-[#2B2A27] rounded-none lg:rounded-[1.5rem] px-6 py-8 md:px-8 md:py-9 lg:px-10 lg:py-10">
-      <p className="font-serif text-[1.9rem] md:text-[2.2rem] text-[#F5F0E8] leading-[1.1]">
-        Upptäck konstvandringar
-      </p>
-      <p className="mt-2 text-[0.85rem] text-[rgba(245,240,232,0.65)]">
-        Utvalda resor genom samlingarna
-      </p>
-      <a href="/walks" className="inline-block mt-5 text-[0.76rem] tracking-[0.08em] uppercase text-[rgba(245,240,232,0.8)] no-underline focus-ring">
-        Till vandringarna →
-      </a>
-    </section>
-  );
-}
-
-function StatsSection({ stats }: { stats: StatsCard }) {
-  const items = [
-    { value: stats.total.toLocaleString("sv"), label: "verk" },
-    { value: stats.museums.toLocaleString("sv"), label: "samlingar" },
-    { value: `${stats.yearsSpan} år`, label: "år av historia" },
-    { value: stats.paintings.toLocaleString("sv"), label: "målningar" },
-  ];
-  return (
-    <div className="py-12 md:py-16 lg:py-20 px-6 md:px-8 bg-[linear-gradient(135deg,#1A1815_0%,#2B2520_100%)] text-center lg:rounded-[1.5rem]">
-      <p className="text-[0.65rem] font-semibold tracking-[0.2em] uppercase text-[rgba(255,255,255,0.35)]">
-        Sveriges kulturarv
-      </p>
-      <h2 className="font-serif text-[2rem] lg:text-[2.6rem] text-[#F5F0E8] mt-2 mb-6 leading-[1.1]">
-        Samlingen i siffror
-      </h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-4 lg:gap-x-8 lg:gap-y-6 max-w-[18rem] md:max-w-[30rem] lg:max-w-5xl mx-auto">
-        {items.map((item) => (
-          <div key={item.label}>
-            <p className="font-serif text-[1.6rem] md:text-[2rem] lg:text-[2.7rem] font-semibold text-[#F5F0E8] m-0 leading-none">
-              {item.value}
-            </p>
-            <p className="text-[0.6rem] md:text-[0.65rem] lg:text-[0.7rem] text-[rgba(245,240,232,0.45)] mt-1 uppercase tracking-[0.08em]">
-              {item.label}
-            </p>
-          </div>
-        ))}
-      </div>
-      <a
-        href="/discover"
-        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em] focus-ring"
-      >
-        Upptäck samlingen →
-      </a>
-    </div>
-  );
-}
-
-function ThemeCard({ section, showMuseumBadge }: { section: ThemeSection; showMuseumBadge: boolean }) {
-  return (
-    <div
-      className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-[1.5rem] lg:overflow-hidden"
-      style={{ backgroundColor: section.color }}
-    >
-      {/* Theme header */}
-      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.4)] font-medium">
-        Tema
-      </p>
-      <h2 className="font-serif text-[2rem] font-semibold text-white mt-2 leading-[1.1]">
-        {section.title}
-      </h2>
-      <p className="text-[0.85rem] text-[rgba(255,255,255,0.5)] mt-[0.35rem]">
-        {section.subtitle}
-      </p>
-
-      {/* Horizontal scroll of themed artworks */}
-      <div className="flex gap-3 md:gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 overflow-x-auto lg:overflow-visible pt-6 pb-2 lg:pb-0 snap-x snap-mandatory lg:snap-none no-scrollbar">
-        {section.items.map((item: FeedItem) => (
-          <a
-            key={item.id}
-            href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start lg:snap-none focus-ring"
-            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
-          >
-            <div
-              className="aspect-[3/4] overflow-hidden"
-              style={{ backgroundColor: item.dominant_color || "#1A1815" }}
-            >
-              <img
-                src={buildImageUrl(item.iiif_url, 400)}
-                alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
-                loading="lazy"
-                width={400}
-                height={533}
-                onLoad={(e) => {
-                  const img = e.currentTarget;
-                  img.classList.remove("opacity-0");
-                  img.classList.add("opacity-100");
-                }}
-                onError={(e) => {
-                  e.currentTarget.classList.add("is-broken");
-                }}
-                className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
-                style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
-              />
-            </div>
-            <div className="py-[0.6rem] px-3">
-              <p className="text-[0.8rem] font-medium text-white leading-[1.3] overflow-hidden line-clamp-2">
-                {item.title_sv || "Utan titel"}
-              </p>
-              <p className="text-[0.7rem] text-[rgba(255,255,255,0.6)] mt-[0.15rem]">
-                {parseArtist(item.artists)}
-              </p>
-              {showMuseumBadge && item.museum_name && item.museum_name !== 'Statens historiska museer' && (
-                <p className="text-[0.65rem] text-[rgba(255,255,255,0.4)] mt-[0.1rem]">
-                  {item.museum_name}
-                </p>
-              )}
-            </div>
-          </a>
-        ))}
-      </div>
-
-      {/* "Visa fler" link */}
-      <a href={`/search?q=${encodeURIComponent(section.filter || section.title)}`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
-        Visa fler →
-      </a>
     </div>
   );
 }
