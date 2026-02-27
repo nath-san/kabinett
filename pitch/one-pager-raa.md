@@ -33,6 +33,7 @@ Kabinett aggregerar metadata och bilder från flera källor och presenterar dem 
 - **9 samlingar:** Nationalmuseum, Livrustkammaren, Hallwylska, Historiska museet, Skokloster, Myntkabinettet, Nordiska museet, Tumba bruksmuseum, Förintelsemuseet.
 - Alla bilder länkas från respektive institutions servrar — inga bilder lagras.
 - Öppen data: all metadata används under CC0/CC BY i enlighet med respektive institutions licenser.
+- **Byggd för att växa:** Tre källor och nio samlingar är en medveten avgränsning för att validera konceptet. Arkitekturen är modulär — att lägga till en ny källa (K-samsök-institution, IIIF-museum eller DigitaltMuseum-samling) kräver ett synkskript och en rad i konfigurationen. Inga förändringar i frontend eller sökmotor.
 
 ### Upplevelsen
 
@@ -54,7 +55,7 @@ Vi ser Kabinett som ett komplement till RAÄ:s eget arbete med det nya K-samsök
 ### Möjliga samarbetsformer
 
 - **Pilot:** Kabinett som referensimplementation för hur nya K-samsöks data kan presenteras publikt.
-- **Utökning:** Fler museer och samlingar via K-samsök — idag indexeras bara SHM.
+- **Utökning:** Fler museer och samlingar — K-samsök har hundratals anslutna institutioner, och Kabinetts arkitektur gör det enkelt att lägga till nya källor.
 - **Licensiering/drift:** RAÄ eller anslutna museer licensierar Kabinett som publik söktjänst.
 - **Gemensam utveckling:** Samarbete kring semantisk sökning och AI-indexering av kulturarvsdata.
 
