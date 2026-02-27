@@ -20,7 +20,7 @@ import { externalImageUrl } from "../../../apps/web/app/lib/images";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
 const BATCH_SIZE = 50;
-const CONCURRENCY = 8;
+const CONCURRENCY = 32;
 const FETCH_RETRIES = 3;
 const FETCH_BACKOFF_MS = 500;
 const IMAGE_WIDTH = 400;
