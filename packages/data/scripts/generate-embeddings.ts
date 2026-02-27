@@ -268,6 +268,8 @@ async function main() {
     let processed = 0;
     let failed = 0;
     let idOffset = 0;
+    let lastPctLogged = -1;
+    const startTime = Date.now();
 
     while (idOffset < allIds.length) {
       const batchIds = allIds.slice(idOffset, idOffset + BATCH_SIZE);
@@ -328,10 +330,21 @@ async function main() {
           }
         }
 
-        const pct = totalRemaining > 0
-          ? ((processed / totalRemaining) * 100).toFixed(1)
-          : "100.0";
-        console.log(`   ${processed}/${totalRemaining} (${pct}%) [${failed} failed]`);
+        const pctNum = totalRemaining > 0
+          ? (processed / totalRemaining) * 100
+          : 100;
+        const pctWhole = Math.floor(pctNum);
+        if (pctWhole > lastPctLogged) {
+          lastPctLogged = pctWhole;
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+          const rate = processed > 0 ? (processed / ((Date.now() - startTime) / 1000)).toFixed(1) : "0";
+          const etaSec = processed > 0 ? Math.round(((totalRemaining - processed) / (processed / ((Date.now() - startTime) / 1000)))) : 0;
+          const etaMin = Math.floor(etaSec / 60);
+          const etaH = Math.floor(etaMin / 60);
+          const etaStr = etaH > 0 ? `${etaH}h ${etaMin % 60}m` : `${etaMin}m`;
+          const now = new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+          console.log(`   [${now}] ${pctWhole}% — ${processed}/${totalRemaining} (${failed} failed) — ${rate}/s — ETA ${etaStr}`);
+        }
       }
 
       if (pendingWrites.length > 0) {
