@@ -5,7 +5,7 @@
 
 ## Vad är Kabinett?
 
-Kabinett är en webbapp som samlar och tillgängliggör konst och kulturföremål från svenska museer i ett gemensamt, sökbart gränssnitt. Användaren kan utforska över **1,1 miljoner verk** från **9 samlingar** — med en AI-driven sökning som förstår naturligt språk.
+Kabinett är en webbapp som samlar och tillgängliggör konst och kulturföremål från svenska museer i ett gemensamt, sökbart gränssnitt. Idag indexeras **1,1 miljoner verk** från **9 samlingar** — med en arkitektur byggd för att skala till hela K-samsöks nätverk. Sökningen är AI-driven och förstår naturligt språk.
 
 Sök på *"stormigt hav"*, *"barn som leker"* eller *"guldsmide"* — och hitta relevanta verk oavsett hur de katalogiserats.
 
@@ -52,12 +52,9 @@ Kabinett bygger direkt på den infrastruktur RAÄ förvaltar. K-samsök är den 
 
 Vi ser Kabinett som ett komplement till RAÄ:s eget arbete med det nya K-samsök — en publik frontend som gör kulturarvsdatan tillgänglig och sökbar för alla.
 
-### Möjliga samarbetsformer
+### Nästa steg
 
-- **Pilot:** Kabinett som referensimplementation för hur nya K-samsöks data kan presenteras publikt.
-- **Utökning:** Fler museer och samlingar — K-samsök har hundratals anslutna institutioner, och Kabinetts arkitektur gör det enkelt att lägga till nya källor.
-- **Licensiering/drift:** RAÄ eller anslutna museer licensierar Kabinett som publik söktjänst.
-- **Gemensam utveckling:** Samarbete kring semantisk sökning och AI-indexering av kulturarvsdata.
+Vi skulle gärna visa Kabinett och diskutera hur det kan komplettera ert arbete med det nya K-samsök.
 
 ---
 
