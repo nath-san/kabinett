@@ -241,7 +241,7 @@ async function main() {
         AND LENGTH(a.iiif_url) > 40
         AND c.artwork_id IS NULL
         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-      ORDER BY a.id
+      ORDER BY CASE a.source WHEN 'nordiska' THEN 0 WHEN 'nationalmuseum' THEN 1 ELSE 2 END, a.id
     `).all() as { id: number }[];
     console.log(`   Found ${allIds.length} artworks to embed\n`);
 
@@ -254,6 +254,9 @@ async function main() {
     );
     const updateFocal = db.prepare(
       `UPDATE artworks SET focal_x = ?, focal_y = ? WHERE id = ?`
+    );
+    const insertBroken = db.prepare(
+      `INSERT OR IGNORE INTO broken_images (artwork_id) VALUES (?)`
     );
     const writeBatch = db.transaction((writes: EmbeddingWrite[]) => {
       for (const write of writes) {
@@ -318,6 +321,7 @@ async function main() {
             processed += 1;
           } else {
             failed += 1;
+            insertBroken.run(result.id);
             if (failed <= 10) {
               console.warn(`   ⚠️  Failed ${result.id}: ${result.message}`);
             }
