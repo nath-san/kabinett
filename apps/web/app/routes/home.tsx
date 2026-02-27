@@ -300,6 +300,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return entries;
   });
 
+  const [searchActive, setSearchActive] = useState(false);
+
   const [cursor, setCursor] = useState<number | null>(loaderData.initialCursor ?? null);
   const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
   const [loading, setLoading] = useState(false);
@@ -403,9 +405,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        <HeroSearch totalWorks={loaderData.stats.total} />
+        <HeroSearch totalWorks={loaderData.stats.total} showMuseumBadge={loaderData.showMuseumBadge} onSearchActive={setSearchActive} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
+        {!searchActive && <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {(() => {
             let artPosition = -1;
             return feed.map((entry, index) => {
@@ -453,15 +455,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               );
             });
           })()}
-        </div>
+        </div>}
 
-        <div ref={sentinelRef} className="h-px" />
-        {loading && (
+        {!searchActive && <div ref={sentinelRef} className="h-px" />}
+        {!searchActive && loading && (
           <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
             Laddar mer konst…
           </div>
         )}
-        {loadError && !loading && (
+        {!searchActive && loadError && !loading && (
           <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.45)] text-[0.8rem]">
             {loadError}
           </div>
