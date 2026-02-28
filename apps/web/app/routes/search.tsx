@@ -5,7 +5,8 @@ import Autocomplete from "../components/Autocomplete";
 import ArtworkCard from "../components/ArtworkCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { buildImageUrl } from "../lib/images";
-import { searchLoader, PAGE_SIZE, type SearchResult, type SearchMode, type MuseumOption } from "./search.loader.server";
+import { searchLoader, type SearchResult, type SearchMode, type MuseumOption } from "./search.loader.server";
+import { PAGE_SIZE } from "../lib/search-constants";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
