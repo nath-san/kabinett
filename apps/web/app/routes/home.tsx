@@ -6,7 +6,8 @@ import StatsSection, { type StatsCardData } from "../components/StatsSection";
 import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
-import { homeLoader, THEMES, type HomeLoaderData } from "./home.loader.server";
+import { homeLoader, type HomeLoaderData } from "./home.loader.server";
+import { THEMES } from "../lib/themes";
 import type { Route } from "./+types/home";
 
 function serializeJsonLd(value: unknown): string {
