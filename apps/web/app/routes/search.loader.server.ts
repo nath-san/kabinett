@@ -22,7 +22,7 @@ export type SearchResult = {
   focal_y?: number | null;
 };
 
-const PAGE_SIZE = 60;
+import { PAGE_SIZE } from "../lib/search-constants";
 
 const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
@@ -33,7 +33,6 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
 };
 
-export { PAGE_SIZE };
 
 function nextCursor(length: number): number | null {
   return length >= PAGE_SIZE ? length : null;

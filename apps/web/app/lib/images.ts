@@ -6,7 +6,6 @@ const SIZE_MAP = [
 
 /**
  * Build the raw external URL for a museum image at a given width.
- * Used internally and as the source URL for the image proxy.
  */
 export function externalImageUrl(iiifOrDirect: string, width: number): string {
   const normalized = iiifOrDirect.replace("http://", "https://");
@@ -27,24 +26,12 @@ export function externalImageUrl(iiifOrDirect: string, width: number): string {
 }
 
 /**
- * Build an image URL routed through Cloudflare CDN edge cache.
- * Falls back to direct URL for hosts not in the CDN allowlist.
+ * Build an image URL. Goes direct to source for now.
+ * TODO: Re-enable CDN proxy via Cloudflare Worker when ready.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
-  const src = externalImageUrl(iiifOrDirect, width);
-  try {
-    const hostname = new URL(src).hostname;
-    const cdnHosts = [
-      "nationalmuseumse.iiifhosting.com",
-      "media.samlingar.shm.se",
-      "ems.dimu.org",
-    ];
-    if (cdnHosts.includes(hostname)) {
-      return `/cdn/img?url=${encodeURIComponent(src)}`;
-    }
-  } catch {}
-  return src;
+  return externalImageUrl(iiifOrDirect, width);
 }
 
 /**
