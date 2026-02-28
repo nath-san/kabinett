@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
 
@@ -11,11 +11,14 @@ export default function HeroSearch({
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const goToSearch = useCallback(
     (q: string) => {
       const trimmed = q.trim();
       if (!trimmed) return;
+      // Blur input to close autocomplete dropdown before navigating
+      inputRef.current?.blur();
       navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     },
     [navigate]
@@ -63,6 +66,7 @@ export default function HeroSearch({
               </svg>
               <input
                 {...inputProps}
+                ref={inputRef}
                 id="hero-search"
                 type="search"
                 placeholder="porträtt, blå himmel, stilleben…"
