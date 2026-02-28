@@ -40,7 +40,7 @@ export default function HeroSearch({
         query={query}
         onQueryChange={setQuery}
         onSelect={(value) => goToSearch(value)}
-        dropdownClassName="relative z-50 max-w-lg mx-auto mt-1 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
+        dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
       >
         {({ inputProps }) => (
           <form onSubmit={handleSubmit} className="mt-4 md:mt-5 max-w-lg mx-auto">

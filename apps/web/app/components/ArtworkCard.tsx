@@ -58,7 +58,7 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
     >
       <img
         src={item.imageUrl}
-        srcSet={item.iiif_url ? `${buildImageUrl(item.iiif_url, 200)} 200w, ${buildImageUrl(item.iiif_url, 400)} 400w, ${buildImageUrl(item.iiif_url, 800)} 800w` : undefined}
+        srcSet={item.iiif_url ? `${buildImageUrl(item.iiif_url, 400)} 400w, ${buildImageUrl(item.iiif_url, 800)} 800w, ${buildImageUrl(item.iiif_url, 1200)} 1200w` : undefined}
         sizes={variant === "large" ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
         alt={buildArtworkAltText(item)}
         loading={eager ? "eager" : "lazy"}
