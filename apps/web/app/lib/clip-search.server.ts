@@ -2,11 +2,11 @@ import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
 import { parseArtist } from "./parsing";
-import { AutoTokenizer, CLIPTextModelWithProjection, env } from "@xenova/transformers";
+import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
 
-const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
+export const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
 
 export type ClipResult = {
   id: number;
@@ -38,7 +38,7 @@ type VectorRow = {
   focal_y: number | null;
 };
 
-let modelPromise: Promise<{ tokenizer: any; model: any }> | null = null;
+let textExtractorPromise: Promise<any> | null = null;
 
 function normalize(vec: Float32Array): Float32Array {
   let sum = 0;
@@ -49,18 +49,61 @@ function normalize(vec: Float32Array): Float32Array {
   return out;
 }
 
-async function getTextModel() {
-  if (!modelPromise) {
-    modelPromise = (async () => {
-      const [tokenizer, model] = await Promise.all([
-        AutoTokenizer.from_pretrained(CLIP_MODEL),
-        CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL),
-      ]);
-      return { tokenizer, model };
-    })();
-    modelPromise.catch(() => { modelPromise = null; });
+// Dense projection weights (768 -> 512) from the sentence-transformers model
+// Loaded lazily from HuggingFace
+let projectionMatrix: Float32Array | null = null;
+
+async function loadProjectionMatrix(): Promise<Float32Array> {
+  if (projectionMatrix) return projectionMatrix;
+  const url = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/2_Dense/pytorch_model.bin";
+  const response = await fetch(url);
+  const buffer = await response.arrayBuffer();
+  // pytorch_model.bin is a zip of tensors; the weight matrix is "linear.weight" shaped [512, 768]
+  // For simplicity, we'll extract it using a direct approach
+  // The model has no bias, just a linear projection
+  // Actually, let's use the safetensors format instead
+  const stUrl = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/2_Dense/model.safetensors";
+  const stResponse = await fetch(stUrl);
+  const stBuffer = await stResponse.arrayBuffer();
+  // Parse safetensors: 8 bytes header length (LE u64), then JSON header, then raw data
+  const view = new DataView(stBuffer);
+  const headerLen = Number(view.getBigUint64(0, true));
+  const headerJson = new TextDecoder().decode(new Uint8Array(stBuffer, 8, headerLen));
+  const header = JSON.parse(headerJson);
+  const weightMeta = header["linear.weight"];
+  const offset = weightMeta.data_offsets[0];
+  const end = weightMeta.data_offsets[1];
+  const dataStart = 8 + headerLen;
+  projectionMatrix = new Float32Array(stBuffer, dataStart + offset, (end - offset) / 4);
+  console.log(`[CLIP] Loaded projection matrix: ${projectionMatrix.length} values (${weightMeta.shape})`);
+  return projectionMatrix;
+}
+
+function projectTo512(vec768: Float32Array): Float32Array {
+  // matrix is [512, 768], multiply: out[i] = sum_j(matrix[i*768+j] * vec[j])
+  const out = new Float32Array(512);
+  for (let i = 0; i < 512; i++) {
+    let sum = 0;
+    const base = i * 768;
+    for (let j = 0; j < 768; j++) {
+      sum += projectionMatrix![base + j] * vec768[j];
+    }
+    out[i] = sum;
   }
-  return modelPromise;
+  return out;
+}
+
+async function getTextExtractor() {
+  if (!textExtractorPromise) {
+    textExtractorPromise = Promise.all([
+      pipeline("feature-extraction", MULTILINGUAL_CLIP_TEXT_MODEL, { quantized: false }),
+      loadProjectionMatrix(),
+    ]).then(([pipe]) => pipe).catch((error) => {
+      textExtractorPromise = null;
+      throw error;
+    });
+  }
+  return textExtractorPromise;
 }
 
 function clampSimilarityFromL2(distance: number): number {
@@ -107,10 +150,11 @@ function runKnnQuery(
 }
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
-  const { tokenizer, model } = await getTextModel();
-  const inputs = tokenizer(q, { padding: true, truncation: true });
-  const output = await model(inputs);
-  const queryEmbedding = normalize(new Float32Array(output.text_embeds.data));
+  const textExtractor = await getTextExtractor();
+  const extracted = await textExtractor(q, { pooling: "mean", normalize: false });
+  const vec768 = new Float32Array(extracted.data);
+  const projected = projectTo512(vec768);
+  const queryEmbedding = normalize(projected);
   const queryBuffer = Buffer.from(
     queryEmbedding.buffer,
     queryEmbedding.byteOffset,
