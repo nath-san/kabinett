@@ -47,6 +47,7 @@ export default function Autocomplete({
   const [activeIndex, setActiveIndex] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const submittedRef = useRef(false);
   const listboxId = useId();
 
   const closeDropdown = useCallback(() => {
@@ -55,6 +56,7 @@ export default function Autocomplete({
   }, []);
 
   const selectSuggestion = useCallback((value: string) => {
+    submittedRef.current = true;
     onQueryChange(value);
     closeDropdown();
     onSelect(value);
@@ -66,6 +68,7 @@ export default function Autocomplete({
       fetchTimer.current = null;
     }
 
+    submittedRef.current = false;
     const trimmed = query.trim();
     if (trimmed.length < minLength) {
       setSuggestions([]);
@@ -85,10 +88,11 @@ export default function Autocomplete({
         const data = await response.json() as Suggestion[];
         if (controller.signal.aborted) return;
         setSuggestions(data);
-        if (data.length > 0) {
+        if (data.length > 0 && !submittedRef.current) {
           setIsOpen(true);
           setActiveIndex(-1);
         } else {
+          submittedRef.current = true;
           closeDropdown();
         }
       } catch (error: unknown) {
@@ -154,6 +158,7 @@ export default function Autocomplete({
           event.preventDefault();
           selectSuggestion(suggestions[activeIndex].value);
         } else {
+          submittedRef.current = true;
           closeDropdown();
         }
         return;
