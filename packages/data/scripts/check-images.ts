@@ -65,7 +65,7 @@ async function main() {
     // Get all artwork IDs not yet checked
     const rows = db.prepare(`
       SELECT a.id, a.iiif_url, a.source FROM artworks a
-      WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 90
+      WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 10
       ORDER BY a.id
     `).all() as Array<{ id: number; iiif_url: string; source: string | null }>;
 
