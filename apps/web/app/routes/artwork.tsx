@@ -480,8 +480,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
-                  <img src={buildImageUrl(s.iiif_url, 200)}
-                    alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={200} height={267}
+                  <img src={buildImageUrl(s.iiif_url, 400)}
+                    alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={400} height={534}
                     loading="lazy"
                     decoding="async"
                     onError={(event) => {
@@ -514,8 +514,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
-                  <img src={buildImageUrl(s.iiif_url, 200)}
-                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={200} height={267}
+                  <img src={buildImageUrl(s.iiif_url, 400)}
+                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={400} height={534}
                     loading="lazy"
                     decoding="async"
                     onError={(event) => {
