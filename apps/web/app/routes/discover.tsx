@@ -47,18 +47,22 @@ type MuseumSummary = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörker", imageIds: [24664, 20450, 15634] },
-  { title: "Ljust & stilla", subtitle: "Sommar och ro", query: "sommar", imageIds: [20993, 20523, 23027] },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm", imageIds: [17939, 17176, 17567, 18218, 21087] },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor", imageIds: [17457, 17458, 18106, 154102, 18360] },
-  { title: "Djur i konsten", subtitle: "Hästar, hundar och fåglar", query: "djur", imageIds: [15877, 14792, 18888, 19063, 17875] },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt", imageIds: [17096, 17115, 18148, 17412, 18762] },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap", imageIds: [15900, 17076, 17107, 17110, 17112] },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "venus", imageIds: [17313, 17387, 17773, 17613, 15488] },
-  { title: "Vinter", subtitle: "Snö och is", query: "vinter", imageIds: [18895, 19942, 20431, 21900, 23019] },
-  { title: "Stilleben", subtitle: "Vardagens poesi", query: "stilleben", imageIds: [17457, 18106, 18360, 18403] },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn", imageIds: [16051, 17093, 17587, 17994, 18123] },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott", imageIds: [15506, 15482, 17539, 17958, 14754] },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörker natt", imageIds: [24664, 20450, 15634] },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm hav", imageIds: [18217, 20356, 17939] },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor", imageIds: [-166319052559119, -179937114869368, 17457] },
+  { title: "Hästar", subtitle: "Ädla djur genom tiderna", query: "häst", imageIds: [14802, -247833644771404, -69141112380166] },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt ansikte", imageIds: [216852, 16308, 17096] },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog", imageIds: [-202485135028962, -62777224500383, 17076] },
+  { title: "Hattar", subtitle: "Huvudbonader genom historien", query: "hatt", imageIds: [-253468788019903, -256891764421414, -61674516346084] },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna", imageIds: [71395, 177136, 17313] },
+  { title: "Telefoner", subtitle: "Från vev till knappar", query: "telefon", imageIds: [-278306166813061, -62193254264396, -223649635814047] },
+  { title: "Skepp & båtar", subtitle: "Till havs", query: "skepp båt fartyg", imageIds: [-139485473585279, -448520122533, -103198960131251] },
+  { title: "Kaniner", subtitle: "Lurviga vänner", query: "kanin hare", imageIds: [-62346619720310, -132331838014998, -101957079536391] },
+  { title: "Musik", subtitle: "Instrument och melodier", query: "musik instrument gitarr", imageIds: [-230629938287298, -87109461851263, -86518388012200] },
+  { title: "Katter", subtitle: "Mjuka tassar", query: "katt", imageIds: [-189194491314296, 35597, -239926311302559] },
+  { title: "Mat & frukt", subtitle: "Gastronomi i konsten", query: "mat frukt", imageIds: [-253717850327201, -5907047110556, -111000855806884] },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott kyrka", imageIds: [-129853437095252, -98579182221784, -45980371825152] },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn", imageIds: [17996, 16051, 17093] },
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
