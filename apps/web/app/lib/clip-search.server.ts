@@ -1,3 +1,7 @@
+import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
@@ -6,7 +10,14 @@ import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
 
-export const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
+const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
+
+// Pre-bundled Dense projection matrix (512 x 768, float32)
+// Converts 768-dim multilingual text embeddings to 512-dim CLIP space
+const __dirname_local = dirname(fileURLToPath(import.meta.url));
+const PROJECTION_MATRIX = new Float32Array(
+  readFileSync(resolve(__dirname_local, "clip-projection.bin")).buffer
+);
 
 export type ClipResult = {
   id: number;
@@ -49,44 +60,14 @@ function normalize(vec: Float32Array): Float32Array {
   return out;
 }
 
-// Dense projection weights (768 -> 512) from the sentence-transformers model
-// Loaded lazily from HuggingFace
-let projectionMatrix: Float32Array | null = null;
-
-async function loadProjectionMatrix(): Promise<Float32Array> {
-  if (projectionMatrix) return projectionMatrix;
-  const url = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/2_Dense/pytorch_model.bin";
-  const response = await fetch(url);
-  const buffer = await response.arrayBuffer();
-  // pytorch_model.bin is a zip of tensors; the weight matrix is "linear.weight" shaped [512, 768]
-  // For simplicity, we'll extract it using a direct approach
-  // The model has no bias, just a linear projection
-  // Actually, let's use the safetensors format instead
-  const stUrl = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/main/2_Dense/model.safetensors";
-  const stResponse = await fetch(stUrl);
-  const stBuffer = await stResponse.arrayBuffer();
-  // Parse safetensors: 8 bytes header length (LE u64), then JSON header, then raw data
-  const view = new DataView(stBuffer);
-  const headerLen = Number(view.getBigUint64(0, true));
-  const headerJson = new TextDecoder().decode(new Uint8Array(stBuffer, 8, headerLen));
-  const header = JSON.parse(headerJson);
-  const weightMeta = header["linear.weight"];
-  const offset = weightMeta.data_offsets[0];
-  const end = weightMeta.data_offsets[1];
-  const dataStart = 8 + headerLen;
-  projectionMatrix = new Float32Array(stBuffer, dataStart + offset, (end - offset) / 4);
-  console.log(`[CLIP] Loaded projection matrix: ${projectionMatrix.length} values (${weightMeta.shape})`);
-  return projectionMatrix;
-}
-
+/** Project 768-dim vector to 512-dim using pre-loaded weight matrix */
 function projectTo512(vec768: Float32Array): Float32Array {
-  // matrix is [512, 768], multiply: out[i] = sum_j(matrix[i*768+j] * vec[j])
   const out = new Float32Array(512);
   for (let i = 0; i < 512; i++) {
     let sum = 0;
     const base = i * 768;
     for (let j = 0; j < 768; j++) {
-      sum += projectionMatrix![base + j] * vec768[j];
+      sum += PROJECTION_MATRIX[base + j] * vec768[j];
     }
     out[i] = sum;
   }
@@ -95,10 +76,11 @@ function projectTo512(vec768: Float32Array): Float32Array {
 
 async function getTextExtractor() {
   if (!textExtractorPromise) {
-    textExtractorPromise = Promise.all([
-      pipeline("feature-extraction", MULTILINGUAL_CLIP_TEXT_MODEL, { quantized: false }),
-      loadProjectionMatrix(),
-    ]).then(([pipe]) => pipe).catch((error) => {
+    textExtractorPromise = pipeline(
+      "feature-extraction",
+      MULTILINGUAL_CLIP_TEXT_MODEL,
+      { quantized: false }
+    ).catch((error) => {
       textExtractorPromise = null;
       throw error;
     });
@@ -119,7 +101,6 @@ function runKnnQuery(
   allowedSource: { sql: string; params: string[] }
 ): VectorRow[] {
   const db = getDb();
-  // vec_artworks uses auto rowids; vec_artwork_map maps rowid -> artwork_id
   const sql = `
     SELECT
       map.artwork_id as id,
