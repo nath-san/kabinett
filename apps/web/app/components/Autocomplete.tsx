@@ -149,9 +149,13 @@ export default function Autocomplete({
         return;
       }
 
-      if (event.key === "Enter" && isOpen && activeIndex >= 0) {
-        event.preventDefault();
-        selectSuggestion(suggestions[activeIndex].value);
+      if (event.key === "Enter") {
+        if (isOpen && activeIndex >= 0) {
+          event.preventDefault();
+          selectSuggestion(suggestions[activeIndex].value);
+        } else {
+          closeDropdown();
+        }
         return;
       }
 
