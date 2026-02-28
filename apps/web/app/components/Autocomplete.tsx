@@ -48,6 +48,7 @@ export default function Autocomplete({
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submittedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const listboxId = useId();
 
   const closeDropdown = useCallback(() => {
@@ -57,6 +58,8 @@ export default function Autocomplete({
 
   const selectSuggestion = useCallback((value: string) => {
     submittedRef.current = true;
+    if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     onQueryChange(value);
     closeDropdown();
     onSelect(value);
@@ -77,6 +80,7 @@ export default function Autocomplete({
     }
 
     const controller = new AbortController();
+    abortRef.current = controller;
     fetchTimer.current = setTimeout(async () => {
       try {
         const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`, {
@@ -96,6 +100,10 @@ export default function Autocomplete({
           if (fetchTimer.current) {
             clearTimeout(fetchTimer.current);
             fetchTimer.current = null;
+          }
+          if (abortRef.current) {
+            abortRef.current.abort();
+            abortRef.current = null;
           }
           setSuggestions([]);
           closeDropdown();
@@ -167,6 +175,10 @@ export default function Autocomplete({
           if (fetchTimer.current) {
             clearTimeout(fetchTimer.current);
             fetchTimer.current = null;
+          }
+          if (abortRef.current) {
+            abortRef.current.abort();
+            abortRef.current = null;
           }
           setSuggestions([]);
           closeDropdown();
