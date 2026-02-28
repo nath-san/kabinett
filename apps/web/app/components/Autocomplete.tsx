@@ -93,6 +93,11 @@ export default function Autocomplete({
           setActiveIndex(-1);
         } else {
           submittedRef.current = true;
+          if (fetchTimer.current) {
+            clearTimeout(fetchTimer.current);
+            fetchTimer.current = null;
+          }
+          setSuggestions([]);
           closeDropdown();
         }
       } catch (error: unknown) {
@@ -159,6 +164,11 @@ export default function Autocomplete({
           selectSuggestion(suggestions[activeIndex].value);
         } else {
           submittedRef.current = true;
+          if (fetchTimer.current) {
+            clearTimeout(fetchTimer.current);
+            fetchTimer.current = null;
+          }
+          setSuggestions([]);
           closeDropdown();
         }
         return;
@@ -169,7 +179,7 @@ export default function Autocomplete({
       }
     },
     onFocus: () => {
-      if (suggestions.length > 0) {
+      if (suggestions.length > 0 && !submittedRef.current) {
         setIsOpen(true);
       }
     },
