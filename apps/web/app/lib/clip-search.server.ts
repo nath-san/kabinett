@@ -2,11 +2,11 @@ import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
 import { parseArtist } from "./parsing";
-import { pipeline, env } from "@xenova/transformers";
+import { AutoTokenizer, CLIPTextModelWithProjection, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
 
-export const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
+const CLIP_MODEL = "Xenova/clip-vit-base-patch32";
 
 export type ClipResult = {
   id: number;
@@ -38,7 +38,7 @@ type VectorRow = {
   focal_y: number | null;
 };
 
-let textExtractorPromise: Promise<any> | null = null;
+let modelPromise: Promise<{ tokenizer: any; model: any }> | null = null;
 
 function normalize(vec: Float32Array): Float32Array {
   let sum = 0;
@@ -49,15 +49,18 @@ function normalize(vec: Float32Array): Float32Array {
   return out;
 }
 
-async function getTextExtractor() {
-  if (!textExtractorPromise) {
-    textExtractorPromise = pipeline("feature-extraction", MULTILINGUAL_CLIP_TEXT_MODEL, { quantized: false })
-      .catch((error) => {
-        textExtractorPromise = null;
-        throw error;
-      });
+async function getTextModel() {
+  if (!modelPromise) {
+    modelPromise = (async () => {
+      const [tokenizer, model] = await Promise.all([
+        AutoTokenizer.from_pretrained(CLIP_MODEL),
+        CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL),
+      ]);
+      return { tokenizer, model };
+    })();
+    modelPromise.catch(() => { modelPromise = null; });
   }
-  return textExtractorPromise;
+  return modelPromise;
 }
 
 function clampSimilarityFromL2(distance: number): number {
@@ -104,9 +107,10 @@ function runKnnQuery(
 }
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
-  const textExtractor = await getTextExtractor();
-  const extracted = await textExtractor(q, { pooling: "mean", normalize: true });
-  const queryEmbedding = normalize(new Float32Array(extracted.data));
+  const { tokenizer, model } = await getTextModel();
+  const inputs = tokenizer(q, { padding: true, truncation: true });
+  const output = await model(inputs);
+  const queryEmbedding = normalize(new Float32Array(output.text_embeds.data));
   const queryBuffer = Buffer.from(
     queryEmbedding.buffer,
     queryEmbedding.byteOffset,
