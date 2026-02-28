@@ -57,6 +57,7 @@ function SearchAutocompleteForm({
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(defaultValue);
 
+  const isInitialMount = useRef(true);
   useEffect(() => {
     setQuery(defaultValue);
   }, [defaultValue]);
@@ -91,6 +92,7 @@ function SearchAutocompleteForm({
           <form
             onSubmit={(event) => {
               event.preventDefault();
+              inputRef.current?.blur();
               submitSearch(query);
             }}
           >

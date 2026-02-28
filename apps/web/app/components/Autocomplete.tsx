@@ -47,7 +47,7 @@ export default function Autocomplete({
   const [activeIndex, setActiveIndex] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const submittedRef = useRef(false);
+  const submittedRef = useRef(query.trim().length > 0);
   const abortRef = useRef<AbortController | null>(null);
   const listboxId = useId();
 
