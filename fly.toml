@@ -7,7 +7,7 @@ primary_region = "arn"
   DATABASE_PATH = "/data/kabinett.db"
   NODE_ENV = "production"
   HOST = "0.0.0.0"
-  MUSEUMS = "nationalmuseum,nordiska"
+  MUSEUMS = "nationalmuseum,nordiska,shm"
 
 [http_service]
   internal_port = 3000
@@ -25,7 +25,7 @@ primary_region = "arn"
     grace_period = "600s"
 
 [[vm]]
-  memory = "1gb"
+  memory = "2gb"
   cpu_kind = "shared"
   cpus = 1
 
