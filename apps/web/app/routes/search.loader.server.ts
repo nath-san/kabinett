@@ -91,19 +91,16 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
     return { query, museum, results, total: results.length, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
   }
 
-  // CLIP semantic search (always first — understands intent, color, mood, everything)
+  // CLIP semantic search first, then merge FTS results
+  let clipResults: SearchResult[] = [];
   try {
-    const clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined);
-    if (clipResults.length > 0) {
-      return { query, museum, results: clipResults as unknown as SearchResult[], total: clipResults.length, museumOptions, showMuseumBadge, searchMode: "clip", cursor: nextCursor(clipResults.length), shouldAutoFocus };
-    }
+    clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined) as unknown as SearchResult[];
   } catch (err) {
     console.error("[CLIP search error]", err);
   }
 
-  // FTS fallback
-  let results: SearchResult[];
-  let total: number;
+  // FTS to find text matches CLIP might miss
+  let ftsResults: SearchResult[] = [];
   try {
     const ftsQuery = query
       .split(/\s+/)
@@ -112,52 +109,38 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
       .map((word) => `"${word}"*`)
       .join(" ");
 
-    if (!ftsQuery) {
-      return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "fts", cursor: null, shouldAutoFocus };
+    if (ftsQuery) {
+      ftsResults = db.prepare(
+        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+                a.focal_x, a.focal_y,
+                m.name as museum_name
+         FROM artworks_fts
+         JOIN artworks a ON a.id = artworks_fts.rowid
+         LEFT JOIN museums m ON m.id = a.source
+         WHERE artworks_fts MATCH ?
+           AND a.iiif_url IS NOT NULL
+           AND LENGTH(a.iiif_url) > 40
+           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+           AND ${sourceA.sql}
+           ${mf ? "AND " + mf.sql : ""}
+         ORDER BY rank LIMIT ?`
+      ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE) as SearchResult[];
     }
-
-    results = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-              a.focal_x, a.focal_y,
-              m.name as museum_name
-       FROM artworks_fts
-       JOIN artworks a ON a.id = artworks_fts.rowid
-       LEFT JOIN museums m ON m.id = a.source
-       WHERE artworks_fts MATCH ?
-         AND a.iiif_url IS NOT NULL
-         AND LENGTH(a.iiif_url) > 40
-         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceA.sql}
-         ${mf ? "AND " + mf.sql : ""}
-       ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE, 0) as SearchResult[];
-    total = (db.prepare(
-      `SELECT COUNT(*) as count
-       FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
-       WHERE artworks_fts MATCH ?
-         AND a.iiif_url IS NOT NULL
-         AND LENGTH(a.iiif_url) > 40
-         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceA.sql}
-         ${mf ? "AND " + mf.sql : ""}`
-    ).get(ftsQuery, ...sourceA.params, ...(mf ? mf.params : [])) as { count: number }).count;
   } catch {
-    const like = `%${query}%`;
-    results = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-              a.focal_x, a.focal_y,
-              m.name as museum_name
-       FROM artworks a
-       LEFT JOIN museums m ON m.id = a.source
-       WHERE (a.title_sv LIKE ? OR a.artists LIKE ?)
-         AND a.iiif_url IS NOT NULL
-         AND LENGTH(a.iiif_url) > 40
-         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceA.sql}
-         ${mf ? "AND " + mf.sql : ""}
-       LIMIT ? OFFSET ?`
-    ).all(like, like, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE, 0) as SearchResult[];
-    total = results.length;
+    // FTS failed, that's fine — we have CLIP
+  }
+
+  // Merge: CLIP first, then unique FTS results
+  const seenIds = new Set(clipResults.map((r) => r.id));
+  const merged = [...clipResults];
+  for (const fts of ftsResults) {
+    if (!seenIds.has(fts.id)) {
+      seenIds.add(fts.id);
+      merged.push(fts);
+    }
+  }
+  const results = merged.slice(0, PAGE_SIZE);
+  const total = results.length;
   }
 
   return { query, museum, results, total, museumOptions, showMuseumBadge, searchMode: "fts", cursor: nextCursor(results.length), shouldAutoFocus };
