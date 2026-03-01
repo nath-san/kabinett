@@ -80,6 +80,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     yearsSpan: siteStats.yearsSpan,
   };
 
+  // Prioritize NM/Nordiska for spotlight — they have higher-res images than SHM
   const topArtists = db.prepare(
     `SELECT a.artists, COUNT(*) as cnt
      FROM artworks a
@@ -89,6 +90,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
        AND a.artists != '[null]'
        AND a.artists NOT LIKE '%Okänd%'
        AND a.artists NOT LIKE '%okänd%'
+       AND a.source IN ('nationalmuseum', 'nordiska')
        AND ${sourceA.sql}
      GROUP BY a.artists
      ORDER BY cnt DESC

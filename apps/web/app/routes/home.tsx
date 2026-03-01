@@ -60,9 +60,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   return homeLoader(request);
 }
 
-function getCardVariant(positionInFeed: number): CardVariant {
+function getCardVariant(positionInFeed: number, item?: { iiif_url?: string | null }): CardVariant {
   const p = positionInFeed % 6;
-  if (p === 0) return "large";
+  // SHM images max out at ~400px — never show them as large cards
+  const isSHM = item?.iiif_url?.includes("media.samlingar.shm.se");
+  if (p === 0 && !isSHM) return "large";
   return "small";
 }
 
@@ -236,7 +238,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     key={`art-${entry.item.id}-${index}`}
                     item={entry.item}
                     index={artPosition}
-                    variant={getCardVariant(artPosition)}
+                    variant={getCardVariant(artPosition, entry.item)}
                     showMuseumBadge={loaderData.showMuseumBadge}
                   />
                 );
