@@ -26,7 +26,7 @@ primary_region = "arn"
 
 [[vm]]
   memory = "4gb"
-  cpu_kind = "shared"
+  cpu_kind = "performance"
   cpus = 1
 
 [mounts]
