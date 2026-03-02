@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLocation,
+  useNavigation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -53,6 +54,13 @@ window.addEventListener('error',function(event){
 `}} />
         <Meta />
         <Links />
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes loading-bar {
+            0% { width: 0%; margin-left: 0; }
+            50% { width: 60%; margin-left: 20%; }
+            100% { width: 0%; margin-left: 100%; }
+          }
+        `}} />
       </head>
       <body className="bg-cream text-ink font-sans antialiased m-0">
         <a
@@ -312,7 +320,19 @@ function BottomNav() {
 }
 
 export default function App() {
-  return <Outlet />;
+  const navigation = useNavigation();
+  const isNavigating = navigation.state === "loading";
+
+  return (
+    <>
+      {isNavigating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] h-[2px]">
+          <div className="h-full bg-[#C9B08E] animate-[loading-bar_1.5s_ease-in-out_infinite]" />
+        </div>
+      )}
+      <Outlet />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
