@@ -5,7 +5,7 @@ import Autocomplete from "../components/Autocomplete";
 import ArtworkCard from "../components/ArtworkCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { buildImageUrl } from "../lib/images";
-import { searchLoader, type SearchResult, type SearchMode, type MuseumOption } from "./search.loader.server";
+import { searchLoader, type SearchResult, type SearchMode, type MuseumOption, type MatchType } from "./search.loader.server";
 import { PAGE_SIZE } from "../lib/search-constants";
 
 export function headers() {
@@ -281,6 +281,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   showMuseumBadge={showMuseumBadge}
                   layout="search"
                   yearLabel={r.year || r.dating_text || null}
+                  snippet={r.snippet || null}
+                  matchType={r.matchType}
                 />
               ))}
             </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
+import type { MatchType } from "../routes/search.loader.server";
 import {
   artworkArtist,
   buildArtworkAltText,
@@ -24,6 +25,8 @@ type FeedLayoutProps = BaseProps & {
 type SearchLayoutProps = BaseProps & {
   layout: "search";
   yearLabel?: string | null;
+  snippet?: string | null;
+  matchType?: MatchType;
 };
 
 type ArtworkCardProps = FeedLayoutProps | SearchLayoutProps;
@@ -119,10 +122,18 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
   );
 });
 
+const MATCH_LABELS: Record<string, string> = {
+  clip: "AI",
+  fts: "Text",
+  both: "AI + Text",
+};
+
 const SearchArtworkCard = React.memo(function SearchArtworkCard({
   item,
   showMuseumBadge,
   yearLabel,
+  snippet,
+  matchType,
 }: SearchLayoutProps) {
   return (
     <a
@@ -156,6 +167,14 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
           <p className="text-[0.65rem] text-[rgba(245,240,232,0.55)] mt-0.5">{item.museum_name}</p>
         )}
         {yearLabel && <p className="text-xs text-[rgba(245,240,232,0.4)] mt-0.5">{yearLabel}</p>}
+        {snippet && (
+          <p className="text-[0.7rem] text-[rgba(245,240,232,0.4)] mt-1 line-clamp-2 italic">{snippet}</p>
+        )}
+        {matchType && MATCH_LABELS[matchType] && (
+          <span className="inline-block mt-1.5 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wider rounded bg-[rgba(245,240,232,0.08)] text-[rgba(245,240,232,0.35)]">
+            {MATCH_LABELS[matchType]}
+          </span>
+        )}
       </div>
     </a>
   );
