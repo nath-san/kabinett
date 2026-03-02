@@ -25,13 +25,15 @@ export function externalImageUrl(iiifOrDirect: string, width: number): string {
   return `${iiifBase}full/${width},/0/default.jpg`;
 }
 
+const IMAGE_PROXY_URL = "https://kabinett-img.nathalie-wassgren.workers.dev";
+
 /**
- * Build an image URL. Goes direct to source for now.
- * TODO: Re-enable CDN proxy via Cloudflare Worker when ready.
+ * Build an image URL via Cloudflare R2 proxy for fast cached delivery.
  */
 export function buildImageUrl(iiifOrDirect: string | null | undefined, width: number): string {
   if (!iiifOrDirect?.trim()) return "";
-  return externalImageUrl(iiifOrDirect, width);
+  const direct = externalImageUrl(iiifOrDirect, width);
+  return `${IMAGE_PROXY_URL}/?url=${encodeURIComponent(direct)}`;
 }
 
 /**
