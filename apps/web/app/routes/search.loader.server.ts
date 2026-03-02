@@ -3,7 +3,8 @@ import { getDb } from "../lib/db.server";
 import { getEnabledMuseums, isMuseumEnabled, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
 
 export type SearchMode = "fts" | "clip" | "color";
-export type MatchType = "clip" | "fts" | "both" | "color";
+import type { MatchType } from "../lib/search-types";
+export type { MatchType } from "../lib/search-types";
 export type MuseumOption = { id: string; name: string; count: number };
 export type SearchResult = {
   id: number;

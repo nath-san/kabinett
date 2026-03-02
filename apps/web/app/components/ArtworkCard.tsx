@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
-import type { MatchType } from "../routes/search.loader.server";
+import type { MatchType } from "../lib/search-types";
 import {
   artworkArtist,
   buildArtworkAltText,
