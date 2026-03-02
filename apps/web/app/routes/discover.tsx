@@ -3,7 +3,7 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
-import { getSiteStats } from "../lib/stats.server";
+import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };

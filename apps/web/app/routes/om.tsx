@@ -1,7 +1,7 @@
 import type { Route } from "./+types/om";
 import { getDb } from "../lib/db.server";
 import { sourceFilter } from "../lib/museums.server";
-import { getSiteStats } from "../lib/stats.server";
+import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };

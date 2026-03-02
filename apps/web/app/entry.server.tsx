@@ -12,10 +12,13 @@ import "./lib/clip-search.server";
 
 // Pre-warm the discover page cache after server starts
 setTimeout(() => {
-  const origin = process.env.HOST === "0.0.0.0" ? "http://localhost:3000" : "http://localhost:3000";
-  fetch(`${origin}/discover`).then(() => {
-    console.log("[Warmup] Discover page cached");
-  }).catch(() => {});
+  const origin = "http://localhost:3000";
+  Promise.all([
+    fetch(`${origin}/`).then(() => console.log("[Warmup] Home cached")),
+    fetch(`${origin}/discover`).then(() => console.log("[Warmup] Discover cached")),
+    fetch(`${origin}/om`).then(() => console.log("[Warmup] Om cached")),
+    fetch(`${origin}/timeline`).then(() => console.log("[Warmup] Timeline cached")),
+  ]).catch(() => {});
 }, 5000);
 
 export const streamTimeout = 5_000;
