@@ -170,11 +170,7 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
         {snippet && (
           <p className="text-[0.7rem] text-[rgba(245,240,232,0.4)] mt-1 line-clamp-2 italic">{snippet}</p>
         )}
-        {matchType && MATCH_LABELS[matchType] && (
-          <span className="inline-block mt-1.5 px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wider rounded bg-[rgba(245,240,232,0.08)] text-[rgba(245,240,232,0.35)]">
-            {MATCH_LABELS[matchType]}
-          </span>
-        )}
+
       </div>
     </a>
   );
