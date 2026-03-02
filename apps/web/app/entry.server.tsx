@@ -10,6 +10,14 @@ import { renderToPipeableStream } from "react-dom/server";
 // Warm up CLIP model at server start
 import "./lib/clip-search.server";
 
+// Pre-warm the discover page cache after server starts
+setTimeout(() => {
+  const origin = process.env.HOST === "0.0.0.0" ? "http://localhost:3000" : "http://localhost:3000";
+  fetch(`${origin}/discover`).then(() => {
+    console.log("[Warmup] Discover page cached");
+  }).catch(() => {});
+}, 5000);
+
 export const streamTimeout = 5_000;
 
 export default function handleRequest(
