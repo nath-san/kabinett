@@ -31,8 +31,9 @@ COPY --from=base /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml 
 COPY --from=base /app/apps/web/package.json apps/web/
 COPY --from=base /app/packages/data/package.json packages/data/
 
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod && pnpm add -w tsx
 
+COPY --from=base /app/packages/data/scripts/ packages/data/scripts/
 COPY --from=base /app/apps/web/build apps/web/build
 COPY --from=base /app/apps/web/public apps/web/public
 COPY --from=base /app/apps/web/app/lib/clip-projection.bin apps/web/build/server/clip-projection.bin
