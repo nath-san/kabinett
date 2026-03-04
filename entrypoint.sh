@@ -46,7 +46,7 @@ if [ -f /data/kabinett.db ] && [ ! -f /data/faiss.index ]; then
   PYTHONUNBUFFERED=1 python3 /app/packages/data/scripts/build-faiss-index.py \
     --db /data/kabinett.db \
     --out-index /data/faiss.index \
-    --out-map /data/faiss-map.json
+    --out-map /data/faiss-map.bin
   echo "FAISS index built!"
 fi
 

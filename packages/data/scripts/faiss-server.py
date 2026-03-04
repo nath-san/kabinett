@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Lightweight FAISS KNN HTTP server. Runs as sidecar in the same container."""
+"""Lightweight FAISS KNN HTTP server with compact binary map."""
 import json
 import struct
 import time
-import sys
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -11,7 +10,7 @@ import numpy as np
 import faiss
 
 INDEX_PATH = os.environ.get("FAISS_INDEX_PATH", "/data/faiss.index")
-MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/data/faiss-map.json")
+MAP_PATH = os.environ.get("FAISS_MAP_PATH", "/data/faiss-map.bin")
 PORT = int(os.environ.get("FAISS_PORT", "5555"))
 DEFAULT_NPROBE = 20
 
@@ -23,18 +22,30 @@ if hasattr(index, 'nprobe'):
 print(f"[FAISS] Index loaded in {time.time()-t0:.1f}s ({index.ntotal} vectors)")
 
 print(f"[FAISS] Loading map from {MAP_PATH}...")
-with open(MAP_PATH) as f:
-    mapping = json.load(f)
-artwork_ids = mapping["artwork_ids"]
-sources = mapping["sources"]
-sub_museums = mapping["sub_museums"]
-broken = mapping["broken"]
-print(f"[FAISS] Map loaded ({len(artwork_ids)} entries)")
+t0 = time.time()
+with open(MAP_PATH, "rb") as f:
+    count = struct.unpack("<I", f.read(4))[0]
+    artwork_ids = []
+    sources = []
+    sub_museums = []
+    broken = []
+    for _ in range(count):
+        aid = struct.unpack("<q", f.read(8))[0]
+        src_len = struct.unpack("<B", f.read(1))[0]
+        src = f.read(src_len).decode("utf-8")
+        sub_len = struct.unpack("<B", f.read(1))[0]
+        sub = f.read(sub_len).decode("utf-8")
+        brk = struct.unpack("<B", f.read(1))[0]
+        artwork_ids.append(aid)
+        sources.append(src)
+        sub_museums.append(sub)
+        broken.append(bool(brk))
+print(f"[FAISS] Map loaded in {time.time()-t0:.1f}s ({len(artwork_ids)} entries)")
 
 
 class KNNHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        pass  # suppress access logs
+        pass
 
     def do_POST(self):
         if self.path != "/knn":
@@ -46,7 +57,6 @@ class KNNHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(content_length)
         req = json.loads(body)
 
-        # Query vector as list of 512 floats
         query_vec = np.array(req["vector"], dtype=np.float32).reshape(1, -1)
         faiss.normalize_L2(query_vec)
 
@@ -55,7 +65,6 @@ class KNNHandler(BaseHTTPRequestHandler):
         filter_source = req.get("filter_source")
         filter_sub_museum = req.get("filter_sub_museum")
 
-        # Search with extra candidates to account for filtering
         search_k = min(k * 4, index.ntotal)
         distances, indices = index.search(query_vec, search_k)
 
