@@ -10,7 +10,7 @@ import { pipeline, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
 
-const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
+export const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
 
 // Pre-bundled Dense projection matrix (512 x 768, float32)
 // Converts 768-dim multilingual text embeddings to 512-dim CLIP space
@@ -153,47 +153,74 @@ async function getTextExtractor() {
   return textExtractorPromise;
 }
 
-function clampSimilarityFromL2(distance: number): number {
-  const value = 1 - distance / 2;
-  if (value > 1) return 1;
-  if (value < -1) return -1;
-  return value;
+const FAISS_URL = process.env.FAISS_URL || "http://127.0.0.1:5555";
+
+function clampSimilarity(distance: number): number {
+  if (distance > 1) return 1;
+  if (distance < -1) return -1;
+  return distance;
 }
 
-function runKnnQuery(
+async function runKnnQuery(
   vectorBlob: Buffer,
   k: number,
-  allowedSource: { sql: string; params: string[] }
-): VectorRow[] {
-  const db = getDb();
-  const sql = `
-    SELECT
-      map.artwork_id as id,
-      v.distance,
-      a.title_sv,
-      a.title_en,
-      a.iiif_url,
-      a.dominant_color,
-      a.artists,
-      a.dating_text,
-      a.source,
-      a.sub_museum,
-      COALESCE(a.sub_museum, m.name) as museum_name,
-      a.focal_x,
-      a.focal_y
-    FROM vec_artworks v
-    JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
-    JOIN artworks a ON a.id = map.artwork_id
-    LEFT JOIN museums m ON m.id = a.source
-    WHERE v.embedding MATCH ?
-      AND k = ?
-      AND ${allowedSource.sql}
-      AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-    ORDER BY v.distance
-    LIMIT ?
-  `;
+  allowedSource: { sql: string; params: string[] },
+  filterSource?: string | null,
+  filterSubMuseum?: string | null,
+): Promise<VectorRow[]> {
+  const queryVector = Array.from(new Float32Array(
+    vectorBlob.buffer,
+    vectorBlob.byteOffset,
+    vectorBlob.byteLength / Float32Array.BYTES_PER_ELEMENT
+  ));
 
-  return db.prepare(sql).all(vectorBlob, k, ...allowedSource.params, k) as VectorRow[];
+  const body: Record<string, unknown> = {
+    vector: queryVector,
+    k,
+    allowed_sources: allowedSource.params,
+  };
+  if (filterSubMuseum) {
+    body.filter_sub_museum = filterSubMuseum;
+  } else if (filterSource) {
+    body.filter_source = filterSource;
+  }
+
+  const res = await fetch(`${FAISS_URL}/knn`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    console.error(`[CLIP] FAISS server error: ${res.status}`);
+    return [];
+  }
+
+  const data = await res.json() as { results: Array<{ artwork_id: number; distance: number }> };
+  const artworkIds = data.results.map((r) => r.artwork_id);
+  if (artworkIds.length === 0) return [];
+
+  const db = getDb();
+  const placeholders = artworkIds.map(() => "?").join(",");
+  const metaRows = db.prepare(
+    `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+            a.source, a.sub_museum, COALESCE(a.sub_museum, m.name) as museum_name,
+            a.focal_x, a.focal_y
+     FROM artworks a
+     LEFT JOIN museums m ON m.id = a.source
+     WHERE a.id IN (${placeholders})`
+  ).all(...artworkIds) as Array<Omit<VectorRow, "distance">>;
+
+  const metaMap = new Map(metaRows.map((r) => [r.id, r]));
+  const distanceMap = new Map(data.results.map((r) => [r.artwork_id, r.distance]));
+
+  return artworkIds
+    .map((id) => {
+      const meta = metaMap.get(id);
+      if (!meta) return null;
+      return { ...meta, distance: distanceMap.get(id) ?? 0 } as VectorRow;
+    })
+    .filter((r): r is VectorRow => r !== null);
 }
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
@@ -221,24 +248,8 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
   const effectiveSource = isSubMuseum ? "shm" : effectiveFilter;
   const desiredCount = offset + limit;
   const allowedSource = sourceFilter("a");
-  let candidateK = Math.max(120, desiredCount * 3);
-  let filteredRows: VectorRow[] = [];
-
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const rows = runKnnQuery(queryBuffer, candidateK, allowedSource);
-    filteredRows = effectiveFilter
-      ? rows.filter((row) => {
-          if (subMuseumName) return row.source === "shm" && row.sub_museum === subMuseumName;
-          return row.source === effectiveSource;
-        })
-      : rows;
-
-    if (filteredRows.length >= desiredCount || rows.length < candidateK) {
-      break;
-    }
-
-    candidateK = Math.min(candidateK * 2, 5_000);
-  }
+  const desiredK = Math.max(120, desiredCount);
+  const filteredRows = await runKnnQuery(queryBuffer, desiredK, allowedSource, effectiveSource, subMuseumName);
 
   return filteredRows.slice(offset, offset + limit).map((row) => ({
     id: row.id,
@@ -248,7 +259,7 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
     heroUrl: buildImageUrl(row.iiif_url, 800),
     year: row.dating_text || "",
     color: row.dominant_color || "#D4CDC3",
-    similarity: clampSimilarityFromL2(row.distance),
+    similarity: clampSimilarity(row.distance),
     museum_name: row.museum_name ?? null,
     source: row.source ?? null,
     sub_museum: row.sub_museum ?? null,

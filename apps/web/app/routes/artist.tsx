@@ -34,6 +34,16 @@ function findActor(actors: ActorInfo[], name: string): ActorInfo | null {
   );
 }
 
+function normalizeArtistName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 function extractYears(dates: ActorDate[] | undefined) {
   if (!dates) return { birth: "", death: "" };
   const birth = dates.find((d) => d.date_type?.toLowerCase().includes("födelse"));
@@ -192,20 +202,33 @@ export async function loader({ params }: Route.LoaderArgs) {
   const db = getDb();
   const source = sourceFilter();
 
-  const rows = db
-    .prepare(
-      `SELECT id, title_sv, title_en, iiif_url, dominant_color, dating_text, year_start, year_end, category, actors_json
-       FROM artworks
-       WHERE artists LIKE ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-         AND id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${source.sql}
-       ORDER BY year_start ASC NULLS LAST`
-    )
-    .all(`%${name}%`, ...source.params) as any[];
+  const normalizedName = normalizeArtistName(name);
 
-  const total = (
-    db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE artists LIKE ? AND ${source.sql}`).get(`%${name}%`, ...source.params) as any
-  ).c as number;
+  const rows = normalizedName
+    ? (db
+        .prepare(
+          `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.dating_text, a.year_start, a.year_end, a.category, a.actors_json
+           FROM artwork_artists aa
+           JOIN artworks a ON a.id = aa.artwork_id
+           WHERE aa.artist_name_norm = ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
+             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+             AND ${source.sql}
+           ORDER BY a.year_start ASC NULLS LAST`
+        )
+        .all(normalizedName, ...source.params) as any[])
+    : [];
+
+  const total = normalizedName
+    ? ((db
+        .prepare(
+          `SELECT COUNT(*) as c
+           FROM artwork_artists aa
+           JOIN artworks a ON a.id = aa.artwork_id
+           WHERE aa.artist_name_norm = ?
+             AND ${source.sql}`
+        )
+        .get(normalizedName, ...source.params) as any).c as number)
+    : 0;
 
   let actor: ActorInfo | null = null;
   for (const row of rows) {
@@ -215,12 +238,14 @@ export async function loader({ params }: Route.LoaderArgs) {
     if (actor) break;
   }
 
-  const fallbackRow = !actor
+  const fallbackRow = !actor && normalizedName
     ? (db
         .prepare(
-          `SELECT actors_json FROM artworks WHERE artists LIKE ? AND actors_json IS NOT NULL AND ${source.sql} LIMIT 1`
+          `SELECT a.actors_json FROM artwork_artists aa
+           JOIN artworks a ON a.id = aa.artwork_id
+           WHERE aa.artist_name_norm = ? AND a.actors_json IS NOT NULL AND ${source.sql} LIMIT 1`
         )
-        .get(`%${name}%`, ...source.params) as any)
+        .get(normalizedName, ...source.params) as any)
     : null;
 
   if (!actor && fallbackRow?.actors_json) {

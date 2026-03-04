@@ -40,5 +40,27 @@ if command -v sqlite3 > /dev/null 2>&1; then
   fi
 fi
 
+# Build FAISS index if not present
+if [ -f /data/kabinett.db ] && [ ! -f /data/faiss.index ]; then
+  echo "Building FAISS index..."
+  python3 /app/packages/data/scripts/build-faiss-index.py --db /data/kabinett.db --out-index /data/faiss.index --out-map /data/faiss-map.json
+  echo "FAISS index built!"
+fi
+
+# Start FAISS KNN server in background
+if [ -f /data/faiss.index ]; then
+  echo "Starting FAISS server..."
+  python3 /app/packages/data/scripts/faiss-server.py &
+  FAISS_PID=$!
+  # Wait for server to be ready
+  for i in $(seq 1 30); do
+    if curl -s http://127.0.0.1:5555/health > /dev/null 2>&1; then
+      echo "FAISS server ready!"
+      break
+    fi
+    sleep 1
+  done
+fi
+
 echo "Starting Kabinett..."
 cd /app/apps/web && exec npx react-router-serve ./build/server/index.js
