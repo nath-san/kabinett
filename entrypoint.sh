@@ -50,27 +50,13 @@ if [ -f /data/kabinett.db ] && [ ! -f /data/faiss.index ]; then
   echo "FAISS index built!"
 fi
 
-# Start FAISS KNN server in background
+# Start FAISS KNN server as a sibling process (not child of this shell)
+# Using nohup + disown pattern so it survives the exec below
 if [ -f /data/faiss.index ]; then
   echo "Starting FAISS server..."
-  PYTHONUNBUFFERED=1 python3 /app/packages/data/scripts/faiss-server.py &
-  FAISS_PID=$!
-
-  # Wait up to 120 seconds for server to be ready (loading 2.3GB index takes time)
-  WAIT=0
-  while [ "$WAIT" -lt 120 ]; do
-    if curl -s http://127.0.0.1:5555/health > /dev/null 2>&1; then
-      echo "FAISS server ready! (waited ${WAIT}s)"
-      break
-    fi
-    sleep 2
-    WAIT=$((WAIT + 2))
-  done
-
-  if [ "$WAIT" -ge 120 ]; then
-    echo "WARNING: FAISS server did not become ready in 120s. CLIP search will fall back to FTS."
-  fi
+  PYTHONUNBUFFERED=1 nohup python3 /app/packages/data/scripts/faiss-server.py > /data/faiss-server.log 2>&1 &
+  echo "FAISS server starting in background (PID $!), Node will retry connections..."
 fi
 
 echo "Starting Kabinett..."
-cd /app/apps/web && exec npx react-router-serve ./build/server/index.js
+cd /app/apps/web && npx react-router-serve ./build/server/index.js
