@@ -41,7 +41,8 @@ COPY --from=base /app/apps/web/app/lib/clip-projection.bin apps/web/build/server
 
 # DB will be mounted as a volume at /data/kabinett.db
 # Create minimal fallback DB
-RUN apt-get update -qq && apt-get install -y -qq sqlite3 > /dev/null 2>&1 && \
+RUN apt-get update -qq && apt-get install -y -qq sqlite3 python3 python3-pip > /dev/null 2>&1 && \
+    pip3 install --break-system-packages faiss-cpu numpy && \
     sqlite3 /app/test-kabinett.db "CREATE TABLE museums(id TEXT PRIMARY KEY,name TEXT,enabled INTEGER DEFAULT 1,description TEXT,url TEXT); CREATE TABLE artworks(id INTEGER PRIMARY KEY,title_sv TEXT,title_en TEXT,source TEXT,category TEXT,technique_material TEXT,artists TEXT,dating_text TEXT,year_start INTEGER,acquisition_year INTEGER,iiif_url TEXT,dominant_color TEXT,color_r INTEGER,color_g INTEGER,color_b INTEGER,sub_museum TEXT,inventory_number TEXT,year_end INTEGER,description TEXT); CREATE TABLE clip_embeddings(artwork_id INTEGER PRIMARY KEY,embedding BLOB); CREATE TABLE broken_images(artwork_id INTEGER PRIMARY KEY);" && \
     rm -rf /var/lib/apt/lists/*
 
