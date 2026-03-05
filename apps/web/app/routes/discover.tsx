@@ -328,7 +328,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <section className="pt-8 px-4">
           <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mb-3">Verktyg</h2>
           <div className="flex flex-col gap-2">
-            <ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" />
+            <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
             <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
           </div>
         </section>
