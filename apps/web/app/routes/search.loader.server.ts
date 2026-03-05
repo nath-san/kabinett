@@ -182,26 +182,28 @@ async function loadSearchResults(args: {
   const ftsIds = new Set(ftsResults.map((r) => r.id));
   const ftsLookup = new Map(ftsResults.map((r) => [r.id, r]));
 
-  // Merge: FTS first (text matches are most relevant), then CLIP with similarity filter
-  const seenIds = new Set(ftsResults.map((r) => r.id));
-  const merged = [...ftsResults];
+  // Merge: CLIP first (filtered by similarity), then unique FTS results
+  const MIN_CLIP_SIMILARITY = 0.18;
+  const filteredClip = clipResults.filter((r) => (r as any).similarity >= MIN_CLIP_SIMILARITY);
+  const seenIds = new Set(filteredClip.map((r) => r.id));
+  const merged = [...filteredClip];
 
-  // Build CLIP lookup for "both" detection
-  const clipLookup = new Map(clipResults.map((r) => [r.id, r]));
-
-  // Mark FTS results that also appear in CLIP as "both"
+  // Mark CLIP results that are also in FTS as "both", grab snippet fields
   for (const r of merged) {
-    if (clipLookup.has(r.id)) {
+    if (ftsIds.has(r.id)) {
       r.matchType = "both";
+      const ftsRow = ftsLookup.get(r.id);
+      if (ftsRow) {
+        r.technique_material = ftsRow.technique_material;
+        r.descriptions_sv = ftsRow.descriptions_sv;
+      }
     }
   }
 
-  // Add CLIP-only results (filter low similarity to reduce noise)
-  const MIN_CLIP_SIMILARITY = 0.18;
-  for (const clip of clipResults) {
-    if (!seenIds.has(clip.id) && (clip as any).similarity >= MIN_CLIP_SIMILARITY) {
-      seenIds.add(clip.id);
-      merged.push(clip);
+  for (const fts of ftsResults) {
+    if (!seenIds.has(fts.id)) {
+      seenIds.add(fts.id);
+      merged.push(fts);
     }
   }
 
