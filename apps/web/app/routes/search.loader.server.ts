@@ -136,14 +136,32 @@ async function loadSearchResults(args: {
     .map((word) => `"${word}"*`)
     .join(" ");
 
-  const clipPromise = import("../lib/translate.server")
-    .then(t => t.translateToEnglish(query))
-    .then(enQuery => {
-      console.log("[CLIP translate]", JSON.stringify({ original: query, translated: enQuery }));
-      return import("../lib/clip-search.server").then(m => m.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined));
-    })
-    .then((results) => {
-      const cast = results as unknown as SearchResult[];
+  import("../lib/clip-search.server").then(async (clipMod) => {
+      // Run CLIP on both original and English translation, take best results
+      const { translateToEnglish } = await import("../lib/translate.server");
+      const enQuery = await translateToEnglish(query);
+      const isTranslated = enQuery.toLowerCase() !== query.toLowerCase();
+      console.log("[CLIP translate]", JSON.stringify({ original: query, translated: enQuery, isTranslated }));
+
+      const queries = [clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined)];
+      if (isTranslated) {
+        queries.push(clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined));
+      }
+      const results = await Promise.all(queries);
+
+      // Merge: dedupe by id, keep highest similarity
+      const best = new Map<number, any>();
+      for (const resultSet of results) {
+        for (const r of resultSet as any[]) {
+          const existing = best.get(r.id);
+          if (!existing || r.similarity > existing.similarity) {
+            best.set(r.id, r);
+          }
+        }
+      }
+      // Sort by similarity descending
+      const merged = [...best.values()].sort((a, b) => b.similarity - a.similarity).slice(0, PAGE_SIZE);
+      const cast = merged as unknown as SearchResult[];
       cast.forEach((r) => { r.matchType = "clip"; });
       return cast;
     })

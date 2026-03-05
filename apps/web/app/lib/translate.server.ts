@@ -9,10 +9,7 @@ export async function translateToEnglish(text: string): Promise<string> {
   const trimmed = text.trim();
   if (!trimmed) return trimmed;
 
-  // Skip if already looks English (simple heuristic: no åäö)
-  if (!/[åäöÅÄÖ]/.test(trimmed) && /^[a-zA-Z0-9\s.,!?'-]+$/.test(trimmed)) {
-    return trimmed;
-  }
+
 
   const cached = cache.get(trimmed);
   if (cached) return cached;
