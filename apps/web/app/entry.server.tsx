@@ -15,8 +15,6 @@ import {
   nowMs,
 } from "./lib/perf.server";
 
-// Warm up CLIP model at server start
-import "./lib/clip-search.server";
 installServerFetchInstrumentation();
 
 // Pre-warm the discover page cache after server starts

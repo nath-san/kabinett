@@ -1,4 +1,6 @@
 import { CURATED_IDS } from "../lib/curated-home";
+import { THEMES } from "../lib/themes";
+import { fetchFeed } from "../lib/feed.server";
 import type { SpotlightCardData } from "../components/SpotlightCard";
 import type { StatsCardData } from "../components/StatsSection";
 import type { ThemeCardSection } from "../components/ThemeCard";
@@ -74,12 +76,21 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     yearsSpan: siteStats.yearsSpan,
   };
 
-  // 3. Themes and spotlight loaded client-side now — send empty
+  // 3. Preload first theme (lightweight — single FTS query)
+  const firstTheme = THEMES[0];
+  let preloadedThemes: ThemeCardSection[] = [];
+  try {
+    const themeResult = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
+    if (themeResult.items.length > 0) {
+      preloadedThemes = [{ ...firstTheme, items: themeResult.items }];
+    }
+  } catch { /* skip on error */ }
+
   return {
     initialItems,
     initialCursor: null,
     initialHasMore: true,
-    preloadedThemes: [],
+    preloadedThemes,
     showMuseumBadge: enabledMuseums.length > 1,
     stats,
     spotlight: null,

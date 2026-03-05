@@ -143,6 +143,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return `rgb(${r},${g},${b})`;
   }, [feed]);
 
+  // Lazy-load spotlight client-side
+  useEffect(() => {
+    if (loaderData.spotlight) return; // already have it from server
+    fetch("/api/spotlight")
+      .then(r => r.json())
+      .then(data => {
+        if (!data) return;
+        setFeed(prev => {
+          if (prev.some(e => e.type === "spotlight")) return prev;
+          // Insert after position 4 or at end
+          const idx = Math.min(5, prev.length);
+          const next = [...prev];
+          next.splice(idx, 0, { type: "spotlight", ...data });
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     document.body.style.backgroundColor = bgColor;
     document.body.style.color = "#F5F0E8";

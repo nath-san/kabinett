@@ -17,6 +17,7 @@ export default [
   route("om", "routes/om.tsx"),
   route("walks", "routes/walks.tsx"),
   route("api/feed", "routes/api.feed.tsx"),
+  route("api/spotlight", "routes/api.spotlight.tsx"),
   route("api/clip-search", "routes/api.clip-search.tsx"),
   route("favorites", "routes/favorites.tsx"),
   route("color-match", "routes/color-match.tsx"),

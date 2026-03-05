@@ -1,4 +1,4 @@
-import { clipSearch } from "../lib/clip-search.server";
+// clipSearch imported lazily to avoid loading CLIP model on startup
 import { getDb } from "../lib/db.server";
 import { getEnabledMuseums, isMuseumEnabled, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
 
@@ -136,7 +136,8 @@ async function loadSearchResults(args: {
     .map((word) => `"${word}"*`)
     .join(" ");
 
-  const clipPromise = clipSearch(query, PAGE_SIZE, 0, museum || undefined)
+  const clipPromise = import("../lib/clip-search.server")
+    .then(m => m.clipSearch(query, PAGE_SIZE, 0, museum || undefined))
     .then((results) => {
       const cast = results as unknown as SearchResult[];
       cast.forEach((r) => { r.matchType = "clip"; });
