@@ -17,19 +17,14 @@ export default function HeroSearch({
   const handleFocus = useCallback(() => {
     const el = inputRef.current;
     if (!el) return;
-    requestAnimationFrame(() => {
-      if (typeof el.setSelectionRange === "function") {
+    // Scroll to top first so iOS keyboard scroll positions input correctly
+    window.scrollTo(0, 0);
+    if (typeof el.setSelectionRange === "function") {
+      requestAnimationFrame(() => {
         const len = el.value.length;
         el.setSelectionRange(len, len);
-      }
-      // iOS doesn't scroll fixed/sticky content well with keyboard.
-      // Use explicit scrollTo targeting the input position.
-      setTimeout(() => {
-        const rect = el.getBoundingClientRect();
-        const scrollY = window.scrollY + rect.top - 120;
-        window.scrollTo({ top: Math.max(0, scrollY), behavior: "smooth" });
-      }, 350);
-    });
+      });
+    }
   }, []);
 
   const goToSearch = useCallback(
