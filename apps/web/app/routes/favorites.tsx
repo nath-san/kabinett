@@ -117,7 +117,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           removedRef.current = false;
         }
       }}
-      className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
+      className="no-underline text-[#1C1916] bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
     >
       <div
         className="aspect-[3/4]"
@@ -137,10 +137,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
         />
       </div>
       <div className="p-3">
-        <p className="text-[0.9rem] font-semibold text-[#F5F0E8] m-0">
+        <p className="text-[0.9rem] font-semibold text-[#1C1916] m-0">
           {item.title}
         </p>
-        <p className="mt-[0.2rem] text-[0.75rem] text-[rgba(245,240,232,0.55)]">
+        <p className="mt-[0.2rem] text-[0.75rem] text-[#6B625A]">
           {parseArtist(item.artists)}
         </p>
       </div>
