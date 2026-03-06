@@ -14,13 +14,9 @@ export type ThemeCardSection = {
   items: ArtworkDisplayItem[];
 };
 
-const COLOR_THEME_FILTERS = new Set(["Rött", "Blått"]);
-
 export default function ThemeCard({ section, showMuseumBadge }: { section: ThemeCardSection; showMuseumBadge: boolean }) {
   const query = section.filter || section.title;
-  const searchHref = COLOR_THEME_FILTERS.has(section.filter)
-    ? `/search?q=${encodeURIComponent(query)}&mode=color`
-    : `/search?q=${encodeURIComponent(query)}`;
+  const searchHref = `/search?q=${encodeURIComponent(query)}&mode=theme`;
 
   return (
     <div

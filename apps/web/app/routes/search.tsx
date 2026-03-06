@@ -9,6 +9,23 @@ import type { MatchType } from "../lib/search-types";
 import { searchLoader, type SearchLoaderData, type SearchResult, type SearchMode, type MuseumOption, type SearchResultsPayload } from "./search.loader.server";
 import { PAGE_SIZE } from "../lib/search-constants";
 
+const THEME_FILTERS: Record<string, string> = {
+  "djur": "Djur",
+  "havet": "Havet",
+  "blommor": "Blommor",
+  "natt": "Natt",
+  "rött": "Rött",
+  "blått": "Blått",
+  "porträtt": "Porträtt",
+  "1700-tal": "1700-tal",
+  "1800-tal": "1800-tal",
+  "skulptur": "Skulptur",
+};
+
+function resolveThemeFilter(query: string): string | null {
+  return THEME_FILTERS[query.trim().toLowerCase()] || null;
+}
+
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
@@ -56,6 +73,38 @@ function toArtworkItem(result: SearchResult): ArtworkDisplayItem {
     museum_name: result.museum_name || null,
     focal_x: result.focal_x ?? null,
     focal_y: result.focal_y ?? null,
+  };
+}
+
+type ThemeFeedItem = {
+  id: number;
+  title_sv?: string | null;
+  iiif_url?: string | null;
+  dominant_color?: string | null;
+  artists?: string | null;
+  dating_text?: string | null;
+  technique_material?: string | null;
+  museum_name?: string | null;
+  focal_x?: number | null;
+  focal_y?: number | null;
+  imageUrl?: string;
+};
+
+function mapThemeFeedItemToSearchResult(item: ThemeFeedItem): SearchResult {
+  return {
+    id: item.id,
+    title_sv: item.title_sv || "Utan titel",
+    title_en: null,
+    iiif_url: item.iiif_url || null,
+    dominant_color: item.dominant_color || null,
+    artists: item.artists || null,
+    dating_text: item.dating_text || null,
+    technique_material: item.technique_material || null,
+    museum_name: item.museum_name || null,
+    focal_x: item.focal_x ?? null,
+    focal_y: item.focal_y ?? null,
+    imageUrl: item.imageUrl || undefined,
+    snippet: null,
   };
 }
 
@@ -169,6 +218,35 @@ function SearchResultsPanel({
     if (loading || !hasMore || !query || cursor === null) return;
     setLoading(true);
     try {
+      if (searchMode === "theme") {
+        const themeFilter = resolveThemeFilter(query);
+        if (!themeFilter) {
+          setHasMore(false);
+          setCursor(null);
+          return;
+        }
+        const params = new URLSearchParams({
+          filter: themeFilter,
+          limit: String(PAGE_SIZE),
+          cursor: String(cursor),
+        });
+        const res = await fetch(`/api/feed?${params.toString()}`);
+        if (!res.ok) throw new Error("Kunde inte ladda fler tema-träffar");
+        const data = await res.json() as { items?: ThemeFeedItem[]; nextCursor?: number | null; hasMore?: boolean };
+        const mapped = (data.items || []).map(mapThemeFeedItemToSearchResult);
+        if (mapped.length === 0) {
+          setHasMore(false);
+          setCursor(null);
+        } else {
+          setResults((prev) => [...prev, ...mapped]);
+          const hasNext = Boolean(data.hasMore);
+          const nextCursor = hasNext ? (data.nextCursor ?? null) : null;
+          setHasMore(hasNext && nextCursor !== null);
+          setCursor(nextCursor);
+        }
+        return;
+      }
+
       const params = new URLSearchParams({
         q: query,
         limit: String(PAGE_SIZE),
@@ -195,8 +273,9 @@ function SearchResultsPanel({
     } catch {
       setHasMore(false);
       setCursor(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [cursor, hasMore, loading, museum, query, searchMode]);
 
   useEffect(() => {
@@ -254,12 +333,13 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   } = typedLoaderData;
 
   const showResults = Boolean(query) || Boolean(museum);
-  const showMuseumFilters = museumOptions.length > 1;
+  const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
 
   const buildSearchUrl = (museumId?: string) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (museumId) params.set("museum", museumId);
+    if (searchMode !== "clip") params.set("mode", searchMode);
     const qs = params.toString();
     return qs ? `/search?${qs}` : "/search";
   };

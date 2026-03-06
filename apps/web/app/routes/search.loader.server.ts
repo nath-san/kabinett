@@ -1,8 +1,9 @@
 // clipSearch imported lazily to avoid loading CLIP model on startup
 import { getDb } from "../lib/db.server";
-import { getEnabledMuseums, isMuseumEnabled, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
+import { fetchFeed } from "../lib/feed.server";
+import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
 
-export type SearchMode = "fts" | "clip" | "color";
+export type SearchMode = "fts" | "clip" | "color" | "theme";
 import type { MatchType } from "../lib/search-types";
 export type { MatchType } from "../lib/search-types";
 export type MuseumOption = { id: string; name: string; count: number };
@@ -39,6 +40,19 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
 };
 
+const THEME_FILTERS = new Map<string, string>([
+  ["djur", "Djur"],
+  ["havet", "Havet"],
+  ["blommor", "Blommor"],
+  ["natt", "Natt"],
+  ["rött", "Rött"],
+  ["blått", "Blått"],
+  ["porträtt", "Porträtt"],
+  ["1700-tal", "1700-tal"],
+  ["1800-tal", "1800-tal"],
+  ["skulptur", "Skulptur"],
+]);
+
 const CLIP_DEBUG = process.env.KABINETT_CLIP_DEBUG === "1";
 
 function logClipDebug(event: string, payload: Record<string, unknown>): void {
@@ -49,6 +63,10 @@ function logClipDebug(event: string, payload: Record<string, unknown>): void {
 
 function nextCursor(length: number): number | null {
   return length >= PAGE_SIZE ? length : null;
+}
+
+function resolveThemeFilter(query: string): string | null {
+  return THEME_FILTERS.get(query.trim().toLowerCase()) || null;
 }
 
 function normalizeQueryToken(input: string): string {
@@ -172,7 +190,7 @@ export type SearchLoaderData = {
 };
 
 function parseMode(rawMode: string | null): SearchMode | null {
-  if (rawMode === "fts" || rawMode === "clip" || rawMode === "color") return rawMode;
+  if (rawMode === "fts" || rawMode === "clip" || rawMode === "color" || rawMode === "theme") return rawMode;
   return null;
 }
 
@@ -216,6 +234,34 @@ async function loadSearchResults(args: {
        LIMIT 60`
     ).all(...sourceA.params, ...mf!.params, randomSeed) as SearchResult[];
     return { results, total: results.length, cursor: null };
+  }
+
+  if (query && mode === "theme") {
+    const themeFilter = resolveThemeFilter(query);
+    if (!themeFilter) {
+      return { results: [], total: 0, cursor: null };
+    }
+    const themed = await fetchFeed({ cursor: null, limit: PAGE_SIZE, filter: themeFilter });
+    const results = themed.items.map((item) => ({
+      id: item.id,
+      title_sv: item.title_sv,
+      title_en: null,
+      iiif_url: item.iiif_url,
+      dominant_color: item.dominant_color,
+      artists: item.artists,
+      dating_text: item.dating_text,
+      technique_material: item.technique_material,
+      museum_name: item.museum_name,
+      focal_x: item.focal_x,
+      focal_y: item.focal_y,
+      imageUrl: item.imageUrl,
+      snippet: null,
+    })) as SearchResult[];
+    return {
+      results,
+      total: results.length,
+      cursor: themed.hasMore ? themed.nextCursor : null,
+    };
   }
 
   if (query && mode === "color") {
@@ -491,8 +537,12 @@ export function searchLoader(request: Request): SearchLoaderData {
   const enabledMuseums = getEnabledMuseums();
   const museumOptions: MuseumOption[] = getCollectionOptions();
   const showMuseumBadge = enabledMuseums.length > 1;
-  const museum = museumParam && isValidMuseumFilter(museumParam) ? museumParam : "";
   const searchMode = resolveSearchMode(url.searchParams.get("mode"), query);
+  const museum = searchMode === "theme"
+    ? ""
+    : museumParam && isValidMuseumFilter(museumParam)
+      ? museumParam
+      : "";
 
   return {
     query,

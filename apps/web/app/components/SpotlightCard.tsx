@@ -18,7 +18,7 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
           {spotlight.artistName}
         </h2>
         <a
-          href={`/search?q=${encodeURIComponent(spotlight.artistName)}`}
+          href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
           className="inline-block mt-4 text-[0.8rem] tracking-[0.02em] text-[rgba(245,240,232,0.75)] no-underline focus-ring"
         >
           Utforska konstnären →
@@ -55,4 +55,3 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
     </section>
   );
 }
-
