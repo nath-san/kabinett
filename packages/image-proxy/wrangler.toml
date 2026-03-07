@@ -3,15 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 account_id = "83ffca14917d8e065e66aef0a01f07cd"
 
+# Route worker traffic on norrava.com to img subdomain
+routes = [{ pattern = "img.norrava.com/*", zone_name = "norrava.com" }]
+
 [vars]
-ALLOWED_ORIGINS = "https://kabinett.fly.dev,https://norrava.com,http://localhost:3000"
+ALLOWED_ORIGINS = "https://kabinett.com,https://www.kabinett.com,https://kabinett.norrava.com,https://norrava.com,https://kabinett.fly.dev,http://localhost:3000"
 
 # Cache images in R2 (free 10GB)
 [[r2_buckets]]
 binding = "IMAGES"
 bucket_name = "kabinett-images"
-
-# Custom domain: img.norrava.com
-# Set up via Cloudflare dashboard: DNS CNAME img → kabinett-img.<account>.workers.dev
-# Then add route below:
-# routes = [{ pattern = "img.norrava.com/*", zone_name = "norrava.com" }]

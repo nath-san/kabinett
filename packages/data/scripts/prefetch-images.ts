@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
-const PROXY_URL = "https://kabinett-img.nathalie-wassgren.workers.dev";
+const PROXY_URL = (process.env.KABINETT_IMAGE_PROXY_URL || "https://img.norrava.com").replace(/\/+$/, "");
 const CONCURRENCY = 20;
 const BATCH_SIZE = 200;
 

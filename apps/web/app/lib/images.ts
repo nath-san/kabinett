@@ -4,6 +4,20 @@ const SIZE_MAP = [
   { max: Infinity, shm: "medium" },
 ];
 
+const DEFAULT_IMAGE_PROXY_URL = "https://img.norrava.com";
+
+function getEnv(name: string): string {
+  const viteValue = (import.meta.env as Record<string, string | undefined> | undefined)?.[name];
+  if (typeof viteValue === "string" && viteValue.trim()) return viteValue.trim();
+  const processValue = typeof process !== "undefined" ? process.env[name] : undefined;
+  if (typeof processValue === "string" && processValue.trim()) return processValue.trim();
+  return "";
+}
+
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
 /**
  * Build the raw external URL for a museum image at a given width.
  */
@@ -25,7 +39,9 @@ export function externalImageUrl(iiifOrDirect: string, width: number): string {
   return `${iiifBase}full/${width},/0/default.jpg`;
 }
 
-const IMAGE_PROXY_URL = "https://kabinett-img.nathalie-wassgren.workers.dev";
+const IMAGE_PROXY_URL = normalizeBaseUrl(
+  getEnv("VITE_IMAGE_PROXY_URL") || getEnv("KABINETT_IMAGE_PROXY_URL") || DEFAULT_IMAGE_PROXY_URL
+);
 
 /**
  * Build an image URL via Cloudflare R2 proxy for fast cached delivery.

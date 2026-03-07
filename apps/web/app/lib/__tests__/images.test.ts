@@ -6,7 +6,7 @@ describe("images", () => {
     const result = buildImageUrl("https://api.nationalmuseum.se/iiif/image/12345", 400);
 
     expect(result).toBe(
-      `https://kabinett-img.nathalie-wassgren.workers.dev/?url=${encodeURIComponent(
+      `https://img.norrava.com/?url=${encodeURIComponent(
         "https://api.nationalmuseum.se/iiif/image/12345/full/400,/0/default.jpg"
       )}`
     );
@@ -16,7 +16,7 @@ describe("images", () => {
     const result = buildImageUrl("https://ems.dimu.org/image/022w?dimension=1200x1200", 200);
 
     expect(result).toBe(
-      `https://kabinett-img.nathalie-wassgren.workers.dev/?url=${encodeURIComponent(
+      `https://img.norrava.com/?url=${encodeURIComponent(
         "https://ems.dimu.org/image/022w?dimension=200x200"
       )}`
     );
@@ -26,7 +26,7 @@ describe("images", () => {
     const result = buildImageUrl("https://example.org/object/thumbnail", 800);
 
     expect(result).toBe(
-      `https://kabinett-img.nathalie-wassgren.workers.dev/?url=${encodeURIComponent(
+      `https://img.norrava.com/?url=${encodeURIComponent(
         "https://example.org/object/medium"
       )}`
     );

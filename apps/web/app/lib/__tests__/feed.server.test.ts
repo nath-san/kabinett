@@ -50,7 +50,7 @@ describe("fetchFeed", () => {
       technique_material: "Olja på duk",
       museum_name: "Nationalmuseum",
     });
-    expect(result.items[0].imageUrl).toContain("kabinett-img.nathalie-wassgren.workers.dev");
+    expect(result.items[0].imageUrl).toContain("img.norrava.com");
     expect(decodeURIComponent(result.items[0].imageUrl)).toContain("/full/400,/0/default.jpg");
     expect(result.mode).toBe("cursor");
   });
