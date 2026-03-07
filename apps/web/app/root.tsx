@@ -56,6 +56,12 @@ window.addEventListener('error',function(event){
 `}} />
         <Meta />
         <Links />
+        {/* Cloudflare Web Analytics */}
+        <script
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token":"f5cecb07f7fc4aaa97824680349461e0"}'
+        />
         <style dangerouslySetInnerHTML={{ __html: `
           @keyframes loading-bar {
             0% { width: 0%; margin-left: 0; }
