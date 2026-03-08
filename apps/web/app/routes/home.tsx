@@ -137,10 +137,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const hex = firstArt?.item.dominant_color || "#1A1815";
     const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
     if (!m) return "#0F0E0D";
-    const mix = 0.15;
-    const r = Math.round(parseInt(m[1], 16) * mix);
-    const g = Math.round(parseInt(m[2], 16) * mix);
-    const b = Math.round(parseInt(m[3], 16) * mix);
+    const mix = 0.25;
+    const floor = 22;
+    const r = Math.max(floor, Math.round(parseInt(m[1], 16) * mix));
+    const g = Math.max(floor, Math.round(parseInt(m[2], 16) * mix));
+    const b = Math.max(floor, Math.round(parseInt(m[3], 16) * mix));
     return `rgb(${r},${g},${b})`;
   }, [feed]);
 
