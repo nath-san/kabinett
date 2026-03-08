@@ -310,11 +310,105 @@ function createWorkers(count: number, config: WorkerConfig): Worker[] {
     workers.push(
       new Worker(new URL(import.meta.url), {
         workerData: config,
-        execArgv: ["--import", "tsx"],
+        execArgv: ["--import", "tsx/esm"],
       })
     );
   }
   return workers;
+}
+
+async function rebuildArtworkNeighborsSingleThread(db: Database.Database, options: CliOptions) {
+  const targetIds = collectNeighborArtworkIds(db, options);
+  if (targetIds.length === 0) {
+    console.log("ℹ️ No artwork ids to refresh in artwork_neighbors");
+    return;
+  }
+
+  const neighborLimit = Math.max(options.neighborLimit, 1);
+  const k = Math.max(options.k, neighborLimit);
+
+  const clearNeighbors = db.prepare("DELETE FROM artwork_neighbors WHERE artwork_id = ?");
+  const insertNeighbor = db.prepare(
+    `INSERT OR REPLACE INTO artwork_neighbors
+      (artwork_id, neighbor_artwork_id, rank, distance, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))`
+  );
+  const getNeighbors = db.prepare(
+    `SELECT
+       map.artwork_id AS neighbor_id,
+       v.distance AS distance
+     FROM vec_artworks v
+     JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
+     JOIN artworks a ON a.id = map.artwork_id
+     WHERE v.embedding MATCH (
+         SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
+       )
+       AND k = ?
+       AND map.artwork_id != ?
+       AND a.iiif_url IS NOT NULL
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     ORDER BY v.distance
+     LIMIT ?`
+  );
+
+  const writeBatch = db.transaction((batch: NeighborResult[]) => {
+    for (const result of batch) {
+      if (result.skipped || result.neighbors.length === 0) continue;
+      clearNeighbors.run(result.artworkId);
+      for (let index = 0; index < result.neighbors.length; index += 1) {
+        const neighbor = result.neighbors[index];
+        if (!neighbor) continue;
+        insertNeighbor.run(result.artworkId, neighbor.neighbor_id, index + 1, neighbor.distance);
+      }
+    }
+  });
+
+  console.log(`ℹ️ Refreshing neighbors single-threaded (k=${k}, limit=${neighborLimit}, ${targetIds.length} artworks)`);
+
+  let completed = 0;
+  let refreshed = 0;
+  let skipped = 0;
+  const pendingWrites: NeighborResult[] = [];
+  const startTime = Date.now();
+
+  for (const artworkId of targetIds) {
+    try {
+      const neighbors = getNeighbors.all(artworkId, k, artworkId, k) as NeighborRow[];
+      const result: NeighborResult = {
+        artworkId,
+        neighbors: neighbors.slice(0, neighborLimit),
+        skipped: neighbors.length === 0,
+      };
+      pendingWrites.push(result);
+      if (result.skipped) { skipped += 1; } else { refreshed += 1; }
+    } catch {
+      pendingWrites.push({ artworkId, neighbors: [], skipped: true });
+      skipped += 1;
+    }
+
+    completed += 1;
+
+    if (pendingWrites.length >= WRITE_BATCH_SIZE) {
+      writeBatch(pendingWrites.splice(0, pendingWrites.length));
+    }
+
+    if (completed % PROGRESS_INTERVAL === 0) {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const rate = completed / elapsed;
+      const remaining = targetIds.length - completed;
+      const etaSec = Math.round(remaining / rate);
+      const etaM = Math.floor(etaSec / 60);
+      const etaH = Math.floor(etaM / 60);
+      const etaStr = etaH > 0 ? `${etaH}h ${etaM % 60}m` : `${etaM}m`;
+      console.log(`   ${completed}/${targetIds.length} (${(completed / targetIds.length * 100).toFixed(1)}%) — ${rate.toFixed(0)} verk/s — ETA ${etaStr}`);
+    }
+  }
+
+  if (pendingWrites.length > 0) {
+    writeBatch(pendingWrites.splice(0, pendingWrites.length));
+  }
+
+  console.log(`✅ Rebuilt artwork_neighbors for ${refreshed} artworks (${skipped} skipped)`);
 }
 
 async function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
@@ -518,6 +612,8 @@ function runWorker() {
 }
 
 async function runMain() {
+  const args = process.argv.slice(2);
+  const noWorkers = args.includes("--no-workers");
   const options = parseArgs();
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
@@ -531,7 +627,11 @@ async function runMain() {
       refreshArtworkArtists(db, options);
     }
     if (!options.artistsOnly) {
-      await rebuildArtworkNeighbors(db, options);
+      if (noWorkers) {
+        await rebuildArtworkNeighborsSingleThread(db, options);
+      } else {
+        await rebuildArtworkNeighbors(db, options);
+      }
     }
   } finally {
     db.close();
