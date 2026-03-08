@@ -42,21 +42,21 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
   const saved = isFavorite(item.id);
   const [pulsing, setPulsing] = useState(false);
   const variantClass = variant === "large"
-    ? "lg:col-span-2 lg:aspect-[3/2] lg:max-h-[32rem]"
+    ? "lg:col-span-2 lg:aspect-[3/2] lg:max-h-[34rem]"
     : variant === "medium"
-      ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[20rem]"
-      : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[32rem]";
+      ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[22rem]"
+      : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[34rem]";
 
   const mobileHeight = variant === "large"
-    ? "h-[50vh] md:h-[70vh]"
+    ? "h-[48vh] md:h-[65vh]"
     : variant === "medium"
-      ? "h-[40vh] md:h-[45vh]"
-      : "h-[45vh] md:h-[55vh]";
+      ? "h-[38vh] md:h-[42vh]"
+      : "h-[42vh] md:h-[50vh]";
 
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-card group/card focus-ring ${variantClass}`}
+      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] md:rounded-card group/card focus-ring ${variantClass}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -76,21 +76,21 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
           event.currentTarget.classList.add("is-broken");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover",
+          "absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out lg:group-hover/card:scale-[1.02]",
           eager ? "" : "opacity-0 lg:opacity-100",
         ].join(" ")}
         style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.85)_0%,rgba(0,0,0,0.4)_30%,transparent_55%)] pointer-events-none lg:opacity-70 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
-      <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-7" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.6), 0 0 12px rgba(0,0,0,0.3)" }}>
-        <p className="font-serif text-[1.5rem] lg:text-[1.7rem] font-semibold text-white leading-[1.2] mb-[0.35rem] line-clamp-2">
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.3)_28%,transparent_50%)] pointer-events-none lg:opacity-60 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
+      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 lg:p-7" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5), 0 0 12px rgba(0,0,0,0.25)" }}>
+        <p className="font-serif text-[1.3rem] md:text-[1.4rem] lg:text-[1.55rem] font-semibold text-white leading-[1.15] mb-[0.3rem] line-clamp-2">
           {item.title_sv || "Utan titel"}
         </p>
-        <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.75)]">
+        <p className="text-[0.8rem] lg:text-[0.85rem] text-[rgba(255,255,255,0.7)]">
           {artworkArtist(item)}
         </p>
         {showMuseumBadge && item.museum_name && (
-          <p className="text-[0.75rem] text-[rgba(255,255,255,0.45)] mt-[0.2rem]">
+          <p className="text-[0.7rem] lg:text-[0.75rem] text-[rgba(255,255,255,0.4)] mt-[0.15rem]">
             {item.museum_name}
           </p>
         )}

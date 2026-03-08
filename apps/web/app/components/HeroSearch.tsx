@@ -69,8 +69,8 @@ export default function HeroSearch({
   );
 
   return (
-    <div className="pt-[4.8rem] pb-4 px-5 md:px-2 lg:px-0 lg:pt-[5rem] lg:pb-4">
-      <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-dark-text text-center leading-[1.15] tracking-[-0.01em]">
+    <div className="pt-[5rem] pb-6 px-5 md:px-2 md:pb-8 lg:px-0 lg:pt-[7.5rem] lg:pb-14">
+      <h1 className="font-serif text-[2rem] md:text-[2.6rem] lg:text-[3.2rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
         {totalWorks.toLocaleString("sv-SE")} konstverk.{" "}
         <span className="text-dark-text-muted">Sök på vad som helst.</span>
       </h1>
@@ -79,14 +79,14 @@ export default function HeroSearch({
         query={query}
         onQueryChange={setQuery}
         onSelect={handleSelectSuggestion}
-        dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-dark-base rounded-card shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
+        dropdownClassName="absolute left-0 right-0 top-full mt-1.5 z-50 max-w-lg mx-auto bg-dark-base rounded-card shadow-lg border border-[rgba(245,240,232,0.08)] overflow-hidden"
       >
         {({ inputProps }) => (
-          <form action="/search" method="get" onSubmit={handleSubmit} className="mt-4 md:mt-5 max-w-lg mx-auto">
+          <form action="/search" method="get" onSubmit={handleSubmit} className="mt-6 md:mt-8 max-w-[32rem] mx-auto">
             <label htmlFor="hero-search" className="sr-only">
               Sök bland konstverk
             </label>
-            <div className="flex items-center gap-3 rounded-2xl bg-[rgba(245,240,232,0.12)] border border-[rgba(245,240,232,0.18)] px-5 py-3.5 transition-all duration-200 focus-within:border-[rgba(201,176,142,0.45)] focus-within:bg-[rgba(245,240,232,0.14)] focus-within:shadow-[0_0_30px_rgba(201,176,142,0.08)]">
+            <div className="flex items-center gap-3.5 rounded-full bg-[rgba(245,240,232,0.07)] border border-[rgba(245,240,232,0.12)] px-6 py-[0.9rem] transition-all duration-300 focus-within:border-[rgba(201,176,142,0.35)] focus-within:bg-[rgba(245,240,232,0.10)] focus-within:shadow-[0_0_40px_rgba(201,176,142,0.06)]">
               <svg
                 aria-hidden="true"
                 width="20"
@@ -94,8 +94,8 @@ export default function HeroSearch({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.8"
-                className="text-[rgba(201,176,142,0.6)] shrink-0"
+                strokeWidth="1.6"
+                className="text-[rgba(201,176,142,0.45)] shrink-0"
               >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
@@ -108,7 +108,7 @@ export default function HeroSearch({
                 name="q"
                 type="text" enterKeyHint="search" autoCorrect="off"
                 placeholder="porträtt, blå himmel, stilleben…"
-                className="flex-1 bg-transparent text-dark-text placeholder:text-dark-text-muted text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
+                className="flex-1 bg-transparent text-dark-text placeholder:text-[rgba(201,176,142,0.4)] text-[0.95rem] md:text-[1rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
           </form>

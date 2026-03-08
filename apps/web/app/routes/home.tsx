@@ -251,7 +251,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         <HeroSearch totalWorks={loaderData.stats.total} />
 
-        {<div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
+        {<div className="grid grid-cols-1 md:gap-1.5 lg:grid-cols-3 lg:gap-3 lg:grid-flow-dense">
           {(() => {
             let artPosition = -1;
             return feed.map((entry, index) => {
@@ -270,7 +270,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               if (entry.type === "stats") {
                 return (
-                  <div key="stats" className="lg:col-span-3">
+                  <div key="stats" className="lg:col-span-3 mt-3 mb-1 md:mt-5 md:mb-3 lg:mt-8 lg:mb-4">
                     <StatsSection stats={entry} />
                   </div>
                 );
@@ -278,7 +278,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               if (entry.type === "spotlight") {
                 return (
-                  <div key={`spotlight-${entry.artistName}-${index}`} className="lg:col-span-3">
+                  <div key={`spotlight-${entry.artistName}-${index}`} className="lg:col-span-3 mt-3 mb-1 md:mt-5 md:mb-3 lg:mt-8 lg:mb-4">
                     <SpotlightCard spotlight={entry} />
                   </div>
                 );
@@ -286,14 +286,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
               if (entry.type === "walkPromo") {
                 return (
-                  <div key={`walks-${index}`} className="lg:col-span-3">
+                  <div key={`walks-${index}`} className="lg:col-span-3 mt-3 mb-1 md:mt-5 md:mb-3 lg:mt-8 lg:mb-4">
                     <WalkPromoCard />
                   </div>
                 );
               }
 
               return (
-                <div key={`theme-${entry.title}-${index}`} className="lg:col-span-3">
+                <div key={`theme-${entry.title}-${index}`} className="lg:col-span-3 mt-3 mb-1 md:mt-5 md:mb-3 lg:mt-8 lg:mb-4">
                   <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
                 </div>
               );

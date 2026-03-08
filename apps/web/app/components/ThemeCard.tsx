@@ -20,20 +20,20 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
 
   return (
     <div
-      className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-section lg:overflow-hidden"
+      className="pt-10 md:pt-12 px-5 md:px-6 lg:px-8 pb-8 md:pb-10 snap-start lg:rounded-section lg:overflow-hidden"
       style={{ backgroundColor: section.color }}
     >
-      <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.4)] font-medium">
+      <p className="text-[0.65rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.35)] font-medium">
         Tema
       </p>
-      <h2 className="font-serif text-[2rem] font-semibold text-white mt-2 leading-[1.1]">
+      <h2 className="font-serif text-[1.8rem] md:text-[2rem] font-semibold text-white mt-2 leading-[1.1]">
         {section.title}
       </h2>
-      <p className="text-[0.85rem] text-[rgba(255,255,255,0.5)] mt-[0.35rem]">
+      <p className="text-[0.8rem] text-[rgba(255,255,255,0.45)] mt-[0.3rem]">
         {section.subtitle}
       </p>
 
-      <div className="flex gap-3 md:gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:gap-4 overflow-x-auto lg:overflow-visible pt-6 pb-2 lg:pb-0 snap-x snap-mandatory lg:snap-none no-scrollbar">
+      <div className="flex gap-3 md:gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:gap-3.5 overflow-x-auto lg:overflow-visible pt-6 pb-2 lg:pb-0 snap-x snap-mandatory lg:snap-none no-scrollbar">
         {section.items.map((item) => (
           <a
             key={item.id}
@@ -79,7 +79,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
         ))}
       </div>
 
-      <a href={searchHref} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] transition-colors no-underline focus-ring">
+      <a href={searchHref} className="inline-block mt-5 text-[0.75rem] tracking-[0.03em] text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.75)] transition-colors no-underline focus-ring">
         Visa fler →
       </a>
     </div>

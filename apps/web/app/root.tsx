@@ -113,7 +113,7 @@ function Header() {
     >
       <nav
         aria-label="Huvudnavigering"
-        className="flex items-center justify-between px-4 h-[3.5rem] max-w-6xl mx-auto"
+        className="flex items-center justify-between px-5 md:px-6 lg:px-8 h-[3.5rem] max-w-7xl mx-auto"
       >
         <a
           href="/"
@@ -127,7 +127,7 @@ function Header() {
         </a>
         <div
           className={[
-            "hidden lg:flex items-center gap-6 text-[0.9rem]",
+            "hidden lg:flex items-center gap-7 text-[0.85rem] tracking-[0.01em]",
             isHome ? "text-dark-text/85" : "text-warm-gray",
           ].join(" ")}
         >
