@@ -310,6 +310,7 @@ function createWorkers(count: number, config: WorkerConfig): Worker[] {
     workers.push(
       new Worker(new URL(import.meta.url), {
         workerData: config,
+        execArgv: ["--import", "tsx"],
       })
     );
   }
