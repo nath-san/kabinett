@@ -88,8 +88,13 @@ function chooseFtsSeedIds(results: any[], query: string, limit = 12): number[] {
   return picked;
 }
 
-function filterClipByConfidence<T extends { similarity?: number }>(results: T[]): T[] {
+function filterClipByConfidence<T extends { similarity?: number }>(
+  results: T[],
+  options?: { visual?: boolean; limit?: number }
+): T[] {
   if (results.length === 0) return [];
+  const visual = options?.visual === true;
+  const limit = Math.max(1, options?.limit ?? results.length);
   const sorted = [...results].sort(
     (a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0)
   );
@@ -100,15 +105,18 @@ function filterClipByConfidence<T extends { similarity?: number }>(results: T[])
 
   // Flat results (CLIP can't distinguish) — only keep if top score is decent
   if (sorted.length >= 5 && spread < 0.01) {
-    if (topSim < 0.28) return [];
-    return sorted.slice(0, Math.min(12, sorted.length));
+    if (topSim < (visual ? 0.24 : 0.28)) return [];
+    const flatCap = visual ? Math.min(limit, 60) : 12;
+    return sorted.slice(0, Math.min(flatCap, sorted.length));
   }
 
-  // Tighter floor + narrower band from top
-  const minSimilarity = Math.max(0.25, topSim - 0.10);
+  // Keep visual mode wider so object queries don't collapse to tiny sets.
+  const minSimilarity = visual
+    ? Math.max(0.20, topSim - 0.18)
+    : Math.max(0.25, topSim - 0.10);
   const filtered = sorted.filter((row) => Number(row.similarity ?? -1) >= minSimilarity);
   if (filtered.length > 0) return filtered;
-  return sorted.slice(0, Math.min(8, sorted.length));
+  return sorted.slice(0, Math.min(visual ? Math.min(limit, 24) : 8, sorted.length));
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -183,7 +191,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       }
       const rawClip = [...bestClip.values()];
-      let clipResults = filterClipByConfidence(rawClip);
+      const clipFilterOptions = type === "visual" ? { visual: true, limit } : undefined;
+      let clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
       let topSim = Number(clipResults[0]?.similarity ?? 0);
       let probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
       let probeSim = Number(clipResults[probeIndex]?.similarity ?? topSim);
@@ -204,7 +213,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
           }
         }
         clipResults = filterClipByConfidence(
-          [...bestHybrid.values()].sort((a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0))
+          [...bestHybrid.values()].sort((a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0)),
+          clipFilterOptions
         );
         topSim = Number(clipResults[0]?.similarity ?? 0);
         probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);

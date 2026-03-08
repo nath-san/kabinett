@@ -122,8 +122,13 @@ function chooseFtsSeedIds(results: SearchResult[], query: string, limit = 12): n
   return picked;
 }
 
-function filterClipByConfidence(results: SearchResult[]): SearchResult[] {
+function filterClipByConfidence(
+  results: SearchResult[],
+  options?: { visual?: boolean; limit?: number }
+): SearchResult[] {
   if (results.length === 0) return [];
+  const visual = options?.visual === true;
+  const limit = Math.max(1, options?.limit ?? results.length);
   const sorted = [...results].sort(
     (a, b) => Number((b as any).similarity ?? 0) - Number((a as any).similarity ?? 0)
   );
@@ -134,14 +139,17 @@ function filterClipByConfidence(results: SearchResult[]): SearchResult[] {
 
   // Flat score distributions can be noisy, but avoid zeroing CLIP entirely on borderline cases.
   if (sorted.length >= 5 && spread < 0.01) {
-    if (topSim < 0.26) return [];
-    return sorted.slice(0, Math.min(12, sorted.length));
+    if (topSim < (visual ? 0.24 : 0.26)) return [];
+    const flatCap = visual ? Math.min(limit, 60) : 12;
+    return sorted.slice(0, Math.min(flatCap, sorted.length));
   }
 
-  const minSimilarity = Math.max(0.22, topSim - 0.12);
+  const minSimilarity = visual
+    ? Math.max(0.20, topSim - 0.18)
+    : Math.max(0.22, topSim - 0.12);
   const filtered = sorted.filter((row) => Number((row as any).similarity ?? -1) >= minSimilarity);
   if (filtered.length > 0) return filtered;
-  return sorted.slice(0, Math.min(8, sorted.length));
+  return sorted.slice(0, Math.min(visual ? Math.min(limit, 24) : 8, sorted.length));
 }
 
 /** Build a short snippet showing where the query matched */
@@ -394,7 +402,8 @@ async function loadSearchResults(args: {
 
   if (query && type === "visual") {
     const clipResults = await runClipSearch();
-    const filteredClip = filterClipByConfidence(clipResults).slice(0, PAGE_SIZE);
+    const filteredClip = filterClipByConfidence(clipResults, { visual: true, limit: PAGE_SIZE })
+      .slice(0, PAGE_SIZE);
 
     const idsToHydrate = filteredClip
       .filter((r) => !r.technique_material)
