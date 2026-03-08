@@ -187,7 +187,9 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+const PAGE_SIZE = 60;
+
+export async function loader({ params, request }: Route.LoaderArgs) {
   let name = "";
   try {
     name = decodeURIComponent(params.name || "").trim();
@@ -198,6 +200,10 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw error;
   }
   if (!name) throw new Response("Saknar namn", { status: 400 });
+
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
 
   const db = getDb();
   const source = sourceFilter();
@@ -213,10 +219,14 @@ export async function loader({ params }: Route.LoaderArgs) {
            WHERE aa.artist_name_norm = ? AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
              AND a.id NOT IN (SELECT artwork_id FROM broken_images)
              AND ${source.sql}
-           ORDER BY a.year_start ASC NULLS LAST`
+           ORDER BY a.year_start ASC NULLS LAST
+           LIMIT ? OFFSET ?`
         )
-        .all(normalizedName, ...source.params) as any[])
+        .all(normalizedName, ...source.params, PAGE_SIZE + 1, offset) as any[])
     : [];
+
+  const hasMore = rows.length > PAGE_SIZE;
+  if (hasMore) rows.pop();
 
   const total = normalizedName
     ? ((db
@@ -260,15 +270,19 @@ export async function loader({ params }: Route.LoaderArgs) {
   const wikipedia = sanitizeExternalUrl(links.wikipedia);
   const wikiSummary = wikidata ? await fetchWikiSummary(wikidata, wikipedia) : {};
 
-  const timelineWorks = rows
-    .filter((w) => w.year_start)
-    .map((r) => ({
-      id: r.id,
-      title: r.title_sv || r.title_en || "Utan titel",
-      imageUrl: buildImageUrl(r.iiif_url, 400),
-      year: r.year_start,
-      color: r.dominant_color || "#D4CDC3",
-    }));
+  // Timeline: only on first page, cap at 30
+  const timelineWorks = page === 1
+    ? rows
+        .filter((w) => w.year_start)
+        .slice(0, 30)
+        .map((r) => ({
+          id: r.id,
+          title: r.title_sv || r.title_en || "Utan titel",
+          imageUrl: buildImageUrl(r.iiif_url, 400),
+          year: r.year_start,
+          color: r.dominant_color || "#D4CDC3",
+        }))
+    : [];
 
   const gridWorks = rows.map((r) => ({
     id: r.id,
@@ -291,6 +305,8 @@ export async function loader({ params }: Route.LoaderArgs) {
     total,
     timelineWorks,
     works: gridWorks,
+    page,
+    hasMore,
   };
 }
 
@@ -308,6 +324,8 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     total,
     timelineWorks,
     works,
+    page,
+    hasMore,
   } = loaderData;
 
   const altArtist = artistName || "Okänd konstnär";
@@ -430,6 +448,26 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
             </a>
           ))}
         </div>
+        {(hasMore || page > 1) && (
+          <div className="flex justify-center gap-4 mt-8">
+            {page > 1 && (
+              <a
+                href={`?page=${page - 1}`}
+                className="px-5 py-2.5 rounded-full bg-linen text-charcoal text-[0.85rem] no-underline focus-ring"
+              >
+                ← Föregående
+              </a>
+            )}
+            {hasMore && (
+              <a
+                href={`?page=${page + 1}`}
+                className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-[0.85rem] no-underline focus-ring"
+              >
+                Nästa sida →
+              </a>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
