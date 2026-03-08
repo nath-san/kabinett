@@ -98,12 +98,14 @@ function filterClipByConfidence<T extends { similarity?: number }>(results: T[])
   const probeSim = Number(sorted[probeIndex]?.similarity ?? topSim);
   const spread = topSim - probeSim;
 
+  // Flat results (CLIP can't distinguish) — only keep if top score is decent
   if (sorted.length >= 5 && spread < 0.01) {
-    if (topSim < 0.26) return [];
+    if (topSim < 0.28) return [];
     return sorted.slice(0, Math.min(12, sorted.length));
   }
 
-  const minSimilarity = Math.max(0.22, topSim - 0.12);
+  // Tighter floor + narrower band from top
+  const minSimilarity = Math.max(0.25, topSim - 0.10);
   const filtered = sorted.filter((row) => Number(row.similarity ?? -1) >= minSimilarity);
   if (filtered.length > 0) return filtered;
   return sorted.slice(0, Math.min(8, sorted.length));
