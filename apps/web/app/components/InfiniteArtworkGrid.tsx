@@ -91,12 +91,12 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="p-[0.65rem]">
-              <p className="text-[0.8rem] font-medium text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
+            <div className="p-[0.7rem]">
+              <p className="text-[0.84rem] font-medium text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
                 {w.title}
               </p>
               {(w.artist || w.year) && (
-                <p className="text-[0.65rem] text-stone mt-1">
+                <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
                   {w.artist}
                   {w.artist && w.year ? " · " : ""}
                   {w.year}

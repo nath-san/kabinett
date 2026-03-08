@@ -79,6 +79,72 @@ type RelatedArtwork = {
   focal_y: number | null;
 };
 
+function normalizeMetaText(value: string | null | undefined): string {
+  return value?.trim() || "";
+}
+
+function buildRelatedSecondaryText(item: RelatedArtwork, variant: "same-artist" | "similar"): string {
+  if (variant === "same-artist") {
+    return normalizeMetaText(item.dating_text);
+  }
+
+  const artist = parseArtist(item.artists || null).trim();
+  if (artist && artist !== "Okänd konstnär") {
+    return artist;
+  }
+  return normalizeMetaText(item.dating_text);
+}
+
+function RelatedArtworkCard({
+  item,
+  secondaryText,
+  fallbackArtist,
+}: {
+  item: RelatedArtwork;
+  secondaryText: string;
+  fallbackArtist: string;
+}) {
+  const title = item.title_sv || "Utan titel";
+  const parsedArtist = parseArtist(item.artists || null).trim();
+  const altArtist = parsedArtist || fallbackArtist;
+
+  return (
+    <a
+      href={`/artwork/${item.id}`}
+      className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring"
+    >
+      <div
+        className="aspect-[3/4] overflow-hidden"
+        style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
+      >
+        <img
+          src={buildImageUrl(item.iiif_url, 400)}
+          alt={`${title} — ${altArtist}`}
+          width={400}
+          height={534}
+          loading="lazy"
+          decoding="async"
+          onError={(event) => {
+            event.currentTarget.classList.add("is-broken");
+          }}
+          className="w-full h-full object-cover"
+          style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
+        />
+      </div>
+      <div className="p-2.5">
+        <p className="text-[0.78rem] text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.1rem]">
+          {title}
+        </p>
+        {secondaryText && (
+          <p className="text-[0.7rem] text-warm-gray mt-1 leading-[1.3] overflow-hidden line-clamp-1">
+            {secondaryText}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
 const DESCRIPTION_PREFIX = /^Beskrivning i inventariet:\s*/i;
 const DESCRIPTION_MARKERS = /(Proveniens:|Utställningar:|Litteratur:|Beskrivning:?)/g;
 
@@ -509,27 +575,12 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {related.sameArtist.map((s) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
-                <div
-                  className="aspect-[3/4] overflow-hidden"
-                  style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
-                >
-                  <img src={buildImageUrl(s.iiif_url, 400)}
-                    alt={`${s.title_sv || "Utan titel"} — ${artistName || "Okänd konstnär"}`} width={400} height={534}
-                    loading="lazy"
-                    decoding="async"
-                    onError={(event) => {
-                      event.currentTarget.classList.add("is-broken");
-                    }}
-                    className="w-full h-full object-cover"
-                    style={{ objectPosition: `${(s.focal_x ?? 0.5) * 100}% ${(s.focal_y ?? 0.5) * 100}%` }} />
-                </div>
-                <div className="p-2">
-                  <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
-                    {s.title_sv || "Utan titel"}
-                  </p>
-                </div>
-              </a>
+              <RelatedArtworkCard
+                key={s.id}
+                item={s}
+                fallbackArtist={artistName || "Okänd konstnär"}
+                secondaryText={buildRelatedSecondaryText(s, "same-artist")}
+              />
             ))}
           </div>
         </section>
@@ -543,28 +594,12 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {related.similar.map((s) => (
-              <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
-                <div
-                  className="aspect-[3/4] overflow-hidden"
-                  style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
-                >
-                  <img src={buildImageUrl(s.iiif_url, 400)}
-                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists || null)}`} width={400} height={534}
-                    loading="lazy"
-                    decoding="async"
-                    onError={(event) => {
-                      event.currentTarget.classList.add("is-broken");
-                    }}
-                    className="w-full h-full object-cover"
-                    style={{ objectPosition: `${(s.focal_x ?? 0.5) * 100}% ${(s.focal_y ?? 0.5) * 100}%` }} />
-                </div>
-                <div className="p-2">
-                  <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
-                    {s.title_sv || "Utan titel"}
-                  </p>
-                  <p className="text-[0.65rem] text-warm-gray mt-[0.125rem]">{parseArtist(s.artists || null)}</p>
-                </div>
-              </a>
+              <RelatedArtworkCard
+                key={s.id}
+                item={s}
+                fallbackArtist="Okänd konstnär"
+                secondaryText={buildRelatedSecondaryText(s, "similar")}
+              />
             ))}
           </div>
         </section>

@@ -253,8 +253,8 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                     />
                   </div>
                   <div className="timeline-card-meta">
-                    <span className="text-[0.8rem] font-semibold">{art.title}</span>
-                    <span className="text-[0.7rem] text-[rgba(245,240,232,0.6)]">{art.artist}</span>
+                    <span className="text-[0.82rem] font-medium leading-[1.35] line-clamp-2 min-h-[2.2rem]">{art.title}</span>
+                    <span className="text-[0.72rem] text-[rgba(245,240,232,0.66)] leading-[1.3] line-clamp-1">{art.artist}</span>
                     <span className="text-[0.65rem] text-[rgba(245,240,232,0.45)]">{art.year}</span>
                   </div>
                 </a>
@@ -307,11 +307,11 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                     />
                   </div>
                   <div className="p-[0.6rem]">
-                    <p className="text-[0.85rem] font-semibold">{art.title}</p>
-                    <p className="text-[0.7rem] text-[rgba(245,240,232,0.6)] mt-[0.2rem]">
+                    <p className="text-[0.84rem] font-medium leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.2rem]">{art.title}</p>
+                    <p className="text-[0.72rem] text-[rgba(245,240,232,0.66)] mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
                       {art.artist}
                     </p>
-                    <p className="text-[0.65rem] text-[rgba(245,240,232,0.4)] mt-[0.15rem]">
+                    <p className="text-[0.65rem] text-[rgba(245,240,232,0.45)] mt-[0.15rem]">
                       {art.year}
                     </p>
                   </div>

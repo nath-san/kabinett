@@ -336,12 +336,12 @@ function ArtworkCard({ w, altArtist }: { w: GridWork; altArtist: string }) {
           className="w-full h-full object-cover"
         />
       </div>
-      <div className="p-[0.65rem]">
-        <p className="text-[0.8rem] font-medium text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
+      <div className="p-[0.7rem]">
+        <p className="text-[0.84rem] font-medium text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
           {w.title}
         </p>
         {w.year && (
-          <p className="text-[0.65rem] text-stone mt-1">
+          <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
             {w.year}
           </p>
         )}
@@ -482,11 +482,11 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-[0.6rem]">
-                  <p className="text-[0.78rem] text-charcoal font-semibold">
+                <div className="p-[0.7rem]">
+                  <p className="text-[0.74rem] text-charcoal font-medium leading-[1.2]">
                     {w.year}
                   </p>
-                  <p className="text-[0.72rem] text-warm-gray mt-[0.2rem] leading-[1.3]">
+                  <p className="text-[0.78rem] text-warm-gray mt-[0.35rem] leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.1rem]">
                     {w.title}
                   </p>
                 </div>

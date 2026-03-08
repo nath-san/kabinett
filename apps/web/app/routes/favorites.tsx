@@ -137,10 +137,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
         />
       </div>
       <div className="p-3">
-        <p className="text-[0.9rem] font-semibold text-[#F5F0E8] m-0">
+        <p className="text-[0.88rem] font-medium text-[#F5F0E8] m-0 leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.35rem]">
           {item.title}
         </p>
-        <p className="mt-[0.2rem] text-[0.75rem] text-[rgba(245,240,232,0.55)]">
+        <p className="mt-[0.35rem] text-[0.72rem] text-[rgba(245,240,232,0.62)] leading-[1.3] overflow-hidden line-clamp-1">
           {parseArtist(item.artists)}
         </p>
       </div>

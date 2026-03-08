@@ -259,11 +259,11 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                     />
                     <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
                   </div>
-                  <div className="p-3">
-                    <p className="font-serif text-[0.95rem] text-charcoal m-0 leading-[1.2]">
+                  <div className="p-[0.7rem]">
+                    <p className="text-[0.84rem] font-medium text-charcoal m-0 leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
                       {item.title}
                     </p>
-                    <p className="text-[0.7rem] text-warm-gray mt-1">
+                    <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
                       {item.artist}
                       {item.datingText ? ` · ${item.datingText}` : ""}
                     </p>

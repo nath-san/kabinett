@@ -229,11 +229,11 @@ export default function ColorMatch() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-[0.65rem]">
-                  <p className="text-[0.85rem] font-semibold m-0 text-charcoal">
+                <div className="p-[0.7rem]">
+                  <p className="text-[0.84rem] font-medium m-0 text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
                     {item.title_sv || "Utan titel"}
                   </p>
-                  <p className="text-[0.7rem] mt-[0.2rem] text-warm-gray">
+                  <p className="text-[0.72rem] mt-[0.35rem] text-warm-gray leading-[1.3] overflow-hidden line-clamp-1">
                     {parseArtist(item.artists)}
                   </p>
                 </div>
