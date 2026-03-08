@@ -340,11 +340,13 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
   const [canLoadMore, setCanLoadMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef(initialWorks.length);
 
   // Reset when navigating to a different artist
   useEffect(() => {
     setWorks(initialWorks);
     setCanLoadMore(initialHasMore);
+    offsetRef.current = initialWorks.length;
   }, [initialWorks, initialHasMore]);
 
   const loadMore = useCallback(async () => {
@@ -353,7 +355,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     try {
       const params = new URLSearchParams({
         name: artistName,
-        offset: String(works.length),
+        offset: String(offsetRef.current),
       });
       const res = await fetch(`/api/artist-works?${params.toString()}`);
       if (!res.ok) throw new Error("Kunde inte ladda fler verk");
@@ -361,6 +363,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       if (data.works.length === 0) {
         setCanLoadMore(false);
       } else {
+        offsetRef.current += data.works.length;
         setWorks((prev) => [...prev, ...data.works]);
         setCanLoadMore(data.hasMore);
       }
@@ -369,7 +372,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     } finally {
       setLoading(false);
     }
-  }, [artistName, canLoadMore, loading, works.length]);
+  }, [artistName, canLoadMore, loading]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -384,7 +387,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+      <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <p className="text-xs uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>
@@ -425,7 +428,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       </div>
 
       {timelineWorks.length > 0 && (
-        <section className="px-5 pb-8 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <section className="px-5 pb-8 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <h2 className="font-serif text-[1.4rem] text-charcoal mb-3">
             Verk över tid
           </h2>
@@ -463,7 +466,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <section className="px-5 pb-16 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+      <section className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h2 className="font-serif text-[1.4rem] text-charcoal mb-4">
           Alla verk
         </h2>

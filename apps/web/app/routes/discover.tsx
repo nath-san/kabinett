@@ -245,11 +245,11 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
-      <div className="md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-4 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-dark-text px-3 pt-4 pb-2">Upptäck</h1>
+      <div className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
+        <h1 className="font-serif text-[2rem] text-dark-text px-4 pt-4 pb-2">Upptäck</h1>
         {/* Samlingar — 2-column grid */}
-        <section className="pt-6 px-3">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mx-1 mb-3">Teman</h2>
+        <section className="pt-6 px-4">
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Teman</h2>
 
           <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
             {collections.map((c: Collection, i: number) => (
@@ -288,7 +288,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Top artists */}
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mx-4 mb-3">Formgivare & konstnärer</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text px-4 mb-3">Formgivare & konstnärer</h2>
 
           <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
             {topArtists.map((a: TopArtist) => (
@@ -361,7 +361,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
             <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
             <StatCard number={stats.museums.toLocaleString("sv")} label="samlingar" />
-            <StatCard number={`${stats.yearsSpan} år`} label="år av historia" />
+            <StatCard number={`${stats.yearsSpan} år`} label="av historia" />
             <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
           </div>
         </section>

@@ -429,7 +429,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-14 bg-dark-base text-dark-text">
-      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-[2rem] text-dark-text mb-4">Sök</h1>
         <SearchAutocompleteForm
           defaultValue={query}
@@ -514,7 +514,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       </div>
 
       {showResults && (
-        <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <div className="px-(--spacing-page) pb-24 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <Suspense fallback={<SearchResultsSkeleton />}>
             <Await resolve={initialResultsPromise}>
               {(initialPayload: SearchResultsPayload) => (

@@ -125,7 +125,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       {/* Header */}
       {!selected && (
-        <div className="pt-10 px-4 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <div className="pt-10 px-4 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <h1 className="font-serif text-[2rem] font-bold text-dark-text">
             Vandringar
           </h1>
@@ -137,7 +137,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
       {/* Walk cards */}
       {!selected && (
-        <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/walks?walk=" + w.slug}
               className="block relative overflow-hidden rounded-2xl h-40 no-underline group/walk focus-ring"
@@ -184,7 +184,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   className="absolute inset-0 w-full h-full object-cover opacity-25"
                 />
             )}
-            <div className="relative md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-0 lg:px-0">
+            <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
               <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
                 ← Vandringar
               </a>
@@ -204,7 +204,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
           </div>
 
           {/* Walk artworks — large, one per row for immersive feel */}
-          <div className="pt-6 px-4 pb-16 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+          <div className="pt-6 px-4 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
             {artworks.map((a: WalkArtwork, i: number) => (
               <div key={a.id}>
                 <a href={"/artwork/" + a.id}
@@ -222,10 +222,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   </div>
                   <div className="p-4">
                     <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>
-                    <p className="font-serif text-[1.125rem] font-semibold text-dark-text leading-[1.3]">
+                    <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
                       {a.title_sv || a.title_en || "Utan titel"}
                     </p>
-                    <p className="text-[0.8rem] text-dark-text-secondary mt-[0.375rem]">
+                    <p className="text-[0.8rem] text-warm-gray mt-[0.375rem]">
                       {parseArtist(a.artists)}
                     </p>
                     {a.dating_text && (

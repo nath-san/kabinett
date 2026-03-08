@@ -9,7 +9,7 @@ export default function StatsSection({ stats }: { stats: StatsCardData }) {
   const items = [
     { value: stats.total.toLocaleString("sv"), label: "verk" },
     { value: stats.museums.toLocaleString("sv"), label: "samlingar" },
-    { value: `${stats.yearsSpan} år`, label: "år av historia" },
+    { value: `${stats.yearsSpan} år`, label: "av historia" },
     { value: stats.paintings.toLocaleString("sv"), label: "målningar" },
   ];
   return (

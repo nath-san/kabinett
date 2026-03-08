@@ -248,7 +248,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        <HeroSearch totalWorks={loaderData.stats.total} showMuseumBadge={loaderData.showMuseumBadge} />
+        <HeroSearch totalWorks={loaderData.stats.total} />
 
         {<div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {(() => {

@@ -394,7 +394,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Info card — overlapping the image slightly */}
-      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-3xl mx-auto lg:mx-auto lg:px-8">
+      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-3xl lg:mx-auto lg:px-8">
         <div className="flex items-start gap-3">
           <h1 className="font-serif text-[1.5rem] lg:text-[2rem] font-bold text-charcoal leading-[1.3] flex-1">
             {artwork.title}
@@ -564,6 +564,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="flex gap-3 items-center">
             <button
+              type="button"
               onClick={() => {
                 const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
                 const text = `${artwork.title} av ${artist}`;
@@ -627,6 +628,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
+      <div className="pb-12" />
     </div>
   );
 }

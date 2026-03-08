@@ -99,7 +99,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
           </p>
         </section>
 
-        <section className="pt-8">
+        <section className="pt-8 pb-12">
           <h2 className="font-serif text-[1.3rem] text-dark-text">Samlingar</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {museums.map((m) => (
