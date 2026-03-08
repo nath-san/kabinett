@@ -258,6 +258,7 @@ async function main() {
     return;
   }
 
+  const startTime = Date.now();
   let processed = 0;
   let updated = 0;
   let failed = 0;
@@ -297,8 +298,16 @@ async function main() {
     }
 
     const progress = ((processed / rows.length) * 100).toFixed(1);
+    const elapsedMs = Date.now() - startTime;
+    const rate = processed / (elapsedMs / 1000);
+    const remaining = rows.length - processed;
+    const etaSeconds = Math.round(remaining / rate);
+    const etaH = Math.floor(etaSeconds / 3600);
+    const etaM = Math.floor((etaSeconds % 3600) / 60);
+    const etaStr = etaH > 0 ? `${etaH}h ${etaM}m` : `${etaM}m`;
+    const now = new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
     console.log(
-      `Framsteg: ${processed}/${rows.length} (${progress} %) — ${updated} uppdaterade, ${failed} fel`
+      `[${now}] ${processed}/${rows.length} (${progress}%) — ${updated} ok, ${failed} fel — ${rate.toFixed(1)} verk/s — ETA ${etaStr}`
     );
   }
 
