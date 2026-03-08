@@ -39,7 +39,6 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
             key={item.id}
             href={`/artwork/${item.id}`}
             className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none group/theme focus-ring"
-            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div
               className="aspect-[3/4] overflow-hidden"

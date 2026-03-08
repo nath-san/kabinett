@@ -249,7 +249,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         <h1 className="font-serif text-[2rem] text-dark-text px-3 pt-4 pb-2">Upptäck</h1>
         {/* Samlingar — 2-column grid */}
         <section className="pt-6 px-3">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mx-1 mb-3">Samlingar</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mx-1 mb-3">Teman</h2>
 
           <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
             {collections.map((c: Collection, i: number) => (

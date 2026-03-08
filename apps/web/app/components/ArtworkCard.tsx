@@ -122,12 +122,6 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
   );
 });
 
-const MATCH_LABELS: Record<string, string> = {
-  clip: "AI",
-  fts: "Text",
-  both: "AI + Text",
-};
-
 const SearchArtworkCard = React.memo(function SearchArtworkCard({
   item,
   showMuseumBadge,
@@ -180,15 +174,6 @@ export default function ArtworkCard(props: ArtworkCardProps) {
   if (props.layout === "search") {
     return <SearchArtworkCard {...props} />;
   }
-
-  const feedProps: FeedLayoutProps = {
-    layout: "feed",
-    item: props.item,
-    showMuseumBadge: props.showMuseumBadge,
-    index: props.index,
-    variant: props.variant,
-  };
-
-  return <FeedArtworkCard {...feedProps} />;
+  return <FeedArtworkCard {...props} />;
 }
 

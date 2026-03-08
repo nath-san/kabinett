@@ -143,16 +143,6 @@ body {
   box-shadow: var(--shadow-card-hover);
 }
 
-/* Image fade-in on load */
-img[loading="lazy"] {
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-img[loading="lazy"].loaded {
-  opacity: 1;
-}
-
 img.is-broken {
   display: none !important;
 }

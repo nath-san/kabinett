@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -14,7 +13,6 @@ import type { Route } from "./+types/root";
 import "./fonts.css";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
-import { initClientPerfLogging, logClientPerf } from "./lib/perf.client";
 
 export function headers() {
   return {
@@ -92,28 +90,6 @@ window.__toast=function(msg){
   setTimeout(function(){d.classList.remove('app-toast--visible');setTimeout(function(){d.remove()},300)},2000);
 };
 `}} />
-        <script dangerouslySetInnerHTML={{ __html: `
-document.addEventListener('DOMContentLoaded',function(){
-  document.querySelectorAll('img[loading="lazy"]').forEach(function(img){
-    if(img.complete){img.classList.add('loaded')}
-    else{img.addEventListener('load',function(){img.classList.add('loaded')})}
-    img.addEventListener('error',function(){img.classList.add('is-broken')})
-  });
-  new MutationObserver(function(mutations){
-    mutations.forEach(function(m){
-      m.addedNodes.forEach(function(n){
-        if(n.querySelectorAll){
-          n.querySelectorAll('img[loading="lazy"]').forEach(function(img){
-            if(img.complete){img.classList.add('loaded')}
-            else{img.addEventListener('load',function(){img.classList.add('loaded')})}
-            img.addEventListener('error',function(){img.classList.add('is-broken')})
-          });
-        }
-      });
-    });
-  }).observe(document.body,{childList:true,subtree:true});
-});
-        `}} />
       </body>
     </html>
   );
@@ -220,24 +196,6 @@ function BottomNav() {
         </svg>
       ),
     },
-    /* Tidslinje moved out of bottom nav — accessible via home/discover
-    {
-      href: "/timeline",
-      label: "Tidslinje",
-      active: path === "/timeline",
-      icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
-          <line x1="12" y1="2" x2="12" y2="22" />
-          <circle cx="12" cy="6" r="2" fill={color} opacity="0.2" />
-          <circle cx="12" cy="12" r="2" fill={color} opacity="0.2" />
-          <circle cx="12" cy="18" r="2" fill={color} opacity="0.2" />
-          <line x1="14" y1="6" x2="19" y2="6" />
-          <line x1="5" y1="12" x2="10" y2="12" />
-          <line x1="14" y1="18" x2="19" y2="18" />
-        </svg>
-      ),
-    },
-    */
     {
       href: "/search?focus=1",
       label: "Sök",
@@ -260,20 +218,6 @@ function BottomNav() {
         </svg>
       ),
     },
-    /* Om moved to header menu — keep bottom nav to 5 items
-    {
-      href: "/om",
-      label: "Om",
-      active: path === "/om",
-      icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 10v6" />
-          <circle cx="12" cy="7" r="1" fill={color} />
-        </svg>
-      ),
-    },
-    */
   ];
 
   return (
@@ -328,52 +272,8 @@ function BottomNav() {
 }
 
 export default function App() {
-  const location = useLocation();
   const navigation = useNavigation();
   const isNavigating = navigation.state === "loading";
-  const transitionStartRef = useRef<number | null>(null);
-  const transitionFromRef = useRef("");
-  const transitionToRef = useRef("");
-
-  useEffect(() => {
-    initClientPerfLogging();
-  }, []);
-
-  useEffect(() => {
-    const currentPath = `${location.pathname}${location.search}`;
-
-    if (navigation.state !== "idle") {
-      if (transitionStartRef.current === null) {
-        transitionStartRef.current = performance.now();
-        transitionFromRef.current = currentPath;
-        transitionToRef.current = navigation.location
-          ? `${navigation.location.pathname}${navigation.location.search}`
-          : currentPath;
-        logClientPerf("route.transition.start", {
-          from: transitionFromRef.current,
-          to: transitionToRef.current,
-        });
-      }
-      return;
-    }
-
-    if (transitionStartRef.current !== null) {
-      logClientPerf("route.transition.complete", {
-        from: transitionFromRef.current,
-        to: currentPath,
-        plannedTo: transitionToRef.current,
-        durationMs: Math.round((performance.now() - transitionStartRef.current) * 100) / 100,
-      });
-      transitionStartRef.current = null;
-      transitionFromRef.current = "";
-      transitionToRef.current = "";
-    }
-  }, [
-    location.pathname,
-    location.search,
-    navigation.location,
-    navigation.state,
-  ]);
 
   return (
     <>

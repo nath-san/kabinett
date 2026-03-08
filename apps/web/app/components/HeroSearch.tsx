@@ -7,8 +7,6 @@ export default function HeroSearch({
   totalWorks,
 }: {
   totalWorks: number;
-  showMuseumBadge?: boolean;
-  onSearchActive?: (active: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
