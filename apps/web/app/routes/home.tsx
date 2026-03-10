@@ -296,7 +296,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               }
 
               if (entry.type === "walkPromo") {
-                if (loaderData.noindex) return null; // Hide walks promo in campaign mode
+                if (loaderData.noindex && loaderData.museumName !== "Nationalmuseum") return null; // Hide walks on museums without walk data
                 return (
                   <div key={`walks-${index}`} className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
                     <WalkPromoCard />

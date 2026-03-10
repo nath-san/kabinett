@@ -115,7 +115,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return { walkPreviews, artworks, selected, walkInfo };
+  const hasWalks = walkPreviews.some((w) => w.previewUrl);
+  return { walkPreviews, artworks, selected, walkInfo, hasWalks };
 }
 
 export default function Walks({ loaderData }: Route.ComponentProps) {

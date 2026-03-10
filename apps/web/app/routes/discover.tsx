@@ -241,6 +241,7 @@ export async function loader() {
     stats,
     museums: museumList,
     isCampaign: campaign.id !== "default",
+    museumName: campaign.museumName,
   };
 
   discoverCacheMap.set(cacheKey, {
@@ -340,7 +341,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Verktyg</h2>
           <div className="flex flex-col gap-2">
             <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
-            {!isCampaign && <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />}
+            {(!isCampaign || loaderData.museumName === "Nationalmuseum") && <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />}
           </div>
         </section>
 
