@@ -13,6 +13,7 @@ import type { Route } from "./+types/root";
 import "./fonts.css";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
+import { ensureRequestContext } from "./lib/request-context.server";
 
 export function headers() {
   return {
@@ -20,6 +21,13 @@ export function headers() {
     "Pragma": "no-cache",
     "Expires": "0",
   };
+}
+
+export function loader({ request }: Route.LoaderArgs) {
+  // Set campaign context (via AsyncLocalStorage.enterWith) so all child
+  // loaders see the correct museum filter based on the request hostname.
+  ensureRequestContext(request);
+  return null;
 }
 
 export const links: Route.LinksFunction = () => [

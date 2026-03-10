@@ -74,8 +74,7 @@ export default function handleRequest(
   // campaign subdomains never serve each other's cached HTML.
   responseHeaders.append("Vary", "Host");
 
-  // Debug: log campaign resolution (remove after verifying)
-  console.log(`[Campaign] host=${request.headers.get("host")} → campaign=${campaign.id} museums=${JSON.stringify(campaign.museums)}`);
+
 
   logRequestStart({
     requestId,
