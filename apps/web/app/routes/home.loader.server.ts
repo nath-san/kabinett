@@ -100,7 +100,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const roundedTotal = stats.total >= 1000 ? Math.floor(stats.total / 1000) * 1000 : stats.total;
   const defaultMetaDescription = `Upptäck över ${roundedTotal} verk från ${stats.museums} svenska samlingar.`;
   const heroHeadline = campaign.museumName
-    ? `${stats.total.toLocaleString("sv-SE")} verk från ${campaign.museumName}.`
+    ? campaign.museumName
     : `${stats.total.toLocaleString("sv-SE")} konstverk.`;
   const metaTitle = campaign.metaTitle || "Kabinett — Utforska Sveriges kulturarv";
   const metaDescription = campaign.metaDescription
