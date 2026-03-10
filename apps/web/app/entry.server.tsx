@@ -70,6 +70,10 @@ export default function handleRequest(
     campaignId: campaign.id,
   };
 
+  // Ensure caches (Fly edge, CDN) vary responses by hostname so
+  // campaign subdomains never serve each other's cached HTML.
+  responseHeaders.append("Vary", "Host");
+
   logRequestStart({
     requestId,
     method: request.method.toUpperCase(),
