@@ -4,6 +4,7 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
+import { getCampaignConfig } from "../lib/campaign.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };
@@ -65,7 +66,7 @@ const COLLECTIONS: Collection[] = [
   { title: "Barn", subtitle: "Barndomens porträtt", query: "barn", imageIds: [17996, 16051, 17093] },
 ];
 
-let discoverCache: { expiresAt: number; data: any } | null = null;
+const discoverCacheMap = new Map<string, { expiresAt: number; data: any }>();
 const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function pickSeeded<T>(items: T[], seed: number): T | undefined {
@@ -77,8 +78,11 @@ function pickSeeded<T>(items: T[], seed: number): T | undefined {
 export async function loader() {
   const now = Date.now();
   const randomSeed = Math.floor(now / 60_000);
-  if (discoverCache && discoverCache.expiresAt > now) {
-    return discoverCache.data;
+  const campaign = getCampaignConfig();
+  const cacheKey = campaign.id;
+  const cached = discoverCacheMap.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
   }
 
   const db = getDb();
@@ -236,18 +240,19 @@ export async function loader() {
     topArtists: mappedArtists,
     stats,
     museums: museumList,
+    isCampaign: campaign.id !== "default",
   };
 
-  discoverCache = {
+  discoverCacheMap.set(cacheKey, {
     expiresAt: now + DISCOVER_CACHE_TTL_MS,
     data: payload,
-  };
+  });
 
   return payload;
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { collections, topArtists, stats, museums } = loaderData;
+  const { collections, topArtists, stats, museums, isCampaign } = loaderData;
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
@@ -335,7 +340,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Verktyg</h2>
           <div className="flex flex-col gap-2">
             <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
-            <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
+            {!isCampaign && <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />}
           </div>
         </section>
 
