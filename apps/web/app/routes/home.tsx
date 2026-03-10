@@ -279,6 +279,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               }
 
               if (entry.type === "stats") {
+                if (loaderData.noindex) return null; // Skip stats card in campaign mode
                 return (
                   <div key="stats" className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
                     <StatsSection stats={entry} museumName={loaderData.museumName} />
