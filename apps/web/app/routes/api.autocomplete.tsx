@@ -158,17 +158,21 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  // 1. Artist matches from pre-computed artists table
+  // 1. Artist matches — count only artworks matching the active source filter
   if (q.length >= 2 && artistsTableExists()) {
     try {
+      const src = sourceFilter();
       const artists = db.prepare(
-        `SELECT name, artwork_count as count
-         FROM artists
-         WHERE name LIKE ?
-           AND name NOT LIKE '%känd%'
-         ORDER BY artwork_count DESC
+        `SELECT ar.name, COUNT(*) as count
+         FROM artists ar
+         JOIN artworks a ON json_extract(a.artists, '$[0].name') = ar.name
+         WHERE ar.name LIKE ?
+           AND ar.name NOT LIKE '%känd%'
+           AND ${src.sql}
+         GROUP BY ar.name
+         ORDER BY count DESC
          LIMIT 3`
-      ).all(`%${q}%`) as Array<{ name: string; count: number }>;
+      ).all(`%${q}%`, ...src.params) as Array<{ name: string; count: number }>;
 
       for (const artist of artists) {
         payload.artists.push({
