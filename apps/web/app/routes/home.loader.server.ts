@@ -1,4 +1,4 @@
-import { CURATED_IDS } from "../lib/curated-home";
+import { getCuratedIds } from "../lib/curated-home";
 import { THEMES } from "../lib/themes";
 import { fetchFeed } from "../lib/feed.server";
 import type { SpotlightCardData } from "../components/SpotlightCard";
@@ -53,7 +53,8 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const db = getDb();
 
   // 1. Curated initial items — fast lookup by ID
-  const pickedIds = pickRandom(CURATED_IDS, 15);
+  const curatedIds = getCuratedIds(campaign.id);
+  const pickedIds = pickRandom(curatedIds, 15);
   const placeholders = pickedIds.map(() => "?").join(",");
   const curatedRows = db.prepare(
     `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url,
