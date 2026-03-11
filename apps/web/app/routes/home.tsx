@@ -131,7 +131,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1);
-  const [batchCount, setBatchCount] = useState(0);
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -193,11 +192,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         newEntries.push({ type: "art", item });
       }
 
-      // Show a theme card every 3rd batch, interleaved with artworks
       const campaignThemes = getThemes(loaderData.campaignId);
-      const showThemeThisBatch = batchCount % 3 === 0;
-      setBatchCount((prev) => prev + 1);
-      if (showThemeThisBatch && themeIndex < campaignThemes.length) {
+      if (themeIndex < campaignThemes.length) {
         const theme = campaignThemes[themeIndex];
         try {
           const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
