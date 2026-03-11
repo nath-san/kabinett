@@ -131,6 +131,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1);
+  const [batchCount, setBatchCount] = useState(0);
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -193,7 +194,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       }
 
       const campaignThemes = getThemes(loaderData.campaignId);
-      if (themeIndex < campaignThemes.length) {
+      const showThemeThisBatch = batchCount % 2 === 0; // every other batch
+      setBatchCount((prev) => prev + 1);
+      if (showThemeThisBatch && themeIndex < campaignThemes.length) {
         const theme = campaignThemes[themeIndex];
         try {
           const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
