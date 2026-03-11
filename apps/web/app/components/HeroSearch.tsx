@@ -2,6 +2,14 @@ import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
 import type { AutocompleteSuggestion } from "./Autocomplete";
+import type { CampaignId } from "../lib/campaign.server";
+
+const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
+  default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
+  nationalmuseum: ["stilleben", "porträtt", "landskap", "guld", "blommor", "storm"],
+  nordiska: ["folkdräkt", "Stockholm", "leksaker", "bröllop", "Skansen", "vinter"],
+  shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],
+};
 
 export default function HeroSearch({
   totalWorks,
@@ -9,18 +17,21 @@ export default function HeroSearch({
   subline,
   introText,
   isCampaign,
+  campaignId = "default",
 }: {
   totalWorks: number;
   headline?: string;
   subline?: string;
   introText?: string | null;
   isCampaign?: boolean;
+  campaignId?: CampaignId;
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const resolvedHeadline = headline || `${totalWorks.toLocaleString("sv-SE")} konstverk.`;
   const resolvedSubline = subline || "Sök på vad som helst.";
+  const suggestionChips = HERO_SUGGESTION_CHIPS[campaignId] || HERO_SUGGESTION_CHIPS.default;
 
   const handleFocus = useCallback(() => {
     const el = inputRef.current;
@@ -146,6 +157,19 @@ export default function HeroSearch({
           </form>
         )}
       </Autocomplete>
+
+      <div className="mt-4 max-w-[34rem] mx-auto flex flex-wrap items-center justify-center gap-2">
+        {suggestionChips.map((chip) => (
+          <button
+            key={`${campaignId}-${chip}`}
+            type="button"
+            onClick={() => goToSearch(chip, "visual")}
+            className="rounded-full border border-[rgba(245,240,232,0.10)] bg-[rgba(245,240,232,0.04)] px-3.5 py-1.5 text-[0.8rem] leading-none text-[rgba(201,176,142,0.50)] transition-colors duration-200 hover:border-[rgba(245,240,232,0.18)] hover:text-[rgba(201,176,142,0.72)] focus-ring"
+          >
+            {chip}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

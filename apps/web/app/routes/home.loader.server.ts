@@ -5,7 +5,7 @@ import type { SpotlightCardData } from "../components/SpotlightCard";
 import type { StatsCardData } from "../components/StatsSection";
 import type { ThemeCardSection } from "../components/ThemeCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
-import { getCampaignConfig } from "../lib/campaign.server";
+import { getCampaignConfig, type CampaignId } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
 import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
@@ -27,6 +27,7 @@ export type HomeLoaderData = {
   metaTitle: string;
   metaDescription: string;
   noindex: boolean;
+  campaignId: CampaignId;
   canonicalUrl: string;
   origin: string;
 };
@@ -136,6 +137,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     metaTitle,
     metaDescription,
     noindex: campaign.noindex,
+    campaignId: campaign.id,
     canonicalUrl,
     origin: url.origin,
   };
