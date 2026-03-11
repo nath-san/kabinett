@@ -193,30 +193,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         newEntries.push({ type: "art", item });
       }
 
+      // Add artwork entries immediately (don't block on theme fetch)
+      setFeed((prev) => [...prev, ...newEntries]);
+
+      // Load theme card asynchronously — doesn't block feed
       const campaignThemes = getThemes(loaderData.campaignId);
-      const showThemeThisBatch = batchCount % 2 === 0; // every other batch
+      const showThemeThisBatch = batchCount % 3 === 0; // every third batch
       setBatchCount((prev) => prev + 1);
       if (showThemeThisBatch && themeIndex < campaignThemes.length) {
         const theme = campaignThemes[themeIndex];
-        try {
-          const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
-          if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
-          const themeData = await themeRes.json();
-          if (themeData.items?.length > 0) {
-            const insertAt = Math.min(5, newEntries.length);
-            newEntries.splice(insertAt, 0, {
-              type: "theme",
-              ...theme,
-              items: themeData.items,
-            });
-          }
-        } catch {
-          // skip theme on error
-        }
         setThemeIndex((prev: number) => prev + 1);
+        fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`)
+          .then((res) => res.ok ? res.json() : null)
+          .then((themeData) => {
+            if (themeData?.items?.length > 0) {
+              setFeed((prev) => [...prev, {
+                type: "theme" as const,
+                ...theme,
+                items: themeData.items,
+              }]);
+            }
+          })
+          .catch(() => { /* skip theme on error */ });
       }
-
-      setFeed((prev) => [...prev, ...newEntries]);
       setLoadedIds((prev) => {
         const next = new Set(prev);
         nextItems.forEach((item) => next.add(item.id));
