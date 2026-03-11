@@ -24,6 +24,7 @@ type SchoolWalkPreview = {
   description: string;
   color: string;
   target_grades: string | null;
+  campaign_id: string;
   previewUrl: string | null;
 };
 
@@ -57,20 +58,22 @@ export async function loader({ request }: Route.LoaderArgs) {
   const campaign = getCampaignConfig();
   const sourceA = sourceFilter("a");
 
-  const campaignFilter =
-    campaign.id === "default"
-      ? ["default", "nationalmuseum"]
-      : [campaign.id];
+  // Default campaign shows ALL school walks (cross-museum overview)
+  // Museum subdomains show only their own
+  const isDefault = campaign.id === "default";
+  const campaignFilter = isDefault
+    ? ["default", "nationalmuseum", "nordiska", "shm"]
+    : [campaign.id];
 
   const walkRows = db
     .prepare(
-      `SELECT id, slug, title, subtitle, description, color, target_grades
+      `SELECT id, slug, title, subtitle, description, color, target_grades, campaign_id
        FROM walks
        WHERE published = 1 AND type = 'school'
          AND campaign_id IN (${campaignFilter.map(() => "?").join(",")})
-       ORDER BY created_at DESC`
+       ORDER BY campaign_id, target_grades, created_at DESC`
     )
-    .all(...campaignFilter) as Array<Omit<SchoolWalkPreview, "previewUrl">>;
+    .all(...campaignFilter) as Array<Omit<SchoolWalkPreview, "previewUrl"> & { campaign_id: string }>;
 
   // Get first artwork image for each walk as preview
   const previewRows = db
@@ -158,43 +161,71 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Walk cards */}
-      {!selected && (
-        <div className="px-5 pb-16 flex flex-col gap-3.5 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
-          {walkPreviews.map((w) => (
-            <a
-              key={w.slug}
-              href={"/skola?walk=" + w.slug}
-              className="block relative overflow-hidden rounded-2xl h-48 no-underline group/walk focus-ring"
-              style={{ backgroundColor: w.color }}
-            >
-              {w.previewUrl && (
-                <img
-                  src={w.previewUrl}
-                  alt=""
-                  role="presentation"
-                  loading="lazy"
-                  decoding="async"
-                  className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover/walk:scale-[1.04] group-hover/walk:opacity-60 transition-[transform,opacity] duration-500"
-                />
-              )}
-              <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
-              <div className="absolute bottom-0 left-0 right-0 p-5">
-                {w.target_grades && (
-                  <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] mb-1.5">
-                    {w.target_grades}
-                  </p>
+      {!selected && (() => {
+        const museumLabels: Record<string, string> = {
+          nationalmuseum: "Nationalmuseum",
+          shm: "Historiska museet & Livrustkammaren",
+          nordiska: "Nordiska museet",
+          default: "Allmänt",
+        };
+        const museumOrder = ["nationalmuseum", "shm", "nordiska", "default"];
+        const grouped = new Map<string, typeof walkPreviews>();
+        for (const w of walkPreviews) {
+          const cid = w.campaign_id || "default";
+          if (!grouped.has(cid)) grouped.set(cid, []);
+          grouped.get(cid)!.push(w);
+        }
+        const showGroups = grouped.size > 1;
+
+        return (
+          <div className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+            {museumOrder.filter((m) => grouped.has(m)).map((museumId) => (
+              <div key={museumId} className="mb-8">
+                {showGroups && (
+                  <h2 className="font-serif text-[1.2rem] text-dark-text mb-3 mt-2">
+                    {museumLabels[museumId] || museumId}
+                  </h2>
                 )}
-                <h2 className="font-serif text-[1.375rem] font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
-                  {w.title}
-                </h2>
-                <p className="text-[0.8rem] text-[rgba(255,255,255,0.7)] mt-1">
-                  {w.subtitle}
-                </p>
+                <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-2 lg:gap-4">
+                  {grouped.get(museumId)!.map((w) => (
+                    <a
+                      key={w.slug}
+                      href={"/skola?walk=" + w.slug}
+                      className="block relative overflow-hidden rounded-2xl h-48 no-underline group/walk focus-ring"
+                      style={{ backgroundColor: w.color }}
+                    >
+                      {w.previewUrl && (
+                        <img
+                          src={w.previewUrl}
+                          alt=""
+                          role="presentation"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover/walk:scale-[1.04] group-hover/walk:opacity-60 transition-[transform,opacity] duration-500"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
+                      <div className="absolute bottom-0 left-0 right-0 p-5">
+                        {w.target_grades && (
+                          <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(255,255,255,0.5)] mb-1.5">
+                            {w.target_grades}
+                          </p>
+                        )}
+                        <h2 className="font-serif text-[1.375rem] font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
+                          {w.title}
+                        </h2>
+                        <p className="text-[0.8rem] text-[rgba(255,255,255,0.7)] mt-1">
+                          {w.subtitle}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
               </div>
-            </a>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Selected school walk */}
       {selected && walkInfo && (
