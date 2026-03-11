@@ -1,4 +1,5 @@
 import type { Route } from "./+types/walks";
+import { getCampaignConfig } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
@@ -42,16 +43,23 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const selected = url.searchParams.get("walk") || "";
   const db = getDb();
+  const campaign = getCampaignConfig();
   const sourceA = sourceFilter("a");
   const randomSeed = Math.floor(Date.now() / 60_000);
+
+  // Show walks matching the current campaign, or "default" walks on the main site
+  const campaignFilter = campaign.id === "default"
+    ? ["default", "nationalmuseum"]  // main site shows NM walks (legacy)
+    : [campaign.id];
 
   const walkRows = db
     .prepare(
       `SELECT id, slug, title, subtitle, description, color
        FROM walks WHERE published = 1
+         AND campaign_id IN (${campaignFilter.map(() => "?").join(",")})
        ORDER BY created_at DESC`
     )
-    .all() as Array<Omit<WalkPreview, "previewUrl">>;
+    .all(...campaignFilter) as Array<Omit<WalkPreview, "previewUrl">>;
 
   const previewRows = db.prepare(
     `WITH ranked_previews AS (
