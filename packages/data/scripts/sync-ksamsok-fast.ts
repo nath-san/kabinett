@@ -21,17 +21,20 @@ import {
 } from "./lib/ksamsok-utils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = resolve(__dirname, "../kabinett.db");
+const DB_PATH = process.env.DATABASE_PATH || resolve(__dirname, "../kabinett.db");
 
 const API_BASE = "https://kulturarvsdata.se/ksamsok/api";
 const HITS_PER_PAGE = 500;
 const CONCURRENCY = 15;
 const MEDIA_QUERY = "serviceOrganization=shm AND thumbnailExists=j";
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_PAGE_RETRIES = 5;
 
 const LIMIT_ARG = process.argv.find((arg) => arg.startsWith("--limit="));
 const MAX_ITEMS = LIMIT_ARG ? parseInt(LIMIT_ARG.split("=")[1] || "0", 10) : Infinity;
 const OFFSET_ARG = process.argv.find((arg) => arg.startsWith("--offset="));
 const START_OFFSET = OFFSET_ARG ? parseInt(OFFSET_ARG.split("=")[1] || "1", 10) : 1;
+const ARTISTS_ONLY = process.argv.includes("--artists-only");
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
@@ -41,6 +44,39 @@ const parser = new XMLParser(KSAMSOK_XML_PARSER_CONFIG);
 
 function hashId(s: string): number {
   return -(createHash("sha1").update(s).digest().readUIntBE(0, 6));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchSearchPage(startRecord: number, attempt = 1): Promise<any> {
+  const params = new URLSearchParams({
+    method: "search",
+    query: MEDIA_QUERY,
+    startRecord: String(startRecord),
+    hitsPerPage: String(HITS_PER_PAGE),
+    "x-api": "kabinett",
+  });
+
+  try {
+    const res = await fetch(`${API_BASE}?${params.toString()}`, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} at ${startRecord}`);
+    const xml = await res.text();
+    return parser.parse(xml);
+  } catch (error) {
+    if (attempt >= MAX_PAGE_RETRIES) {
+      throw error;
+    }
+    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 10000);
+    console.warn(
+      `⚠️  Sida ${startRecord} misslyckades (försök ${attempt}/${MAX_PAGE_RETRIES}). Försöker igen om ${backoffMs} ms…`
+    );
+    await sleep(backoffMs);
+    return fetchSearchPage(startRecord, attempt + 1);
+  }
 }
 
 // --- Parallel fetch helper ---
@@ -66,14 +102,82 @@ const objectCache = new Map<string, {
   yearStart: number | null;
   yearEnd: number | null;
   technique: string | null;
+  artists: string | null;
 } | null>();
+
+type ArtistRow = {
+  name: string;
+  nationality: string | null;
+  role: string | null;
+};
+
+function isUsableCreatorName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === "okänd") return false;
+  if (normalized === "unknown") return false;
+  if (normalized.includes("ingen uppgift")) return false;
+  if (normalized.includes("anställd vid")) return false;
+  if (normalized.includes("museum")) return false;
+  if (normalized.includes("museet")) return false;
+  if (normalized.includes("museer")) return false;
+  return true;
+}
+
+function buildArtistsJson(artists: ArtistRow[]): string | null {
+  if (artists.length === 0) return null;
+  return JSON.stringify(artists);
+}
+
+function getNodeTextOrResource(node: any): string {
+  const text = getText(node)?.trim();
+  if (text) return text;
+  if (node && typeof node === "object") {
+    const resource = node["@_rdf:resource"] || node["@_resource"] || "";
+    if (typeof resource === "string") return resource;
+  }
+  return "";
+}
+
+function extractArtistsFromContexts(contexts: any[]): string | null {
+  const artists: ArtistRow[] = [];
+  const seen = new Set<string>();
+
+  for (const ctx of contexts) {
+    const name = getText(findFirst(ctx, "name"))?.trim() || "";
+    if (!isUsableCreatorName(name)) continue;
+
+    const contextLabel = getNodeTextOrResource(findFirst(ctx, "contextLabel")) || "";
+    const role = getNodeTextOrResource(findFirst(ctx, "title")) || contextLabel || null;
+    const superType = getNodeTextOrResource(findFirst(ctx, "contextSuperType"));
+    const contextType = getNodeTextOrResource(findFirst(ctx, "contextType"));
+    const isCreatorContext = /create|produce/i.test(superType) || /create|produce/i.test(contextType)
+      || /fotograf|tillverk|skap|konstnär|formgiv|design|gravör|målare|tecknare/i.test(role || "");
+    if (!isCreatorContext) continue;
+
+    const dedupeKey = name.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    artists.push({ name, nationality: null, role });
+  }
+
+  return buildArtistsJson(artists);
+}
+
+function extractArtists(parsed: any): string | null {
+  return extractArtistsFromContexts(findAll(parsed, "Context"));
+}
+
+function extractMediaArtists(entity: any): string | null {
+  return extractArtistsFromContexts(findAll(entity, "Context"));
+}
 
 async function fetchObjectMeta(objectUri: string) {
   if (objectCache.has(objectUri)) return objectCache.get(objectUri)!;
   
   try {
-    const xmlUrl = objectUri.replace("/object/", "/object/xml/");
-    const res = await fetch(xmlUrl, { signal: AbortSignal.timeout(8000) });
+    // Use full object RDF, not /xml presentation wrapper, so creator fields are available.
+    const res = await fetch(objectUri, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) { objectCache.set(objectUri, null); return null; }
     const text = await res.text();
     const parsed = parser.parse(text);
@@ -135,6 +239,7 @@ async function fetchObjectMeta(objectUri: string) {
       datingType,
       yearStart: start, yearEnd: end,
       technique: techniques.join(", ") || null,
+      artists: extractArtists(parsed),
     };
     objectCache.set(objectUri, meta);
     return meta;
@@ -148,14 +253,20 @@ async function fetchObjectMeta(objectUri: string) {
 const upsert = db.prepare(`
   INSERT INTO artworks (
     id, inventory_number, title_sv, category, technique_material, dating_text, dating_type,
-    year_start, year_end, iiif_url, source, sub_museum, synced_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now'))
+    year_start, year_end, iiif_url, artists, source, sub_museum, synced_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now'))
   ON CONFLICT(id) DO UPDATE SET
     title_sv=excluded.title_sv, category=excluded.category,
     technique_material=excluded.technique_material, dating_text=excluded.dating_text,
     dating_type=excluded.dating_type,
     year_start=excluded.year_start, year_end=excluded.year_end,
-    iiif_url=excluded.iiif_url, source='shm', sub_museum=excluded.sub_museum, synced_at=datetime('now')
+    iiif_url=excluded.iiif_url, artists=excluded.artists, source='shm', sub_museum=excluded.sub_museum, synced_at=datetime('now')
+`);
+
+const updateArtists = db.prepare(`
+  UPDATE artworks
+  SET artists = ?, synced_at = datetime('now')
+  WHERE id = ? AND source = 'shm'
 `);
 
 // --- Main ---
@@ -166,18 +277,17 @@ async function main() {
   let skipped = 0;
   const startTime = Date.now();
 
-  console.log(`SHM fast sync (concurrency: ${CONCURRENCY}, limit: ${MAX_ITEMS === Infinity ? "∞" : MAX_ITEMS}, offset: ${START_OFFSET})`);
+  const modeText = ARTISTS_ONLY ? "artists-only" : "full";
+  console.log(`SHM fast sync (läge: ${modeText}, concurrency: ${CONCURRENCY}, limit: ${MAX_ITEMS === Infinity ? "∞" : MAX_ITEMS}, offset: ${START_OFFSET})`);
 
   while (startRecord <= totalHits && processed < MAX_ITEMS) {
-    const params = new URLSearchParams({
-      method: "search", query: MEDIA_QUERY,
-      startRecord: String(startRecord), hitsPerPage: String(HITS_PER_PAGE),
-      "x-api": "kabinett",
-    });
-    const res = await fetch(`${API_BASE}?${params}`);
-    if (!res.ok) { console.error(`HTTP ${res.status} at ${startRecord}`); break; }
-    const xml = await res.text();
-    const parsed = parser.parse(xml);
+    let parsed: any;
+    try {
+      parsed = await fetchSearchPage(startRecord);
+    } catch (error) {
+      console.error(`❌ Kunde inte hämta sida ${startRecord} efter ${MAX_PAGE_RETRIES} försök:`, error);
+      break;
+    }
 
     if (totalHits === Infinity) {
       totalHits = parseInt(getText(findFirst(parsed, "totalHits")), 10) || 0;
@@ -188,7 +298,7 @@ async function main() {
     if (!entities.length) break;
 
     // Extract media→object mappings
-    type MediaItem = { mediaUuid: string; objectUri: string };
+    type MediaItem = { mediaUuid: string; objectUri: string; mediaArtists: string | null };
     const items: MediaItem[] = [];
     for (const e of entities) {
       const about = e?.["@_about"] || e?.["@_rdf:about"] || "";
@@ -200,34 +310,41 @@ async function main() {
         : vis?.["@_resource"] || vis?.["@_rdf:resource"] || getText(vis) || null;
       if (!objectUri?.includes("/object/")) { skipped++; continue; }
 
-      items.push({ mediaUuid, objectUri });
+      items.push({ mediaUuid, objectUri, mediaArtists: extractMediaArtists(e) });
     }
 
-    // Parallel object metadata fetches
-    const metas = await pMap(items, (item) => fetchObjectMeta(item.objectUri), CONCURRENCY);
+    // For artists-only mode we can use media-level contexts directly.
+    const metas = ARTISTS_ONLY
+      ? new Array(items.length).fill(null)
+      : await pMap(items, (item) => fetchObjectMeta(item.objectUri), CONCURRENCY);
 
     // Batch insert
     const insertMany = db.transaction(() => {
       for (let i = 0; i < items.length; i++) {
         if (processed >= MAX_ITEMS) break;
         const meta = metas[i];
-        if (!meta) { skipped++; continue; }
-
         const { mediaUuid, objectUri } = items[i];
         const objectUuid = objectUri.split("/").pop()!;
-        upsert.run(
-          hashId(objectUuid + mediaUuid),
-          `shm:${objectUuid}`,
-          meta.title,
-          meta.className,
-          meta.technique,
-          meta.datingText,
-          meta.datingType,
-          meta.yearStart,
-          meta.yearEnd,
-          `https://media.samlingar.shm.se/item/${mediaUuid}/medium`,
-          meta.collection || "SHM",
-        );
+        const rowId = hashId(objectUuid + mediaUuid);
+        if (ARTISTS_ONLY) {
+          updateArtists.run(items[i].mediaArtists, rowId);
+        } else {
+          if (!meta) { skipped++; continue; }
+          upsert.run(
+            rowId,
+            `shm:${objectUuid}`,
+            meta.title,
+            meta.className,
+            meta.technique,
+            meta.datingText,
+            meta.datingType,
+            meta.yearStart,
+            meta.yearEnd,
+            `https://media.samlingar.shm.se/item/${mediaUuid}/medium`,
+            meta.artists || items[i].mediaArtists,
+            meta.collection || "SHM",
+          );
+        }
         processed++;
       }
     });

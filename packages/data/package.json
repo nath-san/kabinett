@@ -17,12 +17,15 @@
     "embeddings:generate": "tsx scripts/generate-embeddings.ts",
     "sync:nordiska": "tsx scripts/run-sync-with-stats-refresh.ts sync:nordiska:raw",
     "sync:nordiska:raw": "tsx scripts/sync-nordiska.ts",
+    "sync:nordiska:artists": "tsx scripts/run-sync-with-stats-refresh.ts sync:nordiska:raw --artists-only",
     "sync:shm:fast": "tsx scripts/run-sync-with-stats-refresh.ts sync:shm:fast:raw",
     "sync:shm:fast:raw": "tsx scripts/sync-ksamsok-fast.ts",
+    "sync:shm:artists": "tsx scripts/run-sync-with-stats-refresh.ts sync:shm:fast:raw --artists-only",
     "backfill:collection": "tsx scripts/backfill-collection.ts",
     "migrate:vec": "tsx scripts/migrate-vec.ts",
     "stats:refresh": "tsx scripts/refresh-site-stats.ts",
     "related:refresh": "tsx scripts/refresh-artwork-related.ts",
+    "related:artists:refresh": "tsx scripts/refresh-artwork-related.ts --artists-only --all-artists",
     "focal:backfill": "tsx scripts/backfill-focal-points.ts"
   },
   "dependencies": {

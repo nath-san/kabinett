@@ -25,11 +25,13 @@ import {
 } from "./lib/ksamsok-utils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = resolve(__dirname, "../kabinett.db");
+const DB_PATH = process.env.DATABASE_PATH || resolve(__dirname, "../kabinett.db");
 
 const API_BASE = "https://kulturarvsdata.se/ksamsok/api";
 const HITS_PER_PAGE = 500;
 const MEDIA_QUERY = "serviceOrganization=shm AND thumbnailExists=j";
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_PAGE_RETRIES = 5;
 const LIMIT_ARG = process.argv.find((arg) => arg.startsWith("--limit="));
 const MAX_ITEMS = LIMIT_ARG ? Math.max(0, parseInt(LIMIT_ARG.split("=")[1] || "0", 10)) : Number.POSITIVE_INFINITY;
 
@@ -52,7 +54,7 @@ function sleep(ms: number) {
 
 // --- K-samsök API ---
 
-async function searchKsamsok(query: string, startRecord: number, hitsPerPage: number) {
+async function searchKsamsok(query: string, startRecord: number, hitsPerPage: number, attempt = 1): Promise<string> {
   const params = new URLSearchParams({
     method: "search",
     query,
@@ -61,9 +63,21 @@ async function searchKsamsok(query: string, startRecord: number, hitsPerPage: nu
     "x-api": "kabinett",
   });
 
-  const res = await fetch(`${API_BASE}?${params.toString()}`);
-  if (!res.ok) throw new Error(`K-samsök error ${res.status}`);
-  return await res.text();
+  try {
+    const res = await fetch(`${API_BASE}?${params.toString()}`, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`K-samsök error ${res.status}`);
+    return await res.text();
+  } catch (error) {
+    if (attempt >= MAX_PAGE_RETRIES) throw error;
+    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 10000);
+    console.warn(
+      `⚠️  Sida ${startRecord} misslyckades (försök ${attempt}/${MAX_PAGE_RETRIES}). Försöker igen om ${backoffMs} ms…`
+    );
+    await sleep(backoffMs);
+    return searchKsamsok(query, startRecord, hitsPerPage, attempt + 1);
+  }
 }
 
 async function fetchObjectMetadata(objectUri: string): Promise<{
@@ -74,11 +88,11 @@ async function fetchObjectMetadata(objectUri: string): Promise<{
   yearStart: number | null;
   yearEnd: number | null;
   technique: string | null;
+  artists: string | null;
 } | null> {
   try {
-    // Use XML representation
-    const xmlUrl = objectUri.replace("/object/", "/object/xml/");
-    const res = await fetch(xmlUrl, { signal: AbortSignal.timeout(5000) });
+    // Use full object RDF, not /xml presentation wrapper, so creator fields are available.
+    const res = await fetch(objectUri, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const text = await res.text();
     const parsed = parser.parse(text);
@@ -111,10 +125,54 @@ async function fetchObjectMetadata(objectUri: string): Promise<{
     }
     const technique = techniques.join(", ") || null;
 
-    return { title, className, collection, datingText, yearStart, yearEnd, technique };
+    const artists = extractArtists(parsed);
+
+    return { title, className, collection, datingText, yearStart, yearEnd, technique, artists };
   } catch {
     return null;
   }
+}
+
+type ArtistRow = {
+  name: string;
+  nationality: string | null;
+  role: string | null;
+};
+
+function isUsableCreatorName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === "okänd") return false;
+  if (normalized === "unknown") return false;
+  if (normalized.includes("ingen uppgift")) return false;
+  if (normalized.includes("anställd vid")) return false;
+  return true;
+}
+
+function extractArtists(parsed: any): string | null {
+  const contexts = findAll(parsed, "Context");
+  const artists: ArtistRow[] = [];
+  const seen = new Set<string>();
+
+  for (const ctx of contexts) {
+    const name = getText(findFirst(ctx, "name"))?.trim() || "";
+    if (!isUsableCreatorName(name)) continue;
+
+    const contextLabel = getText(findFirst(ctx, "contextLabel"))?.trim() || "";
+    const role = getText(findFirst(ctx, "title"))?.trim() || contextLabel || null;
+    const superType = getText(findFirst(ctx, "contextSuperType")) || "";
+    const isCreatorContext = superType.includes("create") || superType.includes("produce")
+      || /fotograf|tillverk|skap|konstnär|formgiv|design|gravör|målare|tecknare/i.test(role || "");
+    if (!isCreatorContext) continue;
+
+    const dedupeKey = name.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    artists.push({ name, nationality: null, role });
+  }
+
+  if (artists.length === 0) return null;
+  return JSON.stringify(artists);
 }
 
 // --- DB ---
@@ -122,9 +180,9 @@ async function fetchObjectMetadata(objectUri: string): Promise<{
 const upsert = db.prepare(`
   INSERT INTO artworks (
     id, inventory_number, title_sv, category, technique_material, dating_text,
-    year_start, year_end, iiif_url, source, sub_museum, synced_at
+    year_start, year_end, iiif_url, artists, source, sub_museum, synced_at
   ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'shm', ?, datetime('now')
   )
   ON CONFLICT(id) DO UPDATE SET
     title_sv = excluded.title_sv,
@@ -134,6 +192,7 @@ const upsert = db.prepare(`
     year_start = excluded.year_start,
     year_end = excluded.year_end,
     iiif_url = excluded.iiif_url,
+    artists = excluded.artists,
     source = 'shm',
     sub_museum = excluded.sub_museum,
     synced_at = datetime('now')
@@ -213,6 +272,7 @@ async function main() {
         meta.yearStart,
         meta.yearEnd,
         imageUrl,
+        meta.artists,
         subMuseum,
       );
       processed++;

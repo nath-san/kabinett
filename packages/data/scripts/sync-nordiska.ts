@@ -23,14 +23,17 @@ import {
 } from "./lib/ksamsok-utils";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = resolve(__dirname, "../kabinett.db");
+const DB_PATH = process.env.DATABASE_PATH || resolve(__dirname, "../kabinett.db");
 
 const API_BASE = "https://kulturarvsdata.se/ksamsok/api";
 const HITS_PER_PAGE = 500;
 const PAGE_CONCURRENCY = 5;
 const QUERY = "serviceOrganization=nomu AND thumbnailExists=j";
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_PAGE_RETRIES = 5;
 const LIMIT_ARG = process.argv.find((arg) => arg.startsWith("--limit="));
 const MAX_ITEMS = LIMIT_ARG ? Math.max(0, parseInt(LIMIT_ARG.split("=")[1] || "0", 10)) : Number.POSITIVE_INFINITY;
+const ARTISTS_ONLY = process.argv.includes("--artists-only");
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
@@ -45,9 +48,9 @@ function hashId(uuid: string): number {
 const upsert = db.prepare(`
   INSERT INTO artworks (
     id, inventory_number, title_sv, category, dating_text, dating_type,
-    year_start, year_end, iiif_url, source, synced_at
+    year_start, year_end, iiif_url, artists, source, synced_at
   ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nordiska', datetime('now')
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nordiska', datetime('now')
   )
   ON CONFLICT(id) DO UPDATE SET
     title_sv = excluded.title_sv,
@@ -57,11 +60,22 @@ const upsert = db.prepare(`
     year_start = excluded.year_start,
     year_end = excluded.year_end,
     iiif_url = excluded.iiif_url,
+    artists = excluded.artists,
     source = 'nordiska',
     synced_at = datetime('now')
 `);
 
-async function fetchPage(startRecord: number) {
+const updateArtists = db.prepare(`
+  UPDATE artworks
+  SET artists = ?, synced_at = datetime('now')
+  WHERE id = ? AND source = 'nordiska'
+`);
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchPage(startRecord: number, attempt = 1): Promise<any> {
   const params = new URLSearchParams({
     method: "search",
     query: QUERY,
@@ -70,10 +84,24 @@ async function fetchPage(startRecord: number) {
     "x-api": "kabinett",
   });
 
-  const res = await fetch(`${API_BASE}?${params.toString()}`);
-  if (!res.ok) throw new Error(`K-samsök error ${res.status}`);
-  const text = await res.text();
-  return parser.parse(text);
+  try {
+    const res = await fetch(`${API_BASE}?${params.toString()}`, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`K-samsök error ${res.status}`);
+    const text = await res.text();
+    return parser.parse(text);
+  } catch (error) {
+    if (attempt >= MAX_PAGE_RETRIES) {
+      throw error;
+    }
+    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 10000);
+    console.warn(
+      `⚠️  Sida ${startRecord} misslyckades (försök ${attempt}/${MAX_PAGE_RETRIES}). Försöker igen om ${backoffMs} ms…`
+    );
+    await sleep(backoffMs);
+    return fetchPage(startRecord, attempt + 1);
+  }
 }
 
 async function pMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: number): Promise<R[]> {
@@ -108,6 +136,60 @@ function extractImageUrl(entity: any): string | null {
     if (url.includes("dimu.org")) return url;
   }
   return null;
+}
+
+type ArtistRow = {
+  name: string;
+  nationality: string | null;
+  role: string | null;
+};
+
+function isUsableCreatorName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  if (!normalized) return false;
+  if (normalized === "okänd") return false;
+  if (normalized === "unknown") return false;
+  if (normalized.includes("ingen uppgift")) return false;
+  if (normalized.includes("anställd vid")) return false;
+  return true;
+}
+
+function buildArtistsJson(artists: ArtistRow[]): string | null {
+  if (artists.length === 0) return null;
+  return JSON.stringify(artists);
+}
+
+function extractArtists(entity: any): string | null {
+  const contexts = findAll(entity, "Context");
+  const artists: ArtistRow[] = [];
+  const seen = new Set<string>();
+
+  for (const ctx of contexts) {
+    const name = getText(findFirst(ctx, "name"))?.trim() || "";
+    if (!isUsableCreatorName(name)) continue;
+
+    const contextLabel = getText(findFirst(ctx, "contextLabel"))?.trim() || "";
+    const role = getText(findFirst(ctx, "title"))?.trim() || contextLabel || null;
+    const superType = getText(findFirst(ctx, "contextSuperType")) || "";
+    const isCreatorContext = superType.includes("create") || superType.includes("produce")
+      || /fotograf|tillverk|skap|konstnär|formgiv|design|gravör|målare|tecknare/i.test(role || "");
+    if (!isCreatorContext) continue;
+
+    const dedupeKey = name.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    artists.push({ name, nationality: null, role });
+  }
+
+  const byline = getText(findFirst(entity, "byline"))?.trim() || "";
+  if (isUsableCreatorName(byline)) {
+    const dedupeKey = byline.toLowerCase();
+    if (!seen.has(dedupeKey)) {
+      artists.unshift({ name: byline, nationality: null, role: "Byline" });
+    }
+  }
+
+  return buildArtistsJson(artists);
 }
 
 function parseEntity(entity: any) {
@@ -191,6 +273,7 @@ function parseEntity(entity: any) {
     year_start: start,
     year_end: end,
     iiif_url: imageUrl,
+    artists: extractArtists(entity),
   };
 }
 
@@ -209,17 +292,22 @@ function processPage(
         continue;
       }
 
-      upsert.run(
-        item.id,
-        item.inventory_number,
-        item.title_sv,
-        item.category,
-        item.dating_text,
-        item.dating_type,
-        item.year_start,
-        item.year_end,
-        item.iiif_url,
-      );
+      if (ARTISTS_ONLY) {
+        updateArtists.run(item.artists, item.id);
+      } else {
+        upsert.run(
+          item.id,
+          item.inventory_number,
+          item.title_sv,
+          item.category,
+          item.dating_text,
+          item.dating_type,
+          item.year_start,
+          item.year_end,
+          item.iiif_url,
+          item.artists,
+        );
+      }
       processed++;
     }
   });
@@ -233,7 +321,8 @@ async function main() {
   let processed = 0;
   let skipped = 0;
 
-  console.log(`Synkar Nordiska museet via K-samsök (sidkonkurrens: ${PAGE_CONCURRENCY}, limit: ${MAX_ITEMS === Infinity ? "alla" : MAX_ITEMS})…`);
+  const modeText = ARTISTS_ONLY ? "artists-only" : "full";
+  console.log(`Synkar Nordiska museet via K-samsök (läge: ${modeText}, sidkonkurrens: ${PAGE_CONCURRENCY}, limit: ${MAX_ITEMS === Infinity ? "alla" : MAX_ITEMS})…`);
 
   const firstStartRecord = 1;
   const firstPage = await fetchPage(firstStartRecord);
@@ -261,19 +350,28 @@ async function main() {
     ? remainingStartRecords.slice(0, Math.ceil((MAX_ITEMS - processed) / HITS_PER_PAGE))
     : remainingStartRecords;
 
-  const remainingPages = await pMap(cappedStartRecords, (startRecord) => fetchPage(startRecord), PAGE_CONCURRENCY);
-
-  for (let index = 0; index < remainingPages.length; index++) {
+  for (let offset = 0; offset < cappedStartRecords.length; offset += PAGE_CONCURRENCY) {
     if (processed >= MAX_ITEMS) break;
+    const startRecordsChunk = cappedStartRecords.slice(offset, offset + PAGE_CONCURRENCY);
+    const chunkResults = await pMap(startRecordsChunk, async (startRecord) => {
+      try {
+        const parsed = await fetchPage(startRecord);
+        return { startRecord, parsed };
+      } catch (error) {
+        console.error(`❌ Kunde inte hämta sida ${startRecord} efter ${MAX_PAGE_RETRIES} försök:`, error);
+        return { startRecord, parsed: null as any };
+      }
+    }, PAGE_CONCURRENCY);
 
-    const parsed = remainingPages[index];
-    const entities = findAll(parsed, "Entity");
-    if (entities.length === 0) continue;
+    for (const result of chunkResults) {
+      if (processed >= MAX_ITEMS) break;
+      if (!result.parsed) continue;
+      const entities = findAll(result.parsed, "Entity");
+      if (entities.length === 0) continue;
 
-    ({ processed, skipped } = processPage(entities, processed, skipped, MAX_ITEMS));
-
-    const startRecord = cappedStartRecords[index];
-    console.log(`  ${processed.toLocaleString()} synkade, ${skipped} skippade (@ ${startRecord.toLocaleString()} / ${totalHits.toLocaleString()})`);
+      ({ processed, skipped } = processPage(entities, processed, skipped, MAX_ITEMS));
+      console.log(`  ${processed.toLocaleString()} synkade, ${skipped} skippade (@ ${result.startRecord.toLocaleString()} / ${totalHits.toLocaleString()})`);
+    }
   }
 
   console.log(`\nKlar — synkade ${processed.toLocaleString()} objekt från Nordiska museet (${skipped} skippade)`);

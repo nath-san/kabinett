@@ -47,6 +47,23 @@ type MuseumSummary = {
   count: number;
 };
 
+type ThemeImageRow = {
+  iiif_url: string;
+  dominant_color: string | null;
+  title_sv: string | null;
+  title_en: string | null;
+  artists: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
+};
+
+type ToolItem = {
+  title: string;
+  desc: string;
+  href: string;
+  mobileOnly?: boolean;
+};
+
 const COLLECTIONS: Collection[] = [
   { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörker natt", imageIds: [24664, 20450, 15634] },
   { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm hav", imageIds: [18217, 20356, 17939] },
@@ -75,6 +92,14 @@ function pickSeeded<T>(items: T[], seed: number): T | undefined {
   return items[idx];
 }
 
+function tokenizeSearch(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
 export async function loader() {
   const now = Date.now();
   const randomSeed = Math.floor(now / 60_000);
@@ -89,38 +114,110 @@ export async function loader() {
   const source = sourceFilter();
   const sourceA = sourceFilter("a");
 
+  const themeByIdStmt = db.prepare(
+    `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
+     FROM artworks a
+     WHERE a.id = ?
+       AND a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceA.sql}`
+  );
+
+  const themeFtsStmt = db.prepare(
+    `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
+     FROM artworks_fts
+     JOIN artworks a ON a.id = artworks_fts.rowid
+     WHERE artworks_fts MATCH ?
+       AND a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceA.sql}
+     ORDER BY artworks_fts.rank ASC
+     LIMIT 36`
+  );
+
+  const themeFallbackPool = db.prepare(
+    `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
+     FROM artworks a
+     WHERE a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceA.sql}
+     ORDER BY a.id DESC
+     LIMIT 500`
+  ).all(...sourceA.params) as ThemeImageRow[];
+
+  const usedThemeImages = new Set<string>();
+
   // Collection images
   const collections = COLLECTIONS.map((c, index) => {
     try {
-      let row: any;
+      let row: ThemeImageRow | undefined;
+
       if (c.imageIds?.length) {
-        const pickedId = c.imageIds[Math.floor((randomSeed + index) % c.imageIds.length)];
-        row = db.prepare(
-          `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
-           FROM artworks a
-           WHERE a.id = ?
-             AND a.iiif_url IS NOT NULL
-             AND LENGTH(a.iiif_url) > 40
-             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-             AND ${sourceA.sql}`
-        ).get(pickedId, ...sourceA.params);
+        for (let offset = 0; offset < c.imageIds.length; offset += 1) {
+          const pickedId = c.imageIds[(randomSeed + index + offset) % c.imageIds.length];
+          const candidate = themeByIdStmt.get(pickedId, ...sourceA.params) as ThemeImageRow | undefined;
+          if (!candidate) continue;
+          if (!usedThemeImages.has(candidate.iiif_url)) {
+            row = candidate;
+            break;
+          }
+          if (!row) row = candidate;
+        }
       }
+
       if (!row) {
-        const searchText = c.query || c.title;
-        const terms = searchText.split(" ").join(" OR ");
-        const rows = db.prepare(`
-          SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y FROM artworks_fts
-          JOIN artworks a ON a.id = artworks_fts.rowid
-          WHERE artworks_fts MATCH ?
-            AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
-            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-            AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
-            AND ${sourceA.sql}
-          ORDER BY artworks_fts.rank ASC
-          LIMIT 24
-        `).all(terms, ...sourceA.params) as any[];
-        row = pickSeeded(rows, randomSeed + index);
+        const terms = tokenizeSearch(c.query || c.title);
+        const ftsQuery = terms.map((term) => `${term.replaceAll("\"", "")}*`).join(" OR ");
+        if (ftsQuery) {
+          try {
+            const rows = themeFtsStmt.all(ftsQuery, ...sourceA.params) as ThemeImageRow[];
+            const available = rows.filter((candidate) => !usedThemeImages.has(candidate.iiif_url));
+            row = pickSeeded(available, randomSeed + index) || pickSeeded(rows, randomSeed + index);
+          } catch {
+            // FTS can be sparse/uneven across sources; fall through to LIKE fallback.
+          }
+        }
       }
+
+      if (!row) {
+        const terms = tokenizeSearch(c.query || c.title);
+        if (terms.length > 0) {
+          const likeClauses = terms.map(
+            () =>
+              "(LOWER(a.title_sv) LIKE ? OR LOWER(COALESCE(a.category, '')) LIKE ? OR LOWER(COALESCE(a.technique_material, '')) LIKE ?)"
+          );
+          const likeParams = terms.flatMap((term) => {
+            const pattern = `%${term}%`;
+            return [pattern, pattern, pattern];
+          });
+          const rows = db.prepare(
+            `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
+             FROM artworks a
+             WHERE a.iiif_url IS NOT NULL
+               AND LENGTH(a.iiif_url) > 40
+               AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+               AND ${sourceA.sql}
+               AND (${likeClauses.join(" OR ")})
+             ORDER BY a.id DESC
+             LIMIT 72`
+          ).all(...sourceA.params, ...likeParams) as ThemeImageRow[];
+          const available = rows.filter((candidate) => !usedThemeImages.has(candidate.iiif_url));
+          row = pickSeeded(available, randomSeed + index) || pickSeeded(rows, randomSeed + index);
+        }
+      }
+
+      if (!row && themeFallbackPool.length > 0) {
+        const available = themeFallbackPool.filter((candidate) => !usedThemeImages.has(candidate.iiif_url));
+        row = pickSeeded(available, randomSeed + index * 13) || pickSeeded(themeFallbackPool, randomSeed + index * 13);
+      }
+
+      if (row?.iiif_url) {
+        usedThemeImages.add(row.iiif_url);
+      }
+
       return {
         ...c,
         imageUrl: row?.iiif_url ? buildImageUrl(row.iiif_url, 400) : undefined,
@@ -253,7 +350,25 @@ export async function loader() {
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { collections, topArtists, stats, museums, isCampaign } = loaderData;
+  const { collections, topArtists, stats, museums } = loaderData;
+
+  const tools: ToolItem[] = [
+    { title: "Färgmatch", desc: "Matcha en färg med konstverk", href: "/color-match", mobileOnly: true },
+    { title: "Vandringar", desc: "Tematiska resor genom samlingen", href: "/vandringar" },
+  ];
+  const mobileToolCount = tools.length;
+  const desktopToolCount = tools.filter((tool) => !tool.mobileOnly).length;
+  const showToolHeadingOnMobile = mobileToolCount > 1;
+  const showToolHeadingOnDesktop = desktopToolCount > 1;
+  const showToolHeading = showToolHeadingOnMobile || showToolHeadingOnDesktop;
+  const toolHeadingClass = [
+    "font-serif text-[1.3rem] text-dark-text mb-4",
+    showToolHeadingOnMobile && !showToolHeadingOnDesktop
+      ? "md:hidden"
+      : !showToolHeadingOnMobile && showToolHeadingOnDesktop
+        ? "hidden md:block"
+        : "",
+  ].join(" ").trim();
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
@@ -264,7 +379,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Teman</h2>
 
           <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
-            {collections.map((c: Collection, i: number) => (
+            {collections.map((c: Collection) => (
               <a
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(c.query || c.title)}`}
@@ -299,51 +414,58 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         </section>
 
         {/* Top artists */}
-        <section className="pt-10">
-          <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">Formgivare & konstnärer</h2>
+        {topArtists.length > 0 && (
+          <section className="pt-10">
+            <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">Formgivare & konstnärer</h2>
 
-          <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
-            {topArtists.map((a: TopArtist) => (
-              <a
-                key={a.name}
-                href={`/artist/${encodeURIComponent(a.name)}`}
-                className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center focus-ring"
-              >
-                <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
-                  {a.imageUrl && (
-                    <img
-                      src={a.imageUrl}
-                      alt={`${a.imageTitle || "Utan titel"} — ${a.imageArtist || a.name}`}
-                      loading="lazy"
-                      width={300}
-                      height={300}
-                      onError={(event) => {
-                        event.currentTarget.classList.add("is-broken");
-                      }}
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: `${(a.focalX ?? 0.5) * 100}% ${(a.focalY ?? 0.5) * 100}%` }}
-                    />
-                  )}
-                </div>
-                <p className="text-[0.7rem] font-medium text-dark-text mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
-                  {a.name}
-                </p>
-                <p className="text-[0.6rem] text-dark-text-secondary mt-[0.1rem]">
-                  {a.count.toLocaleString("sv")} verk
-                </p>
-              </a>
-            ))}
-          </div>
-        </section>
+            <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
+              {topArtists.map((a: TopArtist) => (
+                <a
+                  key={a.name}
+                  href={`/artist/${encodeURIComponent(a.name)}`}
+                  className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center focus-ring"
+                >
+                  <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
+                    {a.imageUrl && (
+                      <img
+                        src={a.imageUrl}
+                        alt={`${a.imageTitle || "Utan titel"} — ${a.imageArtist || a.name}`}
+                        loading="lazy"
+                        width={300}
+                        height={300}
+                        onError={(event) => {
+                          event.currentTarget.classList.add("is-broken");
+                        }}
+                        className="w-full h-full object-cover"
+                        style={{ objectPosition: `${(a.focalX ?? 0.5) * 100}% ${(a.focalY ?? 0.5) * 100}%` }}
+                      />
+                    )}
+                  </div>
+                  <p className="text-[0.7rem] font-medium text-dark-text mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
+                    {a.name}
+                  </p>
+                  <p className="text-[0.6rem] text-dark-text-secondary mt-[0.1rem]">
+                    {a.count.toLocaleString("sv")} verk
+                  </p>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Verktyg */}
-        <section className="pt-10 px-5">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Verktyg</h2>
-          <div className="flex flex-col gap-2">
-            <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
-            {(!isCampaign || loaderData.museumName === "Nationalmuseum") && <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/vandringar" />}
-          </div>
-        </section>
+        {tools.length > 0 && (
+          <section className="pt-10 px-5">
+            {showToolHeading && <h2 className={toolHeadingClass}>Verktyg</h2>}
+            <div className="flex flex-col gap-2">
+              {tools.map((tool) => (
+                <div key={tool.title} className={tool.mobileOnly ? "md:hidden" : ""}>
+                  <ToolLink title={tool.title} desc={tool.desc} href={tool.href} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Samlingar */}
         {museums.length > 0 && (
