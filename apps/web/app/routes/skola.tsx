@@ -59,6 +59,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   const db = getDb();
   const campaign = getCampaignConfig();
   const sourceA = sourceFilter("a");
+  const walkTableColumns = db
+    .prepare("PRAGMA table_info(walks)")
+    .all() as Array<{ name: string }>;
+  const hasSubjectColumn = walkTableColumns.some((col) => col.name === "subject");
 
   // Default campaign shows ALL school walks (cross-museum overview)
   // Museum subdomains show only their own
@@ -69,7 +73,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const walkRows = db
     .prepare(
-      `SELECT id, slug, title, subtitle, description, color, target_grades, campaign_id, subject
+      `SELECT id, slug, title, subtitle, description, color, target_grades, campaign_id, ${
+        hasSubjectColumn ? "subject" : "NULL as subject"
+      }
        FROM walks
        WHERE published = 1 AND type = 'school'
          AND campaign_id IN (${campaignFilter.map(() => "?").join(",")})

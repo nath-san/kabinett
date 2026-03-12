@@ -242,10 +242,10 @@ export async function loader() {
         AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
         AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
         AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
-        AND category NOT LIKE '%Keramik%'
-        AND category NOT LIKE '%Porslin%'
-        AND category NOT LIKE '%Glas%'
-        AND category NOT LIKE '%Formgivning%'
+        AND COALESCE(category, '') NOT LIKE '%Keramik%'
+        AND COALESCE(category, '') NOT LIKE '%Porslin%'
+        AND COALESCE(category, '') NOT LIKE '%Glas%'
+        AND COALESCE(category, '') NOT LIKE '%Formgivning%'
         AND iiif_url IS NOT NULL
         AND LENGTH(iiif_url) > 40
         AND ${source.sql}
@@ -260,10 +260,10 @@ export async function loader() {
       FROM artworks
       WHERE artists IS NOT NULL
         AND json_extract(artists, '$[0].name') IN (SELECT name FROM top_artists)
-        AND category NOT LIKE '%Keramik%'
-        AND category NOT LIKE '%Porslin%'
-        AND category NOT LIKE '%Glas%'
-        AND category NOT LIKE '%Formgivning%'
+        AND COALESCE(category, '') NOT LIKE '%Keramik%'
+        AND COALESCE(category, '') NOT LIKE '%Porslin%'
+        AND COALESCE(category, '') NOT LIKE '%Glas%'
+        AND COALESCE(category, '') NOT LIKE '%Formgivning%'
         AND iiif_url IS NOT NULL
         AND LENGTH(iiif_url) > 40
         AND id NOT IN (SELECT artwork_id FROM broken_images)
