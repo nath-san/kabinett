@@ -122,6 +122,17 @@ export default function About({ loaderData }: Route.ComponentProps) {
           </p>
         </section>
 
+        <section className="pt-10">
+          <h2 className="font-serif text-[1.3rem] text-dark-text">För skolan</h2>
+          <p className="mt-3 text-[0.95rem] text-dark-text-secondary leading-[1.7]">
+            Kabinett har färdiga{" "}
+            <a href="/skola" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">
+              lektioner
+            </a>{" "}
+            med diskussionsfrågor och koppling till Lgr22 — redo att använda i klassrummet.
+          </p>
+        </section>
+
         <section className="pt-10 pb-16">
           <h2 className="font-serif text-[1.3rem] text-dark-text">Samlingar</h2>
           <div className="mt-4 flex flex-wrap gap-2">
