@@ -347,6 +347,18 @@ async function main() {
     await backfillNationalmuseum();
   }
 
+  // Normalize inconsistent license strings
+  const normalizations: [string, string][] = [
+    ["CC BY SA", "CC BY-SA"],
+    ["CC BY SApub", "CC BY-SA"],
+  ];
+  for (const [from, to] of normalizations) {
+    const result = db.prepare("UPDATE artworks SET media_license = ? WHERE media_license = ?").run(to, from);
+    if (result.changes > 0) {
+      console.log(`Normalized "${from}" → "${to}": ${result.changes} rows`);
+    }
+  }
+
   // Summary
   const stats = db
     .prepare(
