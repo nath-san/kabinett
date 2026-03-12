@@ -112,8 +112,9 @@ export function sourceFilter(prefix?: string): { sql: string; params: string[] }
   }
 
   const col = prefix ? `${prefix}.source` : "source";
+  const licCol = prefix ? `${prefix}.media_license` : "media_license";
   const result = {
-    sql: `${col} IN (${museums.map(() => "?").join(",")})`,
+    sql: `${col} IN (${museums.map(() => "?").join(",")}) AND (${licCol} IS NULL OR ${licCol} NOT IN ('In Copyright', '© Bildupphovsrätt i Sverige'))`,
     params: museums,
   };
   sourceFilterCache.set(cacheKey, result);
