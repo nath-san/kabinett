@@ -201,19 +201,30 @@ function inferGradeBuckets(targetGrades: string | null): string[] {
 }
 
 function inferThemes(row: SchoolWalkRow): string[] {
-  const textBlob = [row.title, row.subtitle, row.description, row.lgr22_references].filter(Boolean).join(" ");
-  const inferred = THEME_RULES
-    .filter((rule) => rule.pattern.test(textBlob))
+  // Use title/subtitle/description first so themes become more specific.
+  const primaryText = [row.title, row.subtitle, row.description].filter(Boolean).join(" ");
+  const primaryMatches = THEME_RULES
+    .filter((rule) => rule.pattern.test(primaryText))
     .map((rule) => rule.label);
 
-  return inferred.length > 0 ? inferred : ["Kulturarv & källor"];
+  if (primaryMatches.length > 0) {
+    return unique(primaryMatches);
+  }
+
+  // Fallback to Lgr22 text when no stronger signal exists.
+  const fallbackText = row.lgr22_references || "";
+  const fallbackMatches = THEME_RULES
+    .filter((rule) => rule.pattern.test(fallbackText))
+    .map((rule) => rule.label);
+
+  return fallbackMatches.length > 0 ? unique(fallbackMatches) : ["Kulturarv & källor"];
 }
 
 function getGroupKeys(walk: SchoolWalkPreview, groupBy: GroupBy): string[] {
   if (groupBy === "museum") return [walk.campaign_id || "Övrigt"];
-  if (groupBy === "subject") return walk.subjects.length > 0 ? walk.subjects : ["Övrigt"];
+  if (groupBy === "subject") return [walk.subjects[0] || "Övrigt"];
   if (groupBy === "grade") return walk.gradeBuckets.length > 0 ? walk.gradeBuckets : ["Alla årskurser"];
-  return walk.themes.length > 0 ? walk.themes : ["Kulturarv & källor"];
+  return [walk.themes[0] || "Kulturarv & källor"];
 }
 
 function getPreferredOrder(groupBy: GroupBy): string[] {
