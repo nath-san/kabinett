@@ -33,6 +33,8 @@ type SchoolWalkPreview = {
   subjects: string[];
   gradeBuckets: string[];
   themes: string[];
+  artworkCount: number;
+  discussionCount: number;
 };
 
 type WalkArtwork = {
@@ -66,8 +68,12 @@ type SchoolWalkStats = {
   themeCount: number;
 };
 
-type SchoolWalkRow = Omit<SchoolWalkPreview, "previewUrl" | "subjects" | "gradeBuckets" | "themes">;
+type SchoolWalkRow = Omit<
+  SchoolWalkPreview,
+  "previewUrl" | "subjects" | "gradeBuckets" | "themes" | "artworkCount" | "discussionCount"
+>;
 type GroupBy = "museum" | "subject" | "grade" | "theme";
+type SortBy = "match" | "quickstart" | "dialogue";
 
 const MUSEUM_LABELS: Record<string, string> = {
   nationalmuseum: "Nationalmuseum",
@@ -104,6 +110,8 @@ const GROUP_MODE_LABELS: Record<GroupBy, string> = {
   theme: "Per tema",
 };
 
+const DEFAULT_SORT_MODE: SortBy = "quickstart";
+
 const CAMPAIGN_PRIMARY_SOURCE: Record<string, string | null> = {
   default: null,
   nationalmuseum: "nationalmuseum",
@@ -130,8 +138,119 @@ const THEME_RULES: Array<{ label: string; pattern: RegExp }> = [
   { label: "Natur & miljö", pattern: /natur|landskap|djur|miljö|skärgård|skog|fjäll/i },
 ];
 
+const THEME_ACCENTS: Record<string, string> = {
+  "Bildanalys & berättande": "#D7B268",
+  "Historia & tidsresor": "#B99A7A",
+  "Makt & samhälle": "#C96A54",
+  "Hantverk & design": "#C28F63",
+  "Identitet & kulturmöten": "#6F9A86",
+  "Natur & miljö": "#5E8E72",
+  "Kulturarv & källor": "#8D9BA9",
+};
+
+const THEME_VALUE_TEXT: Record<string, string> = {
+  "Bildanalys & berättande": "Stöd för bildtolkning och muntligt resonemang",
+  "Historia & tidsresor": "Ger historiska perspektiv med tydliga exempel",
+  "Makt & samhälle": "Bra grund för värdegrund och samhällsfrågor",
+  "Hantverk & design": "Konkreta ingångar till material och form",
+  "Identitet & kulturmöten": "Öppnar för samtal om identitet och normer",
+  "Natur & miljö": "Kopplar konst till miljö och livsvillkor",
+  "Kulturarv & källor": "Tränar källkritik och kulturarvsperspektiv",
+};
+
+const GROUP_HELP_TEXTS: Record<GroupBy, Record<string, string>> = {
+  museum: {
+    nationalmuseum: "Konsthistoriska verk med fokus på bildanalys och visuellt berättande.",
+    shm: "Historiska föremål som öppnar för tidsresor, makt och samhällsfrågor.",
+    nordiska: "Vardagsliv, traditioner och design med tydliga kopplingar till elevernas erfarenheter.",
+    Övrigt: "Blandade upplägg från flera samlingar.",
+  },
+  subject: {
+    Bild: "Bildtolkning, komposition och samtal om uttryck i klassrummet.",
+    Historia: "Tidsperioder, förändring och källor med konkreta exempel ur samlingarna.",
+    Samhällskunskap: "Normer, makt och samhällsfrågor med historiska och nutida perspektiv.",
+    Slöjd: "Material, teknik och formgivning med verk som fungerar i praktiska moment.",
+    Svenska: "Språk, tolkning och resonemang med stöd av visuella källor.",
+    Geografi: "Miljö, plats och landskap kopplat till kultur och historia.",
+    Religionskunskap: "Tro, ritualer och livsfrågor med föremål som utgångspunkt.",
+    Övergripande: "Breda upplägg för ämnesövergripande arbete.",
+  },
+  grade: {
+    "F–3": "Tydliga startpunkter och korta frågor för yngre elever.",
+    "4–6": "Balans mellan fakta, reflektion och egna tolkningar.",
+    "7–9": "Fördjupning med mer komplexa resonemang och jämförelser.",
+    Gymnasiet: "Analysinriktade upplägg med större krav på argumentation.",
+    "Alla årskurser": "Flexibla upplägg som kan anpassas till olika nivåer.",
+  },
+  theme: {
+    "Bildanalys & berättande": "Fokus på bildspråk, tolkning och berättande i flera steg.",
+    "Historia & tidsresor": "Konkreta ingångar till tidsperioder och historiska skeenden.",
+    "Makt & samhälle": "Underlag för samtal om makt, representation och samhällsfrågor.",
+    "Hantverk & design": "Material, teknik och design som går att koppla till praktiskt arbete.",
+    "Identitet & kulturmöten": "Samtal om tillhörighet, normer och kulturella möten.",
+    "Natur & miljö": "Miljö- och naturperspektiv med visuella och historiska ingångar.",
+    "Kulturarv & källor": "Kulturarv som källa till källkritik, jämförelser och analys.",
+  },
+};
+
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function chooseTopValue(values: string[], preferredOrder: string[], fallback: string): string {
+  if (values.length === 0) return fallback;
+
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+
+  const preferredRank = new Map(preferredOrder.map((value, index) => [value, index]));
+  const sorted = Array.from(counts.entries()).sort((a, b) => {
+    const countDelta = b[1] - a[1];
+    if (countDelta !== 0) return countDelta;
+    const rankA = preferredRank.get(a[0]) ?? Number.MAX_SAFE_INTEGER;
+    const rankB = preferredRank.get(b[0]) ?? Number.MAX_SAFE_INTEGER;
+    if (rankA !== rankB) return rankA - rankB;
+    return a[0].localeCompare(b[0], "sv");
+  });
+
+  return sorted[0]?.[0] || fallback;
+}
+
+function getQuickstartScore(walk: SchoolWalkPreview): number {
+  const targetArtworks = Math.abs(walk.artworkCount - 3);
+  const longTextPenalty = walk.subtitle.length > 70 ? 2 : 0;
+  const discussionBonus = walk.discussionCount > 0 ? -2 : 1;
+  return targetArtworks + longTextPenalty + discussionBonus;
+}
+
+function getDialogueScore(walk: SchoolWalkPreview): number {
+  return (walk.discussionCount * 3) + Math.min(walk.artworkCount, 5);
+}
+
+function compareWalks(
+  a: SchoolWalkPreview,
+  b: SchoolWalkPreview,
+  sortBy: SortBy,
+  orderIndex: Map<number, number>
+): number {
+  if (sortBy === "quickstart") {
+    const delta = getQuickstartScore(a) - getQuickstartScore(b);
+    if (delta !== 0) return delta;
+  } else if (sortBy === "dialogue") {
+    const delta = getDialogueScore(b) - getDialogueScore(a);
+    if (delta !== 0) return delta;
+  }
+
+  const indexA = orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+  const indexB = orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+  return indexA - indexB;
+}
+
+function getGroupHelp(groupBy: GroupBy, key: string): string {
+  const groupTexts = GROUP_HELP_TEXTS[groupBy];
+  return groupTexts[key] || "";
 }
 
 function splitTags(input: string | null): string[] {
@@ -331,6 +450,39 @@ export async function loader({ request }: Route.LoaderArgs) {
     )
     .all(...sourceA.params) as Array<{ source: string; iiif_url: string }>;
 
+  const walkMetaRows = db
+    .prepare(
+      `SELECT
+         wi.walk_id,
+         COUNT(*) AS artwork_count,
+         SUM(
+           CASE
+             WHEN wi.discussion_question IS NOT NULL AND trim(wi.discussion_question) <> '' THEN 1
+             ELSE 0
+           END
+         ) AS discussion_count
+       FROM walk_items wi
+       JOIN artworks a ON a.id = wi.artwork_id
+       WHERE a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceA.sql}
+       GROUP BY wi.walk_id`
+    )
+    .all(...sourceA.params) as Array<{
+      walk_id: number;
+      artwork_count: number;
+      discussion_count: number | null;
+    }>;
+
+  const walkMetaMap = new Map<number, { artworkCount: number; discussionCount: number }>(
+    walkMetaRows.map((row) => [
+      row.walk_id,
+      {
+        artworkCount: row.artwork_count,
+        discussionCount: row.discussion_count || 0,
+      },
+    ])
+  );
+
   const previewMap = new Map<number, string>(
     previewRows.map((row) => [row.walk_id, buildImageUrl(row.iiif_url, 800)])
   );
@@ -352,6 +504,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     subjects: inferSubjects(walk),
     gradeBuckets: inferGradeBuckets(walk.target_grades),
     themes: inferThemes(walk),
+    artworkCount: walkMetaMap.get(walk.id)?.artworkCount || 0,
+    discussionCount: walkMetaMap.get(walk.id)?.discussionCount || 0,
   }));
 
   const uniqueSubjects = new Set<string>();
@@ -415,33 +569,28 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { walkPreviews, artworks, selected, walkInfo, isDefault, stats };
 }
 
-function StatChip({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="rounded-xl border border-[rgba(245,240,232,0.11)] bg-[rgba(19,16,13,0.55)] px-3 py-2.5">
-      <p className="font-serif text-[1.05rem] text-dark-text leading-[1.1]">
-        {value}
-      </p>
-      <p className="text-[0.66rem] uppercase tracking-[0.08em] text-dark-text-muted mt-1">
-        {label}
-      </p>
-    </div>
-  );
-}
-
 const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
   const subject = w.subjects[0] || "Övergripande";
   const grade = w.gradeBuckets[0] || "Alla årskurser";
   const theme = w.themes[0] || "Kulturarv & källor";
+  const accent = THEME_ACCENTS[theme] || "#8D9BA9";
+  const valueText = THEME_VALUE_TEXT[theme] || "Lektionsunderlag med tydliga frågeingångar.";
+  const dialogueText = w.discussionCount > 0
+    ? `${w.discussionCount} diskussionsfrågor`
+    : "Bygg samtal utifrån verken";
 
   return (
     <a
       key={w.slug}
       href={"/skola?walk=" + w.slug}
-      className="block relative overflow-hidden rounded-2xl h-48 no-underline group/walk focus-ring"
-      style={{ backgroundColor: w.color }}
+      className="block relative overflow-hidden rounded-2xl h-56 no-underline group/walk focus-ring"
+      style={{
+        backgroundColor: w.color,
+        boxShadow: `inset 0 2px 0 0 ${accent}`,
+      }}
     >
       {!w.previewUrl && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),rgba(255,255,255,0.02)_62%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),rgba(255,255,255,0.03)_62%)]" />
       )}
       {w.previewUrl && (
         <img
@@ -453,28 +602,43 @@ const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover/walk:scale-[1.04] group-hover/walk:opacity-60 transition-[transform,opacity] duration-500"
+          className="absolute inset-0 w-full h-full object-cover opacity-55 group-hover/walk:scale-[1.035] group-hover/walk:opacity-66 transition-[transform,opacity] duration-500"
         />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.2)_62%,rgba(0,0,0,0.36)_100%)]" />
       <div className="absolute bottom-0 left-0 right-0 p-5">
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.66)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+        <div className="flex flex-wrap gap-1.5 mb-2.5">
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
             {grade}
           </p>
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.66)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
             {subject}
           </p>
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+            {theme}
+          </p>
         </div>
-        <h2 className="font-serif text-[1.375rem] font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
+        <h2 className="font-serif text-[1.26rem] font-bold text-white leading-[1.23] drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
           {w.title}
         </h2>
-        <p className="text-[0.8rem] text-[rgba(255,255,255,0.7)] mt-1">
+        <p className="text-[0.78rem] text-[rgba(255,255,255,0.76)] mt-1 line-clamp-1">
           {w.subtitle}
         </p>
-        <p className="text-[0.68rem] text-[rgba(255,255,255,0.58)] mt-2 truncate">
-          Tema: {theme}
+        <p className="text-[0.72rem] text-[rgba(255,255,255,0.68)] mt-2 line-clamp-1">
+          {valueText}
         </p>
+        <p className="text-[0.68rem] text-[rgba(255,255,255,0.58)] mt-1.5">
+          {dialogueText}
+        </p>
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-[0.72rem] text-[rgba(255,255,255,0.8)]">
+            {w.artworkCount} verk
+          </p>
+          <span className="text-[0.66rem] uppercase tracking-[0.14em] text-[rgba(255,255,255,0.84)]">
+            Öppna upplägg
+          </span>
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-[linear-gradient(to_top,rgba(0,0,0,0.08),transparent)] opacity-0 transition-opacity duration-300 group-hover/walk:opacity-100" />
       </div>
     </a>
   );
@@ -496,6 +660,10 @@ function WalkGrid({
 
   const labels = useMemo(() => getGroupLabels(groupBy), [groupBy]);
   const preferredOrder = useMemo(() => getPreferredOrder(groupBy), [groupBy]);
+  const orderIndex = useMemo(
+    () => new Map<number, number>(walks.map((walk, index) => [walk.id, index])),
+    [walks]
+  );
 
   const grouped = useMemo(() => {
     const groups = new Map<string, SchoolWalkPreview[]>();
@@ -508,8 +676,12 @@ function WalkGrid({
       }
     }
 
+    for (const [key, values] of groups.entries()) {
+      groups.set(key, [...values].sort((a, b) => compareWalks(a, b, DEFAULT_SORT_MODE, orderIndex)));
+    }
+
     return groups;
-  }, [walks, groupBy]);
+  }, [walks, groupBy, orderIndex]);
 
   const orderedKeys = useMemo(() => {
     return [
@@ -522,9 +694,18 @@ function WalkGrid({
 
   return (
     <div className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-      <div className="rounded-2xl border border-[rgba(201,176,142,0.2)] bg-[linear-gradient(140deg,rgba(36,30,24,0.86),rgba(24,20,17,0.88))] px-4 py-4 mb-6 md:px-5 md:py-5">
-        <p className="text-[0.63rem] uppercase tracking-[0.16em] text-dark-text-muted">
-          Utforska upplägg
+      <div className="rounded-2xl border border-[rgba(201,176,142,0.22)] bg-[linear-gradient(145deg,rgba(44,37,30,0.9),rgba(24,20,17,0.92))] px-4 py-4 mb-6 md:px-5 md:py-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p className="text-[0.63rem] uppercase tracking-[0.16em] text-dark-text-muted">
+            Kom igång snabbt
+          </p>
+          <p className="text-[0.78rem] text-[rgba(245,240,232,0.76)]">
+            Öppna ett upplägg och börja direkt.
+          </p>
+        </div>
+
+        <p className="text-[0.67rem] uppercase tracking-[0.14em] text-[rgba(245,240,232,0.48)]">
+          Visa efter
         </p>
         <div className="flex flex-wrap gap-2 mt-2.5">
           {groupModes.map((mode) => (
@@ -541,35 +722,42 @@ function WalkGrid({
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-4 md:grid-cols-4">
-          <StatChip value={String(stats.walkCount)} label="Lektionsupplägg" />
-          <StatChip value={String(stats.subjectCount)} label="Ämnen" />
-          <StatChip value={String(stats.gradeCount)} label="Årskurser" />
-          <StatChip value={String(stats.themeCount)} label="Teman" />
-        </div>
+        <p className="mt-3 text-[0.76rem] text-[rgba(245,240,232,0.62)]">
+          {stats.walkCount} upplägg · {stats.subjectCount} ämnen · {stats.gradeCount} årskursnivåer · {stats.themeCount} teman
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
-        {orderedKeys.map((key) => (
-          <section
-            key={key}
-            className="rounded-2xl border border-[rgba(245,240,232,0.1)] bg-[rgba(35,30,25,0.45)] p-4 md:p-5"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-serif text-[1.18rem] text-dark-text">
-                {labels[key] || key}
-              </h2>
-              <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted">
-                {grouped.get(key)?.length || 0} upplägg
-              </p>
-            </div>
-            <div className="grid gap-3 mt-3">
-              {grouped.get(key)!.map((w) => (
-                <WalkCard key={w.slug} w={w} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {orderedKeys.map((key) => {
+          const groupItems = grouped.get(key) || [];
+          const helperText = getGroupHelp(groupBy, key);
+
+          return (
+            <section
+              key={key}
+              className="rounded-2xl border border-[rgba(245,240,232,0.11)] bg-[rgba(35,30,25,0.48)] p-4 md:p-5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-serif text-[1.18rem] text-dark-text">
+                  {labels[key] || key}
+                </h2>
+                <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted">
+                  {groupItems.length} upplägg
+                </p>
+              </div>
+              {helperText && (
+                <p className="text-[0.78rem] leading-[1.5] text-dark-text-secondary mt-1.5">
+                  {helperText}
+                </p>
+              )}
+              <div className="grid gap-3 mt-3 [content-visibility:auto]">
+                {groupItems.map((w) => (
+                  <WalkCard key={w.slug} w={w} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
 
       {orderedKeys.length === 0 && (
@@ -585,6 +773,30 @@ function WalkGrid({
 
 export default function Skola({ loaderData }: Route.ComponentProps) {
   const { walkPreviews, artworks, selected, walkInfo, isDefault, stats } = loaderData;
+  const selectedPreview = useMemo(
+    () => (selected ? walkPreviews.find((walk) => walk.slug === selected) || null : null),
+    [walkPreviews, selected]
+  );
+  const heroSummary = useMemo(() => {
+    const topSubject = chooseTopValue(
+      walkPreviews.map((walk) => walk.subjects[0] || "Övergripande"),
+      SUBJECT_ORDER,
+      "Övergripande"
+    );
+    const topGrade = chooseTopValue(
+      walkPreviews.map((walk) => walk.gradeBuckets[0] || "Alla årskurser"),
+      GRADE_ORDER,
+      "Alla årskurser"
+    );
+    const topTheme = chooseTopValue(
+      walkPreviews.map((walk) => walk.themes[0] || "Kulturarv & källor"),
+      THEME_ORDER,
+      "Kulturarv & källor"
+    );
+    const quickStarts = walkPreviews.filter((walk) => getQuickstartScore(walk) <= 2).length;
+
+    return { topSubject, topGrade, topTheme, quickStarts };
+  }, [walkPreviews]);
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
@@ -598,11 +810,28 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
               För skolan
             </p>
             <h1 className="font-serif text-[2rem] md:text-[2.2rem] text-dark-text mt-2 relative">
-              Lektionsupplägg som väcker samtal
+              Startklara lektionsupplägg för klassrummet
             </h1>
             <p className="text-dark-text-secondary text-[0.9rem] mt-3 leading-[1.7] max-w-[42rem] relative">
-              Starta i ämne, årskurs eller tema. Varje upplägg innehåller utvalda verk,
-              samtalsfrågor och tydlig koppling till Lgr22.
+              Välj ett upplägg efter ämne, årskurs eller tema. Varje upplägg samlar verk,
+              diskussionsfrågor och Lgr22-koppling i en tydlig lektionsstruktur.
+            </p>
+            <div className="relative mt-4 flex flex-wrap gap-2">
+              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
+                Vanligast ämne: {heroSummary.topSubject}
+              </p>
+              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
+                Vanligast årskurs: {heroSummary.topGrade}
+              </p>
+              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
+                Temafokus: {heroSummary.topTheme}
+              </p>
+              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
+                {heroSummary.quickStarts} snabbstart
+              </p>
+            </div>
+            <p className="relative mt-3 text-[0.78rem] text-[rgba(245,240,232,0.76)]">
+              Visar {stats.walkCount} publicerade upplägg just nu.
             </p>
           </div>
         </div>
@@ -643,19 +872,28 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                 href="/skola"
                 className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring"
               >
-                ← Lektioner
+                ← Tillbaka till översikten
               </a>
-              {walkInfo.target_grades && (
-                <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(255,255,255,0.45)] mt-4">
-                  {walkInfo.target_grades}
-                </p>
-              )}
               <h1 className="font-serif text-[2rem] font-bold text-white mt-2 leading-[1.2]">
                 {walkInfo.title}
               </h1>
               <p className="font-serif text-[1rem] text-[rgba(255,255,255,0.75)] mt-2">
                 {walkInfo.subtitle}
               </p>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                  {selectedPreview?.gradeBuckets[0] || walkInfo.target_grades || "Alla årskurser"}
+                </p>
+                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                  {selectedPreview?.subjects[0] || "Övergripande"}
+                </p>
+                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                  {selectedPreview?.themes[0] || "Kulturarv & källor"}
+                </p>
+                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                  {selectedPreview?.artworkCount || artworks.length} verk
+                </p>
+              </div>
               <p className="text-[0.9rem] text-[rgba(255,255,255,0.7)] mt-3 leading-[1.6] max-w-[32rem]">
                 {walkInfo.description}
               </p>
@@ -672,17 +910,20 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                 </div>
               )}
 
-              <div className="flex items-center gap-4 mt-5">
-                <p className="text-[0.75rem] text-[rgba(255,255,255,0.4)]">
-                  {artworks.length} verk
-                </p>
+              <div className="flex flex-wrap items-center gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="text-[0.72rem] tracking-[0.08em] uppercase text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] transition-colors no-underline focus-ring"
+                  className="rounded-full border border-[rgba(255,255,255,0.24)] bg-[rgba(255,255,255,0.9)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[#191511] hover:bg-white transition-colors no-underline focus-ring"
                 >
-                  Skriv ut ↗
+                  Skriv ut upplägg
                 </button>
+                <a
+                  href="/skola"
+                  className="rounded-full border border-[rgba(255,255,255,0.24)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[rgba(255,255,255,0.7)] hover:text-[rgba(255,255,255,0.94)] transition-colors no-underline focus-ring"
+                >
+                  Alla upplägg
+                </a>
               </div>
             </div>
           </div>
