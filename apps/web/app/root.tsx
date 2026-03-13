@@ -241,6 +241,19 @@ function BottomNav() {
       ),
     },
     {
+      href: "/skola",
+      label: "Skola",
+      active: path === "/skola" || path.startsWith("/skola/"),
+      icon: (color: string) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5h12A1.5 1.5 0 0 1 18 6.5v11A1.5 1.5 0 0 1 16.5 19h-12A1.5 1.5 0 0 1 3 17.5v-11z" />
+          <path d="M18 7.5h2a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-11" />
+          <path d="M6.5 9.5h8" />
+          <path d="M6.5 12.5h8" />
+        </svg>
+      ),
+    },
+    {
       href: "/favorites",
       label: "Sparade",
       active: path === "/favorites",
