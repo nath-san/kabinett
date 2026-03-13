@@ -138,16 +138,6 @@ const THEME_RULES: Array<{ label: string; pattern: RegExp }> = [
   { label: "Natur & miljö", pattern: /natur|landskap|djur|miljö|skärgård|skog|fjäll/i },
 ];
 
-const THEME_ACCENTS: Record<string, string> = {
-  "Bildanalys & berättande": "#D7B268",
-  "Historia & tidsresor": "#B99A7A",
-  "Makt & samhälle": "#C96A54",
-  "Hantverk & design": "#C28F63",
-  "Identitet & kulturmöten": "#6F9A86",
-  "Natur & miljö": "#5E8E72",
-  "Kulturarv & källor": "#8D9BA9",
-};
-
 const THEME_VALUE_TEXT: Record<string, string> = {
   "Bildanalys & berättande": "Stöd för bildtolkning och muntligt resonemang",
   "Historia & tidsresor": "Ger historiska perspektiv med tydliga exempel",
@@ -195,27 +185,6 @@ const GROUP_HELP_TEXTS: Record<GroupBy, Record<string, string>> = {
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function chooseTopValue(values: string[], preferredOrder: string[], fallback: string): string {
-  if (values.length === 0) return fallback;
-
-  const counts = new Map<string, number>();
-  for (const value of values) {
-    counts.set(value, (counts.get(value) || 0) + 1);
-  }
-
-  const preferredRank = new Map(preferredOrder.map((value, index) => [value, index]));
-  const sorted = Array.from(counts.entries()).sort((a, b) => {
-    const countDelta = b[1] - a[1];
-    if (countDelta !== 0) return countDelta;
-    const rankA = preferredRank.get(a[0]) ?? Number.MAX_SAFE_INTEGER;
-    const rankB = preferredRank.get(b[0]) ?? Number.MAX_SAFE_INTEGER;
-    if (rankA !== rankB) return rankA - rankB;
-    return a[0].localeCompare(b[0], "sv");
-  });
-
-  return sorted[0]?.[0] || fallback;
 }
 
 function getQuickstartScore(walk: SchoolWalkPreview): number {
@@ -573,7 +542,6 @@ const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
   const subject = w.subjects[0] || "Övergripande";
   const grade = w.gradeBuckets[0] || "Alla årskurser";
   const theme = w.themes[0] || "Kulturarv & källor";
-  const accent = THEME_ACCENTS[theme] || "#8D9BA9";
   const valueText = THEME_VALUE_TEXT[theme] || "Lektionsunderlag med tydliga frågeingångar.";
   const dialogueText = w.discussionCount > 0
     ? `${w.discussionCount} diskussionsfrågor`
@@ -583,14 +551,10 @@ const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
     <a
       key={w.slug}
       href={"/skola?walk=" + w.slug}
-      className="block relative overflow-hidden rounded-2xl h-56 no-underline group/walk focus-ring"
-      style={{
-        backgroundColor: w.color,
-        boxShadow: `inset 0 2px 0 0 ${accent}`,
-      }}
+      className="block relative overflow-hidden rounded-2xl h-64 no-underline group/walk focus-ring border border-[rgba(255,255,255,0.14)] shadow-[0_12px_30px_rgba(0,0,0,0.22)] bg-[rgba(18,16,14,0.95)]"
     >
       {!w.previewUrl && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),rgba(255,255,255,0.03)_62%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.32),rgba(255,255,255,0.02)_64%)]" />
       )}
       {w.previewUrl && (
         <img
@@ -602,39 +566,40 @@ const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="absolute inset-0 w-full h-full object-cover opacity-55 group-hover/walk:scale-[1.035] group-hover/walk:opacity-66 transition-[transform,opacity] duration-500"
+          className="absolute inset-0 w-full h-full object-cover opacity-62 group-hover/walk:scale-[1.05] group-hover/walk:opacity-78 transition-[transform,opacity] duration-500"
         />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.2)_62%,rgba(0,0,0,0.36)_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.3)_58%,rgba(0,0,0,0.36)_100%)]" />
+      <div className="absolute inset-x-0 top-0 h-14 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.38),transparent)]" />
       <div className="absolute bottom-0 left-0 right-0 p-5">
         <div className="flex flex-wrap gap-1.5 mb-2.5">
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
             {grade}
           </p>
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
             {subject}
           </p>
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.72)] rounded-full border border-[rgba(255,255,255,0.3)] px-2 py-0.5">
+          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
             {theme}
           </p>
         </div>
-        <h2 className="font-serif text-[1.26rem] font-bold text-white leading-[1.23] drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
+        <h2 className="font-serif text-[1.28rem] font-bold text-white leading-[1.22] drop-shadow-[0_1px_4px_rgba(0,0,0,0.34)]">
           {w.title}
         </h2>
-        <p className="text-[0.78rem] text-[rgba(255,255,255,0.76)] mt-1 line-clamp-1">
+        <p className="text-[0.8rem] text-[rgba(255,255,255,0.76)] mt-1 line-clamp-1">
           {w.subtitle}
         </p>
-        <p className="text-[0.72rem] text-[rgba(255,255,255,0.68)] mt-2 line-clamp-1">
+        <p className="text-[0.73rem] text-[rgba(255,255,255,0.72)] mt-2 line-clamp-1">
           {valueText}
         </p>
-        <p className="text-[0.68rem] text-[rgba(255,255,255,0.58)] mt-1.5">
+        <p className="text-[0.69rem] text-[rgba(255,255,255,0.62)] mt-1.5">
           {dialogueText}
         </p>
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-[0.72rem] text-[rgba(255,255,255,0.8)]">
+        <div className="mt-3 flex items-center justify-between rounded-lg border border-[rgba(255,255,255,0.14)] bg-[rgba(7,6,5,0.26)] px-2.5 py-1.5">
+          <p className="text-[0.72rem] text-[rgba(255,255,255,0.82)]">
             {w.artworkCount} verk
           </p>
-          <span className="text-[0.66rem] uppercase tracking-[0.14em] text-[rgba(255,255,255,0.84)]">
+          <span className="text-[0.66rem] uppercase tracking-[0.14em] text-[rgba(255,255,255,0.9)]">
             Öppna upplägg
           </span>
         </div>
@@ -693,38 +658,53 @@ function WalkGrid({
   }, [grouped, preferredOrder]);
 
   return (
-    <div className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-      <div className="rounded-2xl border border-[rgba(201,176,142,0.22)] bg-[linear-gradient(145deg,rgba(44,37,30,0.9),rgba(24,20,17,0.92))] px-4 py-4 mb-6 md:px-5 md:py-5">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+    <div id="upplagg" className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+      <div className="relative overflow-hidden rounded-2xl border border-[rgba(201,176,142,0.24)] bg-[rgba(30,25,21,0.9)] px-4 py-4 mb-6 md:px-5 md:py-5">
+        <div className="relative flex flex-wrap items-center justify-between gap-2 mb-3">
           <p className="text-[0.63rem] uppercase tracking-[0.16em] text-dark-text-muted">
-            Kom igång snabbt
+            Snabbvälj
           </p>
           <p className="text-[0.78rem] text-[rgba(245,240,232,0.76)]">
-            Öppna ett upplägg och börja direkt.
+            Välj vy och öppna ett färdigt upplägg direkt.
           </p>
         </div>
 
-        <p className="text-[0.67rem] uppercase tracking-[0.14em] text-[rgba(245,240,232,0.48)]">
+        <p className="relative text-[0.67rem] uppercase tracking-[0.14em] text-[rgba(245,240,232,0.48)]">
           Visa efter
         </p>
-        <div className="flex flex-wrap gap-2 mt-2.5">
+        <div className="relative flex flex-wrap gap-2 mt-2.5">
           {groupModes.map((mode) => (
             <button
               key={mode}
               onClick={() => setGroupBy(mode)}
-              className={`px-4 py-1.5 rounded-full text-[0.8rem] font-medium transition-colors cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-[0.8rem] font-medium transition-colors cursor-pointer border ${
                 groupBy === mode
-                  ? "bg-dark-text text-dark-base"
-                  : "bg-[rgba(245,240,232,0.08)] text-dark-text-secondary hover:text-dark-text"
+                  ? "bg-dark-text text-dark-base border-[rgba(245,240,232,0.92)]"
+                  : "bg-[rgba(245,240,232,0.08)] border-transparent text-dark-text-secondary hover:text-dark-text hover:border-[rgba(245,240,232,0.24)]"
               }`}
             >
               {GROUP_MODE_LABELS[mode]}
             </button>
           ))}
         </div>
-        <p className="mt-3 text-[0.76rem] text-[rgba(245,240,232,0.62)]">
-          {stats.walkCount} upplägg · {stats.subjectCount} ämnen · {stats.gradeCount} årskursnivåer · {stats.themeCount} teman
-        </p>
+        <div className="relative mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
+          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
+            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Upplägg</p>
+            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.walkCount}</p>
+          </div>
+          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
+            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Ämnen</p>
+            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.subjectCount}</p>
+          </div>
+          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
+            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Årskurser</p>
+            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.gradeCount}</p>
+          </div>
+          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
+            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Teman</p>
+            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.themeCount}</p>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
@@ -735,7 +715,7 @@ function WalkGrid({
           return (
             <section
               key={key}
-              className="rounded-2xl border border-[rgba(245,240,232,0.11)] bg-[rgba(35,30,25,0.48)] p-4 md:p-5"
+              className="relative overflow-hidden rounded-2xl border border-[rgba(245,240,232,0.14)] bg-[rgba(33,28,24,0.72)] p-4 md:p-5"
             >
               <div className="flex items-center justify-between gap-2">
                 <h2 className="font-serif text-[1.18rem] text-dark-text">
@@ -746,7 +726,7 @@ function WalkGrid({
                 </p>
               </div>
               {helperText && (
-                <p className="text-[0.78rem] leading-[1.5] text-dark-text-secondary mt-1.5">
+                <p className="text-[0.79rem] leading-[1.5] text-dark-text-secondary mt-1.5">
                   {helperText}
                 </p>
               )}
@@ -778,24 +758,9 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
     [walkPreviews, selected]
   );
   const heroSummary = useMemo(() => {
-    const topSubject = chooseTopValue(
-      walkPreviews.map((walk) => walk.subjects[0] || "Övergripande"),
-      SUBJECT_ORDER,
-      "Övergripande"
-    );
-    const topGrade = chooseTopValue(
-      walkPreviews.map((walk) => walk.gradeBuckets[0] || "Alla årskurser"),
-      GRADE_ORDER,
-      "Alla årskurser"
-    );
-    const topTheme = chooseTopValue(
-      walkPreviews.map((walk) => walk.themes[0] || "Kulturarv & källor"),
-      THEME_ORDER,
-      "Kulturarv & källor"
-    );
     const quickStarts = walkPreviews.filter((walk) => getQuickstartScore(walk) <= 2).length;
 
-    return { topSubject, topGrade, topTheme, quickStarts };
+    return { quickStarts };
   }, [walkPreviews]);
 
   return (
@@ -803,34 +768,42 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
       {/* Header */}
       {!selected && (
         <div className="pt-10 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-[rgba(201,176,142,0.22)] bg-[linear-gradient(145deg,#2c241c_0%,#1e1914_48%,#15120f_100%)] px-5 py-7 md:px-8 md:py-8">
-            <div className="pointer-events-none absolute -top-20 right-[-2.5rem] h-56 w-56 rounded-full bg-[rgba(196,85,58,0.22)] blur-3xl" />
-            <div className="pointer-events-none absolute bottom-[-4.25rem] left-[-3rem] h-52 w-52 rounded-full bg-[rgba(135,93,56,0.28)] blur-3xl" />
-            <p className="text-[0.62rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.58)] font-medium relative">
-              För skolan
-            </p>
-            <h1 className="font-serif text-[2rem] md:text-[2.2rem] text-dark-text mt-2 relative">
-              Startklara lektionsupplägg för klassrummet
-            </h1>
-            <p className="text-dark-text-secondary text-[0.9rem] mt-3 leading-[1.7] max-w-[42rem] relative">
-              Välj ett upplägg efter ämne, årskurs eller tema. Varje upplägg samlar verk,
-              diskussionsfrågor och Lgr22-koppling i en tydlig lektionsstruktur.
-            </p>
-            <div className="relative mt-4 flex flex-wrap gap-2">
-              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
-                Vanligast ämne: {heroSummary.topSubject}
-              </p>
-              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
-                Vanligast årskurs: {heroSummary.topGrade}
-              </p>
-              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
-                Temafokus: {heroSummary.topTheme}
-              </p>
-              <p className="text-[0.68rem] uppercase tracking-[0.12em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.26)] bg-[rgba(18,15,12,0.38)] px-3 py-1">
-                {heroSummary.quickStarts} snabbstart
-              </p>
+          <div className="relative overflow-hidden rounded-3xl border border-[rgba(201,176,142,0.24)] bg-[rgba(28,23,19,0.92)] px-5 py-7 md:px-8 md:py-8">
+            <div className="relative grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div>
+                <p className="text-[0.62rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.58)] font-medium">
+                  För skolan
+                </p>
+                <h1 className="font-serif text-[2rem] md:text-[2.2rem] text-dark-text mt-2">
+                  Startklara lektionsupplägg för klassrummet
+                </h1>
+                <p className="text-dark-text-secondary text-[0.9rem] mt-3 leading-[1.7] max-w-[42rem]">
+                  Välj ett upplägg efter ämne, årskurs eller tema. Varje upplägg samlar verk,
+                  diskussionsfrågor och Lgr22-koppling i en tydlig lektionsstruktur.
+                </p>
+                <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
+                  {heroSummary.quickStarts} upplägg är extra snabba att komma igång med.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[rgba(245,240,232,0.16)] bg-[rgba(16,13,11,0.5)] px-4 py-4 md:px-5">
+                <p className="text-[0.62rem] uppercase tracking-[0.16em] text-dark-text-muted">
+                  Redo att starta
+                </p>
+                <p className="font-serif text-[1.85rem] leading-none text-dark-text mt-2">
+                  {heroSummary.quickStarts}
+                </p>
+                <p className="text-[0.78rem] text-dark-text-secondary mt-1">
+                  upplägg fungerar som snabbstart just nu.
+                </p>
+                <a
+                  href="#upplagg"
+                  className="mt-4 inline-flex items-center rounded-full border border-[rgba(245,240,232,0.24)] bg-[rgba(245,240,232,0.92)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[#181410] hover:bg-white transition-colors no-underline focus-ring"
+                >
+                  Utforska upplägg
+                </a>
+              </div>
             </div>
-            <p className="relative mt-3 text-[0.78rem] text-[rgba(245,240,232,0.76)]">
+            <p className="relative mt-4 text-[0.78rem] text-[rgba(245,240,232,0.76)]">
               Visar {stats.walkCount} publicerade upplägg just nu.
             </p>
           </div>
@@ -851,8 +824,7 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
         <>
           {/* Hero */}
           <div
-            className="pt-12 px-4 pb-10 relative md:px-6"
-            style={{ backgroundColor: walkInfo.color }}
+            className="pt-12 px-4 pb-10 relative md:px-6 bg-[rgba(18,16,14,0.96)]"
           >
             {artworks[0] && (
               <img
@@ -864,9 +836,10 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                 onError={(event) => {
                   event.currentTarget.classList.add("is-broken");
                 }}
-                className="absolute inset-0 w-full h-full object-cover opacity-25"
+                className="absolute inset-0 w-full h-full object-cover opacity-25 no-print"
               />
             )}
+            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(11,10,9,0.55)_0%,rgba(11,10,9,0.7)_100%)]" />
             <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
               <a
                 href="/skola"
