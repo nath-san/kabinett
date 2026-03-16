@@ -1,7 +1,7 @@
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-import { searchArtworksText } from "../lib/text-search.server";
+import { searchArtworksAutocomplete } from "../lib/text-search.server";
 import type { Route } from "./+types/api.autocomplete";
 
 // CLIP-inspired suggestions — things that work great with semantic search
@@ -15,6 +15,9 @@ const CLIP_SUGGESTIONS = [
 ];
 
 let hasArtistsTable: boolean | null = null;
+const AUTOCOMPLETE_CACHE_TTL_MS = 60_000;
+const AUTOCOMPLETE_CACHE_MAX = 200;
+const autocompleteCache = new Map<string, { payload: AutocompletePayload; ts: number }>();
 
 type ArtworkSuggestion = {
   id: number;
@@ -34,11 +37,17 @@ type ClipSuggestion = {
   value: string;
 };
 
-function emptyPayload() {
+type AutocompletePayload = {
+  artworks: ArtworkSuggestion[];
+  artists: ArtistSuggestion[];
+  clips: ClipSuggestion[];
+};
+
+function emptyPayload(): AutocompletePayload {
   return {
-    artworks: [] as ArtworkSuggestion[],
-    artists: [] as ArtistSuggestion[],
-    clips: [] as ClipSuggestion[],
+    artworks: [],
+    artists: [],
+    clips: [],
   };
 }
 
@@ -64,6 +73,39 @@ function artistsTableExists(): boolean {
   return hasArtistsTable;
 }
 
+function responseHeaders(): HeadersInit {
+  return {
+    "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
+  };
+}
+
+function cacheKeyForQuery(query: string, source: { sql: string; params: string[] }): string {
+  return `${query.toLowerCase()}::${source.sql}::${source.params.join(",")}`;
+}
+
+function getCachedPayload(key: string): AutocompletePayload | null {
+  const cached = autocompleteCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts >= AUTOCOMPLETE_CACHE_TTL_MS) {
+    autocompleteCache.delete(key);
+    return null;
+  }
+  return cached.payload;
+}
+
+function setCachedPayload(key: string, payload: AutocompletePayload): void {
+  autocompleteCache.set(key, { payload, ts: Date.now() });
+
+  if (autocompleteCache.size <= AUTOCOMPLETE_CACHE_MAX) {
+    return;
+  }
+
+  const oldestKey = autocompleteCache.keys().next().value;
+  if (oldestKey) {
+    autocompleteCache.delete(oldestKey);
+  }
+}
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") || "")
@@ -71,19 +113,25 @@ export async function loader({ request }: Route.LoaderArgs) {
     .trim()
     .slice(0, 80);
 
-  if (q.length < 1) return Response.json(emptyPayload());
+  if (q.length < 1) return Response.json(emptyPayload(), { headers: responseHeaders() });
 
   const db = getDb();
   const sourceA = sourceFilter("a");
+  const qLower = q.toLowerCase();
+  const cacheKey = cacheKeyForQuery(qLower, sourceA);
+  const cachedPayload = getCachedPayload(cacheKey);
+  if (cachedPayload) {
+    return Response.json(cachedPayload, { headers: responseHeaders() });
+  }
+
   const payload = emptyPayload();
 
   try {
-    const artworks = searchArtworksText({
+    const artworks = searchArtworksAutocomplete({
       db,
       query: q,
       source: sourceA,
       limit: 3,
-      scope: "title",
     }) as Array<{
       id: number;
       title_sv: string | null;
@@ -139,21 +187,22 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  // 1. Artist matches — count only artworks matching the active source filter
+  // 1. Artist matches — prefer the precomputed artist table for instant suggestions
   if (q.length >= 2 && artistsTableExists()) {
     try {
-      const src = sourceFilter();
       const artists = db.prepare(
-        `SELECT ar.name, COUNT(*) as count
-         FROM artists ar
-         JOIN artworks a ON json_extract(a.artists, '$[0].name') = ar.name
-         WHERE ar.name LIKE ?
-           AND ar.name NOT LIKE '%känd%'
-           AND ${src.sql}
-         GROUP BY ar.name
-         ORDER BY count DESC
+        `SELECT name, artwork_count as count
+         FROM artists
+         WHERE name LIKE ?
+           AND name NOT LIKE '%känd%'
+         ORDER BY CASE
+                    WHEN lower(name) LIKE ? THEN 0
+                    ELSE 1
+                  END,
+                  artwork_count DESC,
+                  LENGTH(name) ASC
          LIMIT 3`
-      ).all(`%${q}%`, ...src.params) as Array<{ name: string; count: number }>;
+      ).all(`%${q}%`, `${qLower}%`) as Array<{ name: string; count: number }>;
 
       for (const artist of artists) {
         payload.artists.push({
@@ -167,7 +216,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   // 2. CLIP suggestions that match what the user is typing
-  const qLower = q.toLowerCase();
   const matchingClip = CLIP_SUGGESTIONS
     .filter((s) => s.startsWith(qLower) || s.includes(qLower))
     .slice(0, 3);
@@ -182,5 +230,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     payload.clips.unshift({ value: q.trim() });
   }
 
-  return Response.json(payload);
+  setCachedPayload(cacheKey, payload);
+  return Response.json(payload, { headers: responseHeaders() });
 }

@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildArtworkSnippet, searchArtworksText } from "../text-search.server";
+import { buildArtworkSnippet, searchArtworksAutocomplete, searchArtworksText } from "../text-search.server";
 
 let db: Database.Database;
 
@@ -236,6 +236,84 @@ describe("searchArtworksText", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].descriptions_sv).toContain("samiskt liv");
+  });
+});
+
+describe("searchArtworksAutocomplete", () => {
+  it("falls back to title LIKE when the FTS index has no matching row", () => {
+    db.prepare(
+      `INSERT INTO artworks (
+         id, source, title_sv, iiif_url, technique_material, descriptions_sv
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(
+      101,
+      "nordiska",
+      "Samisk trumma.",
+      "https://example.org/iiif/autocomplete-samisk-trumma-abcdefghijklmnopqrstuvwxyz",
+      "Trä och skinn",
+      null
+    );
+
+    const results = searchArtworksAutocomplete({
+      db,
+      query: "samisk",
+      source,
+      museum,
+      limit: 3,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].title_sv).toBe("Samisk trumma.");
+  });
+
+  it("returns sparse title hits without broadening to descriptive matches", () => {
+    db.prepare(
+      `INSERT INTO artworks (
+         id, source, title_sv, iiif_url, technique_material, descriptions_sv
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(
+      201,
+      "nordiska",
+      "Samisk kniv",
+      "https://example.org/iiif/autocomplete-samisk-kniv-abcdefghijklmnopqrstuvwxyz",
+      "Stål",
+      null
+    );
+
+    db.prepare(
+      `INSERT INTO artworks (
+         id, source, title_sv, iiif_url, technique_material, descriptions_sv
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(
+      202,
+      "nordiska",
+      "Neutral titel",
+      "https://example.org/iiif/autocomplete-neutral-abcdefghijklmnopqrstuvwxyz",
+      "Textil",
+      "Beskrivning om samisk kultur."
+    );
+
+    db.prepare(
+      "INSERT INTO artworks_fts(rowid, title_sv, title_en, artists, technique_material, category) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(
+      201,
+      "Samisk kniv",
+      null,
+      null,
+      "Stål",
+      null
+    );
+
+    const results = searchArtworksAutocomplete({
+      db,
+      query: "samisk",
+      source,
+      museum,
+      limit: 3,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe(201);
   });
 });
 

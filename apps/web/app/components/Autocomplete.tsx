@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 export type ArtworkAutocompleteSuggestion = {
   type: "artwork";
@@ -60,6 +60,41 @@ const EMPTY_SUGGESTIONS: SuggestionGroups = {
   artists: [],
   clips: [],
 };
+const CLIENT_AUTOCOMPLETE_CACHE_TTL_MS = 5 * 60_000;
+const CLIENT_AUTOCOMPLETE_CACHE_MAX = 120;
+const AUTOCOMPLETE_DEBOUNCE_MS = 100;
+const autocompleteResponseCache = new Map<string, { suggestions: SuggestionGroups; ts: number }>();
+
+function countSuggestions(groups: SuggestionGroups): number {
+  return groups.artworks.length + groups.artists.length + groups.clips.length;
+}
+
+function cacheKeyForQuery(query: string): string {
+  return query.toLowerCase();
+}
+
+function getCachedSuggestions(query: string): SuggestionGroups | null {
+  const cached = autocompleteResponseCache.get(query);
+  if (!cached) return null;
+  if (Date.now() - cached.ts >= CLIENT_AUTOCOMPLETE_CACHE_TTL_MS) {
+    autocompleteResponseCache.delete(query);
+    return null;
+  }
+  return cached.suggestions;
+}
+
+function setCachedSuggestions(query: string, suggestions: SuggestionGroups): void {
+  autocompleteResponseCache.set(query, { suggestions, ts: Date.now() });
+
+  if (autocompleteResponseCache.size <= CLIENT_AUTOCOMPLETE_CACHE_MAX) {
+    return;
+  }
+
+  const oldestKey = autocompleteResponseCache.keys().next().value;
+  if (oldestKey) {
+    autocompleteResponseCache.delete(oldestKey);
+  }
+}
 
 function suggestionValue(suggestion: AutocompleteSuggestion): string {
   if (suggestion.type === "artwork") return suggestion.title;
@@ -168,6 +203,20 @@ export default function Autocomplete({
     closeDropdown();
   }, [killPending, closeDropdown]);
 
+  const applySuggestions = useCallback((nextSuggestions: SuggestionGroups) => {
+    const nextCount = countSuggestions(nextSuggestions);
+
+    startTransition(() => {
+      setSuggestions(nextSuggestions);
+      if (nextCount > 0) {
+        setIsOpen(true);
+        setActiveIndex(-1);
+      } else {
+        closeDropdown();
+      }
+    });
+  }, [closeDropdown]);
+
   const selectSuggestion = useCallback(
     (suggestion: AutocompleteSuggestion) => {
       userTypingRef.current = false;
@@ -190,6 +239,13 @@ export default function Autocomplete({
       return;
     }
 
+    const cacheKey = cacheKeyForQuery(trimmed);
+    const cachedSuggestions = getCachedSuggestions(cacheKey);
+    if (cachedSuggestions) {
+      applySuggestions(cachedSuggestions);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -204,22 +260,14 @@ export default function Autocomplete({
         if (controller.signal.aborted || !userTypingRef.current) return;
 
         const nextSuggestions = normalizeSuggestions(raw);
-        const nextCount =
-          nextSuggestions.artworks.length + nextSuggestions.artists.length + nextSuggestions.clips.length;
-
-        setSuggestions(nextSuggestions);
-        if (nextCount > 0) {
-          setIsOpen(true);
-          setActiveIndex(-1);
-        } else {
-          closeDropdown();
-        }
+        setCachedSuggestions(cacheKey, nextSuggestions);
+        applySuggestions(nextSuggestions);
       } catch (error: unknown) {
         if ((error as { name?: string }).name === "AbortError") return;
         setSuggestions(EMPTY_SUGGESTIONS);
         closeDropdown();
       }
-    }, 200);
+    }, AUTOCOMPLETE_DEBOUNCE_MS);
 
     return () => {
       controller.abort();
@@ -228,7 +276,7 @@ export default function Autocomplete({
         fetchTimer.current = null;
       }
     };
-  }, [closeDropdown, killPending, minLength, query]);
+  }, [applySuggestions, closeDropdown, killPending, minLength, query]);
 
   useEffect(() => {
     return () => {

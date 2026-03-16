@@ -20,6 +20,15 @@ export type ArtworkTextSearchRow = {
   museum_name: string | null;
 };
 
+export type ArtworkAutocompleteRow = {
+  id: number;
+  title_sv: string | null;
+  title_en: string | null;
+  iiif_url: string | null;
+  dominant_color: string | null;
+  artists: string | null;
+};
+
 type LikeField = {
   column: string;
   weight: number;
@@ -160,6 +169,30 @@ function ftsFromSql(): string {
             AND a.id NOT IN (SELECT artwork_id FROM broken_images)`;
 }
 
+function autocompleteSelectSql(): string {
+  return `SELECT a.id,
+                 a.title_sv,
+                 a.title_en,
+                 a.iiif_url,
+                 a.dominant_color,
+                 a.artists`;
+}
+
+function autocompleteFromSql(): string {
+  return `FROM artworks a
+          WHERE a.iiif_url IS NOT NULL
+            AND LENGTH(a.iiif_url) > 40
+            AND a.id NOT IN (SELECT artwork_id FROM broken_images)`;
+}
+
+function autocompleteFtsFromSql(): string {
+  return `FROM artworks_fts
+          JOIN artworks a ON a.id = artworks_fts.rowid
+          WHERE a.iiif_url IS NOT NULL
+            AND LENGTH(a.iiif_url) > 40
+            AND a.id NOT IN (SELECT artwork_id FROM broken_images)`;
+}
+
 function appendScopeFilters(source: SqlFragment, museum?: SqlFragment | null): { sql: string; params: string[] } {
   return {
     sql: [
@@ -252,6 +285,59 @@ function searchByLike(args: {
   ).all(...score.params, ...where.params, ...scoped.params, limit, offset) as ArtworkTextSearchRow[];
 }
 
+function searchAutocompleteByFts(args: {
+  db: Database.Database;
+  query: string;
+  source: SqlFragment;
+  museum?: SqlFragment | null;
+  limit: number;
+}): ArtworkAutocompleteRow[] {
+  const { db, query, source, museum, limit } = args;
+  const ftsQuery = buildTitleOnlyFtsQuery(query);
+  if (!ftsQuery) return [];
+
+  const scoped = appendScopeFilters(source, museum);
+
+  return db.prepare(
+    `${autocompleteSelectSql()}
+     ${autocompleteFtsFromSql()}
+     AND artworks_fts MATCH ?
+     ${scoped.sql}
+     ORDER BY rank,
+              LENGTH(COALESCE(NULLIF(a.title_sv, ''), NULLIF(a.title_en, ''), '')) ASC,
+              a.id DESC
+     LIMIT ?`
+  ).all(ftsQuery, ...scoped.params, limit) as ArtworkAutocompleteRow[];
+}
+
+function searchAutocompleteByLike(args: {
+  db: Database.Database;
+  query: string;
+  source: SqlFragment;
+  museum?: SqlFragment | null;
+  limit: number;
+}): ArtworkAutocompleteRow[] {
+  const { db, query, source, museum, limit } = args;
+  const terms = likeTerms(query);
+  if (terms.length === 0) return [];
+
+  const where = whereSqlForTerms("title", terms);
+  const score = scoreSqlForQuery("title", query);
+  const scoped = appendScopeFilters(source, museum);
+
+  return db.prepare(
+    `${autocompleteSelectSql()},
+            (${score.sql}) as lexical_score
+     ${autocompleteFromSql()}
+       AND ${where.sql}
+       ${scoped.sql}
+     ORDER BY lexical_score DESC,
+              LENGTH(COALESCE(NULLIF(a.title_sv, ''), NULLIF(a.title_en, ''), '')) ASC,
+              a.id DESC
+     LIMIT ?`
+  ).all(...score.params, ...where.params, ...scoped.params, limit) as ArtworkAutocompleteRow[];
+}
+
 function minReliableFtsHits(scope: SearchScope, limit: number): number {
   if (scope === "title") return Math.max(limit, 5);
   return Math.max(Math.min(limit, 12), 8);
@@ -284,6 +370,27 @@ export function searchArtworksText(args: {
   }
 
   return searchByLike({ db, query, scope, source, museum, limit, offset });
+}
+
+export function searchArtworksAutocomplete(args: {
+  db: Database.Database;
+  query: string;
+  source: SqlFragment;
+  museum?: SqlFragment | null;
+  limit: number;
+}): ArtworkAutocompleteRow[] {
+  const { db, query, source, museum, limit } = args;
+
+  try {
+    const ftsRows = searchAutocompleteByFts({ db, query, source, museum, limit });
+    if (ftsRows.length > 0) {
+      return ftsRows;
+    }
+  } catch {
+    // Fall through to a cheaper lexical fallback when FTS is unavailable.
+  }
+
+  return searchAutocompleteByLike({ db, query, source, museum, limit });
 }
 
 export function buildArtworkSnippet(
