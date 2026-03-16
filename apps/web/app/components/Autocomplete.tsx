@@ -52,6 +52,7 @@ type AutocompleteProps = {
   onSelect: (suggestion: AutocompleteSuggestion) => void;
   children: (props: { inputProps: AutocompleteInputProps }) => React.ReactNode;
   dropdownClassName?: string;
+  buildRequestUrl?: (query: string) => string;
   minLength?: number;
 };
 
@@ -99,6 +100,10 @@ function setCachedSuggestions(query: string, suggestions: SuggestionGroups): voi
 function suggestionValue(suggestion: AutocompleteSuggestion): string {
   if (suggestion.type === "artwork") return suggestion.title;
   return suggestion.value;
+}
+
+function defaultRequestUrl(query: string): string {
+  return `/api/autocomplete?q=${encodeURIComponent(query)}`;
 }
 
 function normalizeSuggestions(raw: unknown): SuggestionGroups {
@@ -163,6 +168,7 @@ export default function Autocomplete({
   onQueryChange,
   onSelect,
   children,
+  buildRequestUrl = defaultRequestUrl,
   dropdownClassName,
   minLength = 2,
 }: AutocompleteProps) {
@@ -251,7 +257,7 @@ export default function Autocomplete({
 
     fetchTimer.current = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`, {
+        const response = await fetch(buildRequestUrl(trimmed), {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Autocomplete request failed");
@@ -276,7 +282,7 @@ export default function Autocomplete({
         fetchTimer.current = null;
       }
     };
-  }, [applySuggestions, closeDropdown, killPending, minLength, query]);
+  }, [applySuggestions, buildRequestUrl, closeDropdown, killPending, minLength, query]);
 
   useEffect(() => {
     return () => {

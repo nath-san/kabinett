@@ -1,6 +1,7 @@
+import { searchArtistsByScope } from "../lib/artist-search.server";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
-import { sourceFilter } from "../lib/museums.server";
+import { museumFilterSql, sourceFilter } from "../lib/museums.server";
 import { searchArtworksAutocomplete } from "../lib/text-search.server";
 import type { Route } from "./+types/api.autocomplete";
 
@@ -14,7 +15,6 @@ const CLIP_SUGGESTIONS = [
   "äpple", "äng", "änglar", "öar", "öken", "älg", "älvar",
 ];
 
-let hasArtistsTable: boolean | null = null;
 const AUTOCOMPLETE_CACHE_TTL_MS = 60_000;
 const AUTOCOMPLETE_CACHE_MAX = 200;
 const autocompleteCache = new Map<string, { payload: AutocompletePayload; ts: number }>();
@@ -63,24 +63,24 @@ function firstArtistName(rawArtists: string | null): string | null {
   }
 }
 
-function artistsTableExists(): boolean {
-  if (hasArtistsTable !== null) return hasArtistsTable;
-  const db = getDb();
-  const row = db
-    .prepare("SELECT 1 as ok FROM sqlite_master WHERE type = 'table' AND name = 'artists' LIMIT 1")
-    .get() as { ok?: number } | undefined;
-  hasArtistsTable = row?.ok === 1;
-  return hasArtistsTable;
-}
-
 function responseHeaders(): HeadersInit {
   return {
     "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
   };
 }
 
-function cacheKeyForQuery(query: string, source: { sql: string; params: string[] }): string {
-  return `${query.toLowerCase()}::${source.sql}::${source.params.join(",")}`;
+function cacheKeyForQuery(
+  query: string,
+  source: { sql: string; params: string[] },
+  museum?: { sql: string; params: string[] } | null
+): string {
+  return [
+    query.toLowerCase(),
+    source.sql,
+    source.params.join(","),
+    museum?.sql || "",
+    museum?.params.join(",") || "",
+  ].join("::");
 }
 
 function getCachedPayload(key: string): AutocompletePayload | null {
@@ -112,13 +112,15 @@ export async function loader({ request }: Route.LoaderArgs) {
     .replace(/[\u0000-\u001F\u007F]/g, "")
     .trim()
     .slice(0, 80);
+  const museum = url.searchParams.get("museum")?.trim() || "";
 
   if (q.length < 1) return Response.json(emptyPayload(), { headers: responseHeaders() });
 
   const db = getDb();
   const sourceA = sourceFilter("a");
   const qLower = q.toLowerCase();
-  const cacheKey = cacheKeyForQuery(qLower, sourceA);
+  const museumFilter = museumFilterSql(museum, "a");
+  const cacheKey = cacheKeyForQuery(qLower, sourceA, museumFilter);
   const cachedPayload = getCachedPayload(cacheKey);
   if (cachedPayload) {
     return Response.json(cachedPayload, { headers: responseHeaders() });
@@ -131,6 +133,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       db,
       query: q,
       source: sourceA,
+      museum: museumFilter,
       limit: 3,
     }) as Array<{
       id: number;
@@ -164,9 +167,10 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceA.sql}
+           ${museumFilter ? `AND ${museumFilter.sql}` : ""}
          ORDER BY a.id DESC
          LIMIT 3`
-      ).all(like, like, ...sourceA.params) as Array<{
+      ).all(like, like, ...sourceA.params, ...(museumFilter ? museumFilter.params : [])) as Array<{
         id: number;
         title: string;
         iiif_url: string | null;
@@ -187,31 +191,25 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  // 1. Artist matches — prefer the precomputed artist table for instant suggestions
-  if (q.length >= 2 && artistsTableExists()) {
+  // 1. Artist matches scoped to the active museum selection and subdomain.
+  if (q.length >= 2) {
     try {
-      const artists = db.prepare(
-        `SELECT name, artwork_count as count
-         FROM artists
-         WHERE name LIKE ?
-           AND name NOT LIKE '%känd%'
-         ORDER BY CASE
-                    WHEN lower(name) LIKE ? THEN 0
-                    ELSE 1
-                  END,
-                  artwork_count DESC,
-                  LENGTH(name) ASC
-         LIMIT 3`
-      ).all(`%${q}%`, `${qLower}%`) as Array<{ name: string; count: number }>;
+      const artists = searchArtistsByScope({
+        db,
+        query: q,
+        source: sourceA,
+        museum: museumFilter,
+        limit: 3,
+      });
 
       for (const artist of artists) {
         payload.artists.push({
           value: artist.name,
-          count: artist.count,
+          count: artist.artwork_count,
         });
       }
-    } catch (_) {
-      hasArtistsTable = false;
+    } catch {
+      payload.artists = [];
     }
   }
 

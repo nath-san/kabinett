@@ -163,12 +163,19 @@ function SearchAutocompleteForm({
     submitSearch(value);
   }, [submitSearch]);
 
+  const buildAutocompleteUrl = useCallback((value: string) => {
+    const params = new URLSearchParams({ q: value });
+    if (museum) params.set("museum", museum);
+    return `/api/autocomplete?${params.toString()}`;
+  }, [museum]);
+
   return (
     <div className="relative mt-4">
       <Autocomplete
         query={query}
         onQueryChange={setQuery}
         onSelect={handleSelect}
+        buildRequestUrl={buildAutocompleteUrl}
       >
         {({ inputProps }) => (
           <form

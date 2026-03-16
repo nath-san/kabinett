@@ -1,4 +1,5 @@
 // clipSearch imported lazily to avoid loading CLIP model on startup
+import { searchArtistsByScope } from "../lib/artist-search.server";
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
 import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
@@ -288,13 +289,13 @@ async function loadSearchResults(args: {
 
   if (query && type === "artist") {
     try {
-      const rows = db.prepare(
-        `SELECT name, artwork_count
-         FROM artists
-         WHERE name LIKE ?
-         ORDER BY artwork_count DESC
-         LIMIT ?`
-      ).all(`%${query}%`, PAGE_SIZE) as Array<{ name: string; artwork_count: number }>;
+      const rows = searchArtistsByScope({
+        db,
+        query,
+        source: sourceA,
+        museum: mf,
+        limit: PAGE_SIZE,
+      });
 
       const results: ArtistSearchResult[] = rows.map((row) => ({
         resultType: "artist",
