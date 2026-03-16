@@ -40,8 +40,11 @@ export default function GridCard({ item, variant = "light" }: GridCardProps) {
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-          style={{ objectPosition: focalPos }}
+          className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-400"
+          style={{
+            objectPosition: focalPos,
+            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
         />
       </div>
       <div className="p-3">

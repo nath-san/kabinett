@@ -41,7 +41,8 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none group/theme focus-ring"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none group/theme focus-ring transition-transform duration-400 hover:-translate-y-1 hover:scale-[1.06]"
+            style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
           >
             <div
               className="aspect-[3/4] overflow-hidden"
@@ -61,8 +62,11 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
                 onError={(event) => {
                   event.currentTarget.classList.add("is-broken");
                 }}
-                className="w-full h-full object-cover opacity-0 transition-[opacity,transform] duration-[400ms] ease-[ease] group-hover/theme:scale-[1.03]"
-                style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
+                className="w-full h-full object-cover opacity-0 transition-[opacity,transform] duration-[400ms] group-hover/theme:scale-[1.06]"
+                style={{
+                  objectPosition: focalObjectPosition(item.focal_x, item.focal_y),
+                  transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
               />
             </div>
             <div className="py-[0.6rem] px-3">
@@ -82,8 +86,12 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
         ))}
       </div>
 
-      <a href={searchHref} className="inline-block mt-5 text-[0.75rem] tracking-[0.03em] text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.75)] transition-colors no-underline focus-ring">
-        Visa fler →
+      <a
+        href={searchHref}
+        className="inline-flex items-center gap-1 mt-5 text-[0.75rem] tracking-[0.03em] text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.75)] transition-[color,gap] duration-300 no-underline focus-ring group/link"
+      >
+        Visa fler
+        <span className="inline-block transition-transform duration-300 group-hover/link:translate-x-1" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}>→</span>
       </a>
     </div>
   );

@@ -131,8 +131,10 @@ function NavLink({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={[
-        "no-underline transition-colors focus-ring relative pb-0.5",
-        isDark ? "hover:text-dark-text" : "hover:text-ink",
+        "no-underline transition-colors focus-ring relative pb-0.5 px-2.5 py-1 rounded-full",
+        isDark
+          ? "hover:text-dark-text hover:bg-[rgba(245,240,232,0.06)]"
+          : "hover:text-ink hover:bg-[rgba(61,56,49,0.05)]",
         isActive
           ? isDark
             ? "text-dark-text font-medium"
@@ -143,10 +145,11 @@ function NavLink({
       {label}
       {isActive && (
         <span
-          className={[
-            "absolute left-0 right-0 -bottom-[0.35rem] h-[1.5px] rounded-full",
-            isDark ? "bg-dark-text/50" : "bg-charcoal/40",
-          ].join(" ")}
+          className="absolute left-2 right-2 -bottom-[0.2rem] h-[2px] rounded-full bg-accent origin-left"
+          style={{
+            animation: "scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+            transformOrigin: "left center",
+          }}
         />
       )}
     </a>
@@ -164,8 +167,8 @@ function Header() {
       className={[
         "fixed top-0 left-0 right-0 z-[60]",
         isDark
-          ? "bg-[rgba(10,9,8,0.45)] backdrop-blur-[10px] border-b border-[rgba(255,255,255,0.04)]"
-          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[12px] border-b border-[rgba(212,205,195,0.25)]",
+          ? "bg-[rgba(10,9,8,0.55)] backdrop-blur-[16px] border-b border-[rgba(255,255,255,0.05)]"
+          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[16px] border-b border-[rgba(212,205,195,0.25)]",
       ].join(" ")}
     >
       <nav
@@ -176,7 +179,7 @@ function Header() {
           href="/"
           aria-current={path === "/" ? "page" : undefined}
           className={[
-            "font-serif text-[1.45rem] lg:text-[1.65rem] tracking-tight no-underline focus-ring",
+            "font-serif text-[1.55rem] lg:text-[1.75rem] tracking-tight no-underline focus-ring",
             isDark ? "text-dark-text" : "text-charcoal",
           ].join(" ")}
         >
@@ -184,7 +187,7 @@ function Header() {
         </a>
         <div
           className={[
-            "hidden lg:flex items-center gap-8 text-[0.82rem] tracking-[0.015em]",
+            "hidden lg:flex items-center gap-6 text-[0.82rem] tracking-[0.015em]",
             isDark ? "text-dark-text/70" : "text-warm-gray",
           ].join(" ")}
         >
@@ -277,14 +280,22 @@ function BottomNav() {
       ].join(" ")}
     >
       <div
+        className={[
+          "absolute top-0 left-0 right-0 h-[1px]",
+          isDark
+            ? "bg-[linear-gradient(90deg,transparent,rgba(212,168,83,0.15)_50%,transparent)]"
+            : "bg-[linear-gradient(90deg,transparent,rgba(212,168,83,0.1)_50%,transparent)]",
+        ].join(" ")}
+      />
+      <div
         className="flex justify-around items-center h-[3.5rem] max-w-[32rem] mx-auto"
       >
         {tabs.map((tab) => {
           const color = tab.active
-            ? (isDark ? "var(--color-dark-text)" : "#3D3831")
+            ? "var(--color-gold)"
             : (isDark ? "rgba(245,240,232,0.4)" : "rgba(61,56,49,0.35)");
           const labelClass = tab.active
-            ? (isDark ? "text-dark-text" : "text-charcoal")
+            ? "text-gradient-warm"
             : (isDark ? "text-dark-text-muted" : "text-[rgba(61,56,49,0.35)]");
           return (
             <a
@@ -305,7 +316,7 @@ function BottomNav() {
                 {tab.label}
               </span>
               {tab.badge && tab.badge > 0 ? (
-                <span className="absolute top-0 right-[0.15rem] min-w-[0.9rem] h-[0.9rem] px-[0.15rem] rounded-full bg-accent text-white text-[0.55rem] inline-flex items-center justify-center font-semibold">
+                <span className="absolute top-0 right-[0.15rem] min-w-[0.9rem] h-[0.9rem] px-[0.15rem] rounded-full bg-accent text-white text-[0.55rem] inline-flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(212,67,46,0.4)]">
                   {tab.badge}
                 </span>
               ) : null}
@@ -324,8 +335,14 @@ export default function App() {
   return (
     <>
       {isNavigating && (
-        <div className="fixed top-0 left-0 right-0 z-[100] h-[2px]">
-          <div className="h-full bg-[rgba(201,176,142,0.7)] animate-[loading-bar_1.5s_ease-in-out_infinite]" />
+        <div className="fixed top-0 left-0 right-0 z-[100] h-[2.5px]">
+          <div
+            className="h-full animate-[loading-bar_1.5s_ease-in-out_infinite]"
+            style={{
+              background: "linear-gradient(90deg, var(--color-gold), var(--color-gold-light))",
+              boxShadow: "0 0 12px rgba(212,168,83,0.4)",
+            }}
+          />
         </div>
       )}
       <Outlet />

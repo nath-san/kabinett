@@ -35,8 +35,11 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[8.5rem] h-[8.5rem] rounded-lg overflow-hidden block hover:ring-2 hover:ring-dark-text/20 transition-shadow focus-ring"
-            style={{ backgroundColor: item.dominant_color || "#1A1815" }}
+            className="shrink-0 w-[8.5rem] h-[8.5rem] rounded-lg overflow-hidden block transition-[shadow,ring-color,transform] duration-300 hover:ring-2 hover:ring-gold/30 hover:scale-[1.04] focus-ring"
+            style={{
+              backgroundColor: item.dominant_color || "#1A1815",
+              transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
           >
             <img
               src={item.imageUrl}

@@ -106,8 +106,8 @@ export default function HeroSearch({
       ) : (
         /* ── Default hero: original layout ── */
         <>
-          <h1 className="font-serif text-[2rem] md:text-[2.6rem] lg:text-[3.2rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
-            {resolvedHeadline}{" "}
+          <h1 className="font-serif text-[2.2rem] md:text-[2.8rem] lg:text-[3.4rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
+            <span className="text-gradient-warm">{resolvedHeadline}</span>{" "}
             <span className="text-dark-text-muted">{resolvedSubline}</span>
           </h1>
           {introText && (
@@ -129,7 +129,7 @@ export default function HeroSearch({
             <label htmlFor="hero-search" className="sr-only">
               Sök bland konstverk
             </label>
-            <div className="flex items-center gap-3.5 rounded-full bg-[rgba(245,240,232,0.06)] border border-[rgba(245,240,232,0.10)] px-6 py-[0.95rem] transition-all duration-300 focus-within:border-[rgba(201,176,142,0.30)] focus-within:bg-[rgba(245,240,232,0.09)] focus-within:shadow-[0_0_48px_rgba(201,176,142,0.05)]">
+            <div className="flex items-center gap-3.5 rounded-full bg-[rgba(245,240,232,0.08)] border border-[rgba(245,240,232,0.10)] px-6 py-[0.95rem] transition-all duration-300 focus-within:border-[rgba(212,168,83,0.35)] focus-within:bg-[rgba(245,240,232,0.10)] focus-within:shadow-[0_0_48px_rgba(212,168,83,0.08)]" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}>
               <svg
                 aria-hidden="true"
                 width="20"
@@ -138,7 +138,7 @@ export default function HeroSearch({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.6"
-                className="text-[rgba(201,176,142,0.40)] shrink-0"
+                className="text-[rgba(212,168,83,0.45)] shrink-0"
               >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
@@ -164,7 +164,8 @@ export default function HeroSearch({
             key={`${campaignId}-${chip}`}
             type="button"
             onClick={() => goToSearch(chip, "visual")}
-            className="cursor-pointer rounded-full border border-[rgba(245,240,232,0.10)] bg-[rgba(245,240,232,0.04)] px-3.5 py-1.5 text-[0.8rem] leading-none text-[rgba(201,176,142,0.50)] transition-colors duration-200 hover:border-[rgba(245,240,232,0.18)] hover:text-[rgba(201,176,142,0.72)] focus-ring"
+            className="cursor-pointer rounded-full border border-[rgba(245,240,232,0.10)] bg-[rgba(245,240,232,0.04)] px-4 py-2 text-[0.8rem] leading-none text-[rgba(201,176,142,0.50)] transition-[color,border-color,background,transform] duration-200 hover:border-[rgba(212,168,83,0.25)] hover:text-[rgba(212,168,83,0.75)] hover:bg-[rgba(212,168,83,0.06)] hover:scale-[1.03] active:scale-[0.97] focus-ring"
+            style={{ transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
           >
             {chip}
           </button>

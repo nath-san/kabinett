@@ -6,6 +6,7 @@ import StatsSection, { type StatsCardData } from "../components/StatsSection";
 import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 import { homeLoader, type HomeLoaderData } from "./home.loader.server";
 import { getThemes } from "../lib/themes";
 import type { Route } from "./+types/home";
@@ -245,13 +246,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => observer.disconnect();
   }, [hasMore, loading, loadMore]);
 
+  const scrollRef = useScrollReveal<HTMLDivElement>();
+
   return (
     <div className="min-h-screen overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
-      <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+      <div ref={scrollRef} className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
         <HeroSearch
           totalWorks={loaderData.stats.total}
           headline={loaderData.heroHeadline}
@@ -261,7 +264,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           campaignId={loaderData.campaignId}
         />
 
-        {<div className="grid grid-cols-1 md:gap-2.5 lg:grid-cols-3 lg:gap-3.5 lg:grid-flow-dense">
+        {<div className="grid grid-cols-1 md:gap-1.5 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
           {(() => {
             let artPosition = -1;
             return feed.map((entry, index) => {

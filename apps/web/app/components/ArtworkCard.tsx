@@ -53,11 +53,16 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
       ? "h-[38vh] md:h-[42vh]"
       : "h-[42vh] md:h-[50vh]";
 
+  const staggerDelay = Math.min(index, 8) * 60;
+
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] md:rounded-card group/card focus-ring ${variantClass}`}
-      style={{ backgroundColor: item.dominant_color || "#1A1815" }}
+      className={`card-reveal block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] md:rounded-card group/card focus-ring ${variantClass}`}
+      style={{
+        backgroundColor: item.dominant_color || "#1A1815",
+        animationDelay: `${staggerDelay}ms`,
+      }}
     >
       <img
         src={item.imageUrl}
@@ -76,13 +81,22 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
           event.currentTarget.classList.add("is-broken");
         }}
         className={[
-          "absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out lg:group-hover/card:scale-[1.02]",
+          "absolute inset-0 w-full h-full object-cover transition-transform duration-500 lg:group-hover/card:scale-[1.04]",
           eager ? "" : "opacity-0 lg:opacity-100",
         ].join(" ")}
-        style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
+        style={{
+          objectPosition: focalObjectPosition(item.focal_x, item.focal_y),
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.3)_28%,transparent_50%)] pointer-events-none lg:opacity-60 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
-      <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 lg:p-7" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5), 0 0 12px rgba(0,0,0,0.25)" }}>
+      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.35)_28%,transparent_50%)] pointer-events-none lg:opacity-50 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
+      <div
+        className="absolute bottom-0 left-0 right-0 p-5 md:p-6 lg:p-7 lg:translate-y-1 lg:group-hover/card:translate-y-0 lg:transition-transform lg:duration-500"
+        style={{
+          textShadow: "0 1px 4px rgba(0,0,0,0.5), 0 0 12px rgba(0,0,0,0.25)",
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+      >
         <p className="font-serif text-[1.3rem] md:text-[1.4rem] lg:text-[1.55rem] font-semibold text-white leading-[1.15] mb-[0.3rem] line-clamp-2">
           {item.title_sv || "Utan titel"}
         </p>
@@ -103,16 +117,17 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
           event.stopPropagation();
           if (!saved) {
             setPulsing(true);
-            window.setTimeout(() => setPulsing(false), 350);
+            window.setTimeout(() => setPulsing(false), 400);
           }
           toggle(item.id);
         }}
         className={[
-          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-11 h-11 lg:w-[2.75rem] lg:h-[2.75rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background] ease-[ease] duration-[200ms]",
-          "focus-ring",
-          saved ? "bg-[rgba(196,85,58,0.95)]" : "bg-[rgba(0,0,0,0.4)]",
+          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-11 h-11 lg:w-[2.75rem] lg:h-[2.75rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background,box-shadow] duration-[200ms]",
+          "focus-ring hover:scale-110",
+          saved ? "bg-[rgba(212,67,46,0.95)] shadow-[0_0_16px_rgba(212,67,46,0.3)]" : "bg-[rgba(0,0,0,0.4)]",
           pulsing ? "heart-pulse" : "",
         ].join(" ")}
+        style={{ transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
           <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
@@ -132,11 +147,11 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="art-card block break-inside-avoid rounded-card overflow-hidden bg-dark-raised group focus-ring"
+      className="art-card card-reveal block break-inside-avoid rounded-card overflow-hidden bg-dark-raised group focus-ring"
     >
       <div
         style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
-        className="overflow-hidden aspect-[3/4]"
+        className="overflow-hidden aspect-[3/4] relative"
       >
         <img
           src={item.imageUrl}
@@ -148,9 +163,13 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
+          className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500"
+          style={{
+            objectPosition: focalObjectPosition(item.focal_x, item.focal_y),
+            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
         />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.3)_0%,transparent_40%)] opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
       </div>
       <div className="p-3">
         <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2">
@@ -176,4 +195,3 @@ export default function ArtworkCard(props: ArtworkCardProps) {
   }
   return <FeedArtworkCard {...props} />;
 }
-

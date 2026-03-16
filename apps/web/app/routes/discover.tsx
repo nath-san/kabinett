@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -5,6 +6,33 @@ import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
 import { getCampaignConfig } from "../lib/campaign.server";
+
+function useScrollRevealDiscover() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) {
+      el.querySelectorAll(".reveal-on-scroll").forEach((child) => child.classList.add("is-visible"));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+    el.querySelectorAll(".reveal-on-scroll").forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
 
 export function headers() {
   return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };
@@ -351,6 +379,8 @@ export async function loader() {
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
   const { collections, topArtists, stats, museums } = loaderData;
+  /* scroll-reveal: the .reveal-on-scroll children are observed automatically */
+  const scrollRef = useScrollRevealDiscover();
 
   const tools: ToolItem[] = [
     { title: "Färgmatch", desc: "Matcha en färg med konstverk", href: "/color-match", mobileOnly: true },
@@ -372,10 +402,10 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
-      <div className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
+      <div ref={scrollRef} className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
         <h1 className="font-serif text-[2rem] text-dark-text px-5 pt-6 pb-2">Upptäck</h1>
         {/* Teman — 2-column grid */}
-        <section className="pt-6 px-5">
+        <section className="reveal-on-scroll pt-6 px-5">
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Teman</h2>
 
           <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
@@ -415,7 +445,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Top artists */}
         {topArtists.length > 0 && (
-          <section className="pt-10">
+          <section className="reveal-on-scroll pt-10">
             <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">Formgivare & konstnärer</h2>
 
             <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
@@ -489,7 +519,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Samlingen i siffror */}
-        <section className="pt-10 px-5 pb-16">
+        <section className="reveal-on-scroll pt-10 px-5 pb-16">
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingen i siffror</h2>
 
           <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
