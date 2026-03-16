@@ -88,17 +88,17 @@ export default function HeroSearch({
       {isCampaign ? (
         /* ── Campaign hero: clear hierarchy ── */
         <div className="text-center">
-          <p className="text-[0.8rem] md:text-[0.85rem] uppercase tracking-[0.2em] text-[rgba(201,176,142,0.50)] mb-3">
+          <p className="text-[0.8rem] md:text-[0.85rem] uppercase tracking-[0.2em] text-gradient-warm mb-3" style={{ opacity: 0.6 }}>
             Kabinett ×
           </p>
-          <h1 className="font-serif text-[2.4rem] md:text-[3rem] lg:text-[3.6rem] text-dark-text leading-[1.05] tracking-[-0.02em]">
-            {resolvedHeadline}
+          <h1 className="font-serif text-[2.6rem] md:text-[3.2rem] lg:text-[3.8rem] text-dark-text leading-[1.05] tracking-[-0.02em]">
+            <span className="text-gradient-warm">{resolvedHeadline}</span>
           </h1>
           <p className="mt-3 text-[1rem] md:text-[1.1rem] text-dark-text-muted tracking-[-0.01em]">
             {resolvedSubline}
           </p>
           {introText && (
-            <p className="mt-3 mx-auto max-w-[32rem] text-[0.85rem] text-[rgba(201,176,142,0.45)] leading-relaxed">
+            <p className="mt-3 mx-auto max-w-[32rem] text-[0.85rem] text-dark-text-muted/50 leading-relaxed">
               {introText}
             </p>
           )}
