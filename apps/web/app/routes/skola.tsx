@@ -76,12 +76,13 @@ type GroupBy = "museum" | "subject" | "grade" | "theme";
 type SortBy = "match" | "quickstart" | "dialogue";
 
 const MUSEUM_LABELS: Record<string, string> = {
+  default: "Flera samlingar",
   nationalmuseum: "Nationalmuseum",
   shm: "Historiska museet",
   nordiska: "Nordiska museet",
 };
 
-const MUSEUM_ORDER = ["nationalmuseum", "shm", "nordiska"];
+const MUSEUM_ORDER = ["nationalmuseum", "shm", "nordiska", "default"];
 const SUBJECT_ORDER = [
   "Bild",
   "Historia",
@@ -150,6 +151,7 @@ const THEME_VALUE_TEXT: Record<string, string> = {
 
 const GROUP_HELP_TEXTS: Record<GroupBy, Record<string, string>> = {
   museum: {
+    default: "Upplägg som hämtar verk och perspektiv från flera samlingar.",
     nationalmuseum: "Konsthistoriska verk med fokus på bildanalys och visuellt berättande.",
     shm: "Historiska föremål som öppnar för tidsresor, makt och samhällsfrågor.",
     nordiska: "Vardagsliv, traditioner och design med tydliga kopplingar till elevernas erfarenheter.",
@@ -762,6 +764,7 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
 
     return { quickStarts };
   }, [walkPreviews]);
+  const hasQuickStarts = heroSummary.quickStarts > 0;
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
@@ -781,19 +784,27 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                   Välj ett upplägg efter ämne, årskurs eller tema. Varje upplägg samlar verk,
                   diskussionsfrågor och Lgr22-koppling i en tydlig lektionsstruktur.
                 </p>
-                <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
-                  {heroSummary.quickStarts} upplägg är extra snabba att komma igång med.
-                </p>
+                {hasQuickStarts ? (
+                  <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
+                    {heroSummary.quickStarts} upplägg är extra snabba att komma igång med.
+                  </p>
+                ) : (
+                  <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
+                    Börja med ämne, årskurs eller tema för att hitta rätt upplägg snabbare.
+                  </p>
+                )}
               </div>
               <div className="rounded-2xl border border-[rgba(245,240,232,0.16)] bg-[rgba(16,13,11,0.5)] px-4 py-4 md:px-5">
                 <p className="text-[0.62rem] uppercase tracking-[0.16em] text-dark-text-muted">
-                  Redo att starta
+                  {hasQuickStarts ? "Redo att starta" : "Att utforska"}
                 </p>
                 <p className="font-serif text-[1.85rem] leading-none text-dark-text mt-2">
-                  {heroSummary.quickStarts}
+                  {hasQuickStarts ? heroSummary.quickStarts : stats.walkCount}
                 </p>
                 <p className="text-[0.78rem] text-dark-text-secondary mt-1">
-                  upplägg fungerar som snabbstart just nu.
+                  {hasQuickStarts
+                    ? "upplägg fungerar som snabbstart just nu."
+                    : "publicerade upplägg att välja bland just nu."}
                 </p>
                 <a
                   href="#upplagg"

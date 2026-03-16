@@ -7,7 +7,7 @@ import type { CampaignId } from "../lib/campaign.server";
 const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
   nationalmuseum: ["stilleben", "porträtt", "landskap", "guld", "blommor", "storm"],
-  nordiska: ["folkdräkt", "Stockholm", "leksaker", "bröllop", "Skansen", "vinter"],
+  nordiska: ["samisk trumma", "samiska föremål", "folkdräkt", "Stockholm", "leksaker", "Skansen"],
   shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],
 };
 

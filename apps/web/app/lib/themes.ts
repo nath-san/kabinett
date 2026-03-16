@@ -20,6 +20,7 @@ const NM_THEMES: ThemeCardSection[] = [
 ];
 
 const NORDISKA_THEMES: ThemeCardSection[] = [
+  { title: "Samiska spår", subtitle: "Duodji, dräkter och vardagsliv", filter: "samisk", color: "#241A16", items: [] },
   { title: "Folkdräkter", subtitle: "Traditioner i tyg", filter: "Folkdräkt", color: "#2A1F1A", items: [] },
   { title: "Stockholm i svartvitt", subtitle: "Huvudstaden genom kameran", filter: "Stockholm svartvitt", color: "#1A1D24", items: [] },
   { title: "Vintermotiv", subtitle: "Snö, is och kyla", filter: "Vinter snö", color: "#1E2530", items: [] },

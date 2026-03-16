@@ -91,25 +91,28 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const themes = loaderData.preloadedThemes || [];
     for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
-      if (i === 2 && themes[0]) {
+      // Insert full-width modules only after a completed desktop row.
+      // With the current card mix, 5 artworks fills the first 3-column block
+      // without leaving a gap before a col-span-3 section.
+      if (i === 4 && themes[0]) {
         entries.push({ type: "theme", ...themes[0] });
         entries.push({ type: "walkPromo" });
       }
-      if (i === 4 && loaderData.spotlight) {
+      if (i === 9 && loaderData.spotlight) {
         entries.push({ type: "spotlight", ...loaderData.spotlight });
       }
-      if (i === 6 && themes[1]) {
+      if (i === 11 && themes[1]) {
         entries.push({ type: "theme", ...themes[1] });
       }
-      if (i === 8) {
+      if (i === 14) {
         entries.push({ type: "stats", ...loaderData.stats });
       }
-      if (i === 10 && themes[2]) {
+      if (i === 16 && themes[2]) {
         entries.push({ type: "theme", ...themes[2] });
       }
     }
 
-    if (initial.length <= 8) {
+    if (initial.length <= 14) {
       entries.push({ type: "stats", ...loaderData.stats });
     }
 
@@ -118,7 +121,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       entries.push({ type: "walkPromo" });
     }
 
-    if (initial.length <= 12 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {
+    if (initial.length <= 10 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {
       entries.push({ type: "spotlight", ...loaderData.spotlight });
     }
 
@@ -296,7 +299,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 // All campaigns now have walks
                 return (
                   <div key={`walks-${index}`} className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
-                    <WalkPromoCard />
+                    <WalkPromoCard campaignId={loaderData.campaignId} />
                   </div>
                 );
               }

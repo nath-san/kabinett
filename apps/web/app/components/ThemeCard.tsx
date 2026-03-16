@@ -1,4 +1,5 @@
 import { buildImageUrl } from "../lib/images";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 import {
   artworkArtist,
   buildArtworkAltText,
@@ -15,12 +16,14 @@ export type ThemeCardSection = {
 };
 
 export default function ThemeCard({ section, showMuseumBadge }: { section: ThemeCardSection; showMuseumBadge: boolean }) {
+  const ref = useScrollReveal<HTMLDivElement>();
   const query = section.filter || section.title;
   const searchHref = `/search?q=${encodeURIComponent(query)}&mode=theme`;
 
   return (
     <div
-      className="pt-10 md:pt-12 px-5 md:px-6 lg:px-8 pb-9 md:pb-10 snap-start lg:rounded-section lg:overflow-hidden"
+      ref={ref}
+      className="reveal-on-scroll pt-10 md:pt-12 px-5 md:px-6 lg:px-8 pb-9 md:pb-10 snap-start lg:rounded-section lg:overflow-hidden"
       style={{ backgroundColor: section.color }}
     >
       <p className="text-[0.6rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.30)] font-medium">

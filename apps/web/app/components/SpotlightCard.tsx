@@ -3,6 +3,7 @@ import {
   focalObjectPosition,
   type ArtworkDisplayItem,
 } from "./artwork-meta";
+import { useScrollReveal } from "../hooks/useScrollReveal";
 
 export type SpotlightCardData = {
   artistName: string;
@@ -10,8 +11,13 @@ export type SpotlightCardData = {
 };
 
 export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardData }) {
+  const ref = useScrollReveal<HTMLElement>();
+
   return (
-    <section className="bg-dark-base rounded-none lg:rounded-section px-5 py-9 md:px-7 md:py-10 lg:px-10 lg:py-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7">
+    <section
+      ref={ref}
+      className="reveal-on-scroll bg-dark-base rounded-none lg:rounded-section px-5 py-9 md:px-7 md:py-10 lg:px-10 lg:py-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7"
+    >
       <div className="lg:max-w-[22rem]">
         <p className="text-[0.6rem] uppercase tracking-[0.2em] text-dark-text-muted font-medium">Konstnär i fokus</p>
         <h2 className="font-serif text-[1.8rem] md:text-[2rem] text-dark-text leading-[1.05] mt-2.5">
