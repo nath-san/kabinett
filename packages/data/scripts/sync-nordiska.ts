@@ -159,6 +159,16 @@ function buildArtistsJson(artists: ArtistRow[]): string | null {
   return JSON.stringify(artists);
 }
 
+function getNodeTextOrResource(node: any): string {
+  const text = getText(node)?.trim();
+  if (text) return text;
+  if (node && typeof node === "object") {
+    const resource = node["@_rdf:resource"] || node["@_resource"] || "";
+    if (typeof resource === "string") return resource;
+  }
+  return "";
+}
+
 function extractArtists(entity: any): string | null {
   const contexts = findAll(entity, "Context");
   const artists: ArtistRow[] = [];
@@ -168,10 +178,12 @@ function extractArtists(entity: any): string | null {
     const name = getText(findFirst(ctx, "name"))?.trim() || "";
     if (!isUsableCreatorName(name)) continue;
 
-    const contextLabel = getText(findFirst(ctx, "contextLabel"))?.trim() || "";
-    const role = getText(findFirst(ctx, "title"))?.trim() || contextLabel || null;
-    const superType = getText(findFirst(ctx, "contextSuperType")) || "";
-    const isCreatorContext = superType.includes("create") || superType.includes("produce")
+    const contextLabel = getNodeTextOrResource(findFirst(ctx, "contextLabel")) || "";
+    const role = getNodeTextOrResource(findFirst(ctx, "title")) || contextLabel || null;
+    const superType = getNodeTextOrResource(findFirst(ctx, "contextSuperType"));
+    const contextType = getNodeTextOrResource(findFirst(ctx, "contextType"));
+    const isCreatorContext = /create|produce/i.test(superType)
+      || /create|produce/i.test(contextType)
       || /fotograf|tillverk|skap|konstnär|formgiv|design|gravör|målare|tecknare/i.test(role || "");
     if (!isCreatorContext) continue;
 

@@ -196,7 +196,9 @@ function selectRecentIds(db: Database.Database, recent: number): number[] {
     `SELECT id
      FROM artworks
      WHERE artists IS NOT NULL AND artists != ''
-     ORDER BY COALESCE(last_updated, 0) DESC, id DESC
+     ORDER BY
+       COALESCE(last_updated, CAST(strftime('%s', synced_at) AS INTEGER), 0) DESC,
+       id DESC
      LIMIT ?`
   ).all(recent) as Array<{ id: number }>;
   return rows.map((row) => row.id);

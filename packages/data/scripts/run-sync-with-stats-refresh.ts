@@ -21,6 +21,12 @@ function runPnpmScript(script: string, args: string[] = []): Promise<number> {
   });
 }
 
+function needsFullArtistRebuild(targetScript: string): boolean {
+  return targetScript === "sync:nordiska:raw"
+    || targetScript === "sync:shm:raw"
+    || targetScript === "sync:shm:fast:raw";
+}
+
 async function main() {
   const targetScript = process.argv[2];
   const forwardArgs = process.argv.slice(3);
@@ -48,6 +54,20 @@ async function main() {
   }
 
   console.log("\nRefreshing related artwork materializations…");
+  if (needsFullArtistRebuild(targetScript)) {
+    const artistExitCode = await runPnpmScript("related:artists:refresh");
+    if (artistExitCode !== 0) {
+      console.warn("Warning: artist refresh failed. Sync data was written successfully.");
+      return;
+    }
+
+    const neighborsExitCode = await runPnpmScript("related:refresh", ["--neighbors-only", "--recent=10000"]);
+    if (neighborsExitCode !== 0) {
+      console.warn("Warning: neighbor refresh failed. Sync data was written successfully.");
+    }
+    return;
+  }
+
   const relatedExitCode = await runPnpmScript("related:refresh", ["--recent=10000"]);
   if (relatedExitCode !== 0) {
     console.warn("Warning: related refresh failed. Sync data was written successfully.");
