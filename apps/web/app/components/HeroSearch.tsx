@@ -7,7 +7,7 @@ import type { CampaignId } from "../lib/campaign.server";
 const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
   nationalmuseum: ["stilleben", "porträtt", "landskap", "guld", "blommor", "storm"],
-  nordiska: ["samisk trumma", "samiska föremål", "folkdräkt", "Stockholm", "leksaker", "Skansen"],
+  nordiska: ["allmogemöbler", "samiska föremål", "folkdräkt", "Stockholm", "leksaker", "Skansen"],
   shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],
 };
 
@@ -78,7 +78,7 @@ export default function HeroSearch({
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       const inputValue = inputRef.current?.value || query;
-      goToSearch(inputValue);
+      goToSearch(inputValue, "visual");
     },
     [query, goToSearch]
   );
