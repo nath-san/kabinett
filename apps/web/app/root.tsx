@@ -192,7 +192,7 @@ function Header() {
           ].join(" ")}
         >
           <NavLink href="/discover" label="Upptäck" path={path} isDark={isDark} />
-          <NavLink href="/search" label="Sök" path={path} isDark={isDark} />
+          <NavLink href="/search?type=visual&focus=1" label="Sök" path={path} isDark={isDark} />
           <NavLink href="/skola" label="Skola" path={path} isDark={isDark} />
           <NavLink href="/favorites" label="Sparade" path={path} isDark={isDark} />
           <NavLink href="/om" label="Om" path={path} isDark={isDark} />
@@ -233,7 +233,7 @@ function BottomNav() {
       ),
     },
     {
-      href: "/search?focus=1",
+      href: "/search?type=visual&focus=1",
       label: "Sök",
       active: path === "/search",
       icon: (color: string) => (

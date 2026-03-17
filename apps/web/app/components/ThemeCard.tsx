@@ -12,13 +12,16 @@ export type ThemeCardSection = {
   subtitle: string;
   filter: string;
   color: string;
+  searchType: "all" | "visual";
   items: ArtworkDisplayItem[];
 };
 
 export default function ThemeCard({ section, showMuseumBadge }: { section: ThemeCardSection; showMuseumBadge: boolean }) {
   const ref = useScrollReveal<HTMLDivElement>();
   const query = section.filter || section.title;
-  const searchHref = `/search?q=${encodeURIComponent(query)}&mode=theme`;
+  const searchParams = new URLSearchParams({ q: query });
+  if (section.searchType === "visual") searchParams.set("type", "visual");
+  const searchHref = `/search?${searchParams.toString()}`;
 
   return (
     <div

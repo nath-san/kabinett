@@ -169,6 +169,12 @@ function SearchAutocompleteForm({
     return `/api/autocomplete?${params.toString()}`;
   }, [museum]);
 
+  const placeholder = searchType === "visual"
+    ? "porträtt, blå himmel, storm…"
+    : searchType === "artist"
+      ? "Carl Larsson, Hilma af Klint…"
+      : "Konstnär, titel, teknik…";
+
   return (
     <div className="relative mt-4">
       <Autocomplete
@@ -193,7 +199,7 @@ function SearchAutocompleteForm({
                 id="search-input"
                 type="search"
                 name="q"
-                placeholder="Konstnär, titel, teknik…"
+                placeholder={placeholder}
                 className="flex-1 px-4 py-3 rounded-card bg-dark-raised text-dark-text placeholder:text-dark-text-muted
                        text-base border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring [&::-webkit-search-cancel-button]:hidden"
               />
@@ -415,6 +421,18 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
+  const searchIntro = searchType === "visual"
+    ? "Bildsök är bäst för motiv och stämningar som porträtt, blå himmel eller storm. För namn, epoker och material fungerar Alla bättre."
+    : searchType === "artist"
+      ? "Sök efter konstnärer och formgivare. För motiv och stämningar fungerar Bildsök bättre."
+      : searchType === "artwork"
+        ? "Sök efter verk med ord från titel, beskrivning och metadata. För motiv och stämningar fungerar Bildsök bättre."
+        : "Alla passar bäst för namn, epoker och material. För motiv och stämningar som porträtt, natt eller hav är Bildsök oftast starkare.";
+  const suggestedQueries = searchType === "visual"
+    ? ["Porträtt", "Landskap", "Blommor", "Storm", "Blå himmel", "Guld", "Häst", "Vinter", "Skog", "Stilleben"]
+    : searchType === "artist"
+      ? ["Carl Larsson", "Rembrandt", "Bruno Liljefors", "Hilma af Klint", "Anders Zorn"]
+      : ["Carl Larsson", "Rembrandt", "Olja på duk", "Akvarell", "Porträtt", "Landskap", "Skulptur", "1700-tal", "Guld", "Vinter"];
 
   const buildSearchUrl = ({
     queryValue = query,
@@ -444,6 +462,9 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           searchType={searchType}
           autoFocus={shouldAutoFocus}
         />
+        <p className="mt-3 max-w-3xl text-[0.84rem] leading-relaxed text-dark-text-muted">
+          {searchIntro}
+        </p>
 
         <div className="mt-5">
           <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">Typ</p>
@@ -510,7 +531,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           <div className="mt-6">
             <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-3">Prova</p>
             <div className="flex flex-wrap gap-2">
-              {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
+              {suggestedQueries.map(s => (
                 <a key={s} href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
                   className="px-3.5 py-[0.4rem] inline-flex items-center rounded-full bg-dark-raised text-dark-text-secondary text-[0.8rem] font-medium
                              hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring">{s}</a>

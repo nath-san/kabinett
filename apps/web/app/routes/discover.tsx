@@ -412,7 +412,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
             {collections.map((c: Collection) => (
               <a
                 key={c.title}
-                href={`/search?q=${encodeURIComponent(c.query || c.title)}`}
+                href={`/search?q=${encodeURIComponent(c.query || c.title)}&type=visual`}
                 className={[
                   "relative rounded-card overflow-hidden no-underline group/coll focus-ring",
                   "aspect-square",
