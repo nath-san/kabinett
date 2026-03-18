@@ -383,6 +383,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   const scrollRef = useScrollRevealDiscover();
 
   const tools: ToolItem[] = [
+    { title: "Tidslinje", desc: "800 år av konst, decennium för decennium", href: "/timeline" },
     { title: "Färgmatch", desc: "Matcha en färg med konstverk", href: "/color-match", mobileOnly: true },
     { title: "Vandringar", desc: "Tematiska resor genom samlingen", href: "/vandringar" },
   ];
