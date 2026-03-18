@@ -18,6 +18,8 @@
     "sync:nordiska": "tsx scripts/run-sync-with-stats-refresh.ts sync:nordiska:raw",
     "sync:nordiska:raw": "tsx scripts/sync-nordiska.ts",
     "sync:nordiska:artists": "tsx scripts/run-sync-with-stats-refresh.ts sync:nordiska:raw --artists-only",
+    "sync:europeana": "tsx scripts/run-sync-with-stats-refresh.ts sync:europeana:raw",
+    "sync:europeana:raw": "tsx scripts/sync-europeana.ts",
     "sync:shm:fast": "tsx scripts/run-sync-with-stats-refresh.ts sync:shm:fast:raw",
     "sync:shm:fast:raw": "tsx scripts/sync-ksamsok-fast.ts",
     "sync:shm:artists": "tsx scripts/run-sync-with-stats-refresh.ts sync:shm:fast:raw --artists-only",

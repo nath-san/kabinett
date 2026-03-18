@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getCampaignConfig, resolveCampaignFromHost } from "../campaign.server";
-import { ensureRequestContext } from "../request-context.server";
+import { clearRequestContext, ensureRequestContext } from "../request-context.server";
 
 const originalCampaign = process.env.KABINETT_CAMPAIGN;
 
@@ -10,6 +10,7 @@ describe("campaign.server", () => {
   });
 
   afterEach(() => {
+    clearRequestContext();
     if (typeof originalCampaign === "string") {
       process.env.KABINETT_CAMPAIGN = originalCampaign;
       return;
@@ -33,6 +34,15 @@ describe("campaign.server", () => {
     expect(campaign.museumId).toBe("nationalmuseum");
   });
 
+  it("accepts the Europeana campaign alias", () => {
+    process.env.KABINETT_CAMPAIGN = "europeana";
+    const campaign = getCampaignConfig();
+    expect(campaign.id).toBe("europeana");
+    expect(campaign.museums).toEqual(["europeana"]);
+    expect(campaign.museumId).toBe("europeana");
+    expect(campaign.noindex).toBe(true);
+  });
+
   it("enables noindex in museum campaign mode", () => {
     process.env.KABINETT_CAMPAIGN = "nordiska";
     const campaign = getCampaignConfig();
@@ -47,6 +57,7 @@ describe("campaign.server", () => {
   });
 
   it("resolves campaign from hostnames", () => {
+    expect(resolveCampaignFromHost("europeana.norrava.com").id).toBe("europeana");
     expect(resolveCampaignFromHost("nm.norrava.com").id).toBe("nationalmuseum");
     expect(resolveCampaignFromHost("nationalmuseum.norrava.com").id).toBe("nationalmuseum");
     expect(resolveCampaignFromHost("nordiska.norrava.com").id).toBe("nordiska");

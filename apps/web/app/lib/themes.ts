@@ -41,6 +41,7 @@ const MAX_THEMES = 5;
 
 const CAMPAIGN_THEMES: Record<CampaignId, ThemeCardSection[]> = {
   default: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
+  europeana: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
   nationalmuseum: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
   nordiska: [...UNIVERSAL_THEMES.slice(0, 2), ...NORDISKA_THEMES.slice(0, 3)],
   shm: [...UNIVERSAL_THEMES.slice(0, 2), ...SHM_THEMES.slice(0, 3)],

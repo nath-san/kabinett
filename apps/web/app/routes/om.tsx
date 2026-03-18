@@ -174,6 +174,23 @@ function renderDataSourceCopy(campaignId: CampaignId) {
     );
   }
 
+  if (campaignId === "europeana") {
+    return (
+      <>
+        Data hämtas via{" "}
+        <a
+          href="https://www.europeana.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors"
+        >
+          Europeana
+        </a>
+        .
+      </>
+    );
+  }
+
   return (
     <>
       Data hämtas via{" "}

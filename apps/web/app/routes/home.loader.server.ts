@@ -89,6 +89,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   }
 
   const OG_IMAGES: Record<CampaignId, string> = {
+    europeana: "/og-default.jpg",
     nationalmuseum: "/og-nm.jpg",
     nordiska: "/og-nordiska.jpg",
     shm: "/og-shm.jpg",

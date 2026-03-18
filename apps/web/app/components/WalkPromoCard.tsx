@@ -7,6 +7,12 @@ const COPY_BY_CAMPAIGN: Record<CampaignId, { eyebrow: string; title: string; bod
     body: "Utvalda resor genom samlingarna — med berättelser och utvalda verk.",
     cta: "Till vandringarna →",
   },
+  europeana: {
+    eyebrow: "Nytt",
+    title: "Upptäck konstvandringar",
+    body: "Utvalda resor genom samlingarna — med berättelser och utvalda verk.",
+    cta: "Till vandringarna →",
+  },
   nationalmuseum: {
     eyebrow: "Nytt",
     title: "Upptäck konstvandringar",

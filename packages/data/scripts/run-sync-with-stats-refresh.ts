@@ -23,6 +23,7 @@ function runPnpmScript(script: string, args: string[] = []): Promise<number> {
 
 function needsFullArtistRebuild(targetScript: string): boolean {
   return targetScript === "sync:nordiska:raw"
+    || targetScript === "sync:europeana:raw"
     || targetScript === "sync:shm:raw"
     || targetScript === "sync:shm:fast:raw";
 }

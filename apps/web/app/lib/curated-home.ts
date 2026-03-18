@@ -67,6 +67,7 @@ const CURATED_DEFAULT = CURATED_NM;
 
 const CURATED_BY_CAMPAIGN: Record<CampaignId, number[]> = {
   default: CURATED_DEFAULT,
+  europeana: CURATED_DEFAULT,
   nationalmuseum: CURATED_NM,
   nordiska: CURATED_NORDISKA,
   shm: CURATED_SHM,

@@ -115,6 +115,51 @@ function ensureTables(db: Database.Database) {
   console.log("✅ Ensured required tables");
 }
 
+function seedMuseums(db: Database.Database) {
+  db.exec(`
+    INSERT OR IGNORE INTO museums (id, name, description, url, image_base_url, source_type, enabled) VALUES (
+      'nationalmuseum',
+      'Nationalmuseum',
+      'Sveriges främsta konstmuseum med verk från medeltiden till idag. Måleri, skulptur, grafik och konsthantverk.',
+      'https://www.nationalmuseum.se',
+      NULL,
+      'api',
+      1
+    );
+
+    INSERT OR IGNORE INTO museums (id, name, description, url, image_base_url, source_type, enabled) VALUES (
+      'shm',
+      'Statens historiska museer',
+      'Fem museer under samma myndighet: Historiska museet, Livrustkammaren, Hallwylska museet, Skoklosters slott och Tumba bruksmuseum.',
+      'https://shm.se',
+      'https://media.samlingar.shm.se/item',
+      'ksamsok',
+      1
+    );
+
+    INSERT OR IGNORE INTO museums (id, name, description, url, image_base_url, source_type, enabled) VALUES (
+      'nordiska',
+      'Nordiska museet',
+      'Sveriges största kulturhistoriska museum. Folkkonst, mode, fotografi och vardagshistoria från 1500-talet till idag.',
+      'https://www.nordiskamuseet.se',
+      NULL,
+      'ksamsok',
+      1
+    );
+
+    INSERT OR IGNORE INTO museums (id, name, description, url, source_type, enabled) VALUES (
+      'europeana',
+      'Europeana',
+      'European digital cultural heritage',
+      'https://www.europeana.eu',
+      'europeana',
+      1
+    );
+  `);
+
+  console.log("✅ Seeded museums");
+}
+
 function ensureFts(db: Database.Database) {
   let recreatedFts = false;
   let shouldRebuildFts = false;
@@ -279,6 +324,7 @@ function main() {
     console.log(`\n🛠️ Migrating schema: ${DB_PATH}`);
     ensureArtworkColumns(db);
     ensureTables(db);
+    seedMuseums(db);
     ensureFts(db);
     ensureIndexes(db);
     backfillSource(db);

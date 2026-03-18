@@ -1,6 +1,6 @@
 import { getRequestContext } from "./request-context.server";
 
-export type CampaignId = "default" | "nationalmuseum" | "nordiska" | "shm";
+export type CampaignId = "default" | "europeana" | "nationalmuseum" | "nordiska" | "shm";
 
 export type CampaignConfig = {
   id: CampaignId;
@@ -28,6 +28,16 @@ const CAMPAIGNS: Record<CampaignId, CampaignBase> = {
     metaTitle: null,
     metaDescription: null,
     noindex: false,
+  },
+  europeana: {
+    museums: ["europeana"],
+    museumId: "europeana",
+    museumName: "Europeana",
+    heroSubline: "100 000 European artworks. Search in any language.",
+    heroIntro: "Paintings, sculptures, prints and photographs from Europe's greatest museums — searchable with AI.",
+    metaTitle: "Kabinett × Europeana",
+    metaDescription: null,
+    noindex: true,
   },
   nationalmuseum: {
     museums: ["nationalmuseum"],
@@ -71,6 +81,7 @@ const ALIASES: Record<string, CampaignId> = {
   default: "default",
   multi: "default",
   all: "default",
+  europeana: "europeana",
   nm: "nationalmuseum",
   nationalmuseum: "nationalmuseum",
   nordiska: "nordiska",
@@ -78,6 +89,7 @@ const ALIASES: Record<string, CampaignId> = {
 };
 
 const HOSTNAME_MAP: Record<string, CampaignId> = {
+  "europeana.norrava.com": "europeana",
   "nm.norrava.com": "nationalmuseum",
   "nationalmuseum.norrava.com": "nationalmuseum",
   "nordiska.norrava.com": "nordiska",
