@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import atexit
+import dataclasses
 import json
 import math
 import os
@@ -32,7 +33,13 @@ WRITE_BATCH_SIZE = 100
 PROGRESS_INTERVAL = 250
 
 
-@dataclass(slots=True)
+def compat_dataclass(*args: Any, **kwargs: Any):
+    if sys.version_info >= (3, 10):
+        kwargs.setdefault("slots", True)
+    return dataclasses.dataclass(*args, **kwargs)
+
+
+@compat_dataclass
 class CliOptions:
     artists_only: bool
     neighbors_only: bool
@@ -46,14 +53,14 @@ class CliOptions:
     no_workers: bool
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class NeighborResult:
     artwork_id: int
     neighbors: list[tuple[int, float | None]]
     skipped: bool
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class EmbeddingState:
     artwork_ids: Any
     embeddings: Any

@@ -40,19 +40,22 @@ if command -v sqlite3 > /dev/null 2>&1; then
   fi
 fi
 
-# Build FAISS index if not present
-if [ -f /data/kabinett.db ] && [ ! -f /data/faiss.index ]; then
-  echo "Building FAISS index (this takes a few minutes on first boot)..."
+# Build FAISS index only when explicitly enabled
+FAISS_AUTO_BUILD="${FAISS_AUTO_BUILD:-0}"
+if [ -f /data/kabinett.db ] && [ ! -f /data/faiss.index ] && [ "$FAISS_AUTO_BUILD" = "1" ]; then
+  echo "Building FAISS index (FAISS_AUTO_BUILD=1)..."
   PYTHONUNBUFFERED=1 python3 /app/packages/data/scripts/build-faiss-index.py \
     --db /data/kabinett.db \
     --out-index /data/faiss.index \
     --out-map /data/faiss-map.bin
   echo "FAISS index built!"
+elif [ ! -f /data/faiss.index ] || [ ! -f /data/faiss-map.bin ]; then
+  echo "FAISS index missing; skipping auto-build and continuing without FAISS."
 fi
 
 # Start FAISS KNN server as a sibling process (not child of this shell)
 # Using nohup + disown pattern so it survives the exec below
-if [ -f /data/faiss.index ]; then
+if [ -f /data/faiss.index ] && [ -f /data/faiss-map.bin ]; then
   echo "Starting FAISS server..."
   PYTHONUNBUFFERED=1 nohup python3 /app/packages/data/scripts/faiss-server.py > /data/faiss-server.log 2>&1 &
   echo "FAISS server starting in background (PID $!), Node will retry connections..."

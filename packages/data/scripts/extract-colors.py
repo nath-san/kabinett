@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import io
 import os
 import sqlite3
+import sys
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 try:
@@ -46,14 +47,20 @@ WHERE id = ?
 """
 
 
-@dataclass(slots=True)
+def compat_dataclass(*args: object, **kwargs: object):
+    if sys.version_info >= (3, 10):
+        kwargs.setdefault("slots", True)
+    return dataclasses.dataclass(*args, **kwargs)
+
+
+@compat_dataclass
 class ArtworkRow:
     artwork_id: int
     iiif_url: str
     source: str | None
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class ColorUpdate:
     artwork_id: int
     dominant_color: str
@@ -62,7 +69,7 @@ class ColorUpdate:
     blue: int
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class FailureRecord:
     artwork_id: int
     message: str

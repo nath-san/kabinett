@@ -20,6 +20,7 @@ import os
 import platform
 import re
 import sqlite3
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -53,25 +54,31 @@ NEIGHBOR_K = 48
 SIZE_MAP = ((200, "thumbnail"), (400, "medium"), (math.inf, "medium"))
 
 
-@dataclass(slots=True)
+def compat_dataclass(*args: Any, **kwargs: Any):
+    if sys.version_info >= (3, 10):
+        kwargs.setdefault("slots", True)
+    return dataclass(*args, **kwargs)
+
+
+@compat_dataclass
 class ArtworkRow:
     artwork_id: int
     iiif_url: str
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class DownloadedImage:
     artwork_id: int
     image_bytes: bytes
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class FailureRecord:
     artwork_id: int
     message: str
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class EmbeddingWrite:
     artwork_id: int
     embedding_bytes: bytes
@@ -79,13 +86,13 @@ class EmbeddingWrite:
     focal_y: float
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class VecState:
     extension_loaded: bool
     tables_ready: bool
 
 
-@dataclass(slots=True)
+@compat_dataclass
 class ProcessingStats:
     processed: int
     failed: int
