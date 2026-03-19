@@ -7,6 +7,7 @@ Samma app + samma databas kan därför servera flera subdomäner samtidigt.
 
 Följande mapping används i `campaign.server.ts`:
 
+- `europeana.norrava.com` → `europeana`
 - `nm.norrava.com` → `nationalmuseum`
 - `nationalmuseum.norrava.com` → `nationalmuseum`
 - `nordiska.norrava.com` → `nordiska`
@@ -15,6 +16,7 @@ Följande mapping används i `campaign.server.ts`:
 
 Varje kampanj-ID definierar också vilka museer som tillåts i queries:
 
+- `europeana` → `['europeana']`
 - `nationalmuseum` → `['nationalmuseum']`
 - `nordiska` → `['nordiska']`
 - `shm` → `['shm']`
@@ -36,7 +38,7 @@ Behåll en app, till exempel `kabinett`, med gemensam databas-volym.
 `fly.toml` kan fortsatt ha:
 
 - `KABINETT_CAMPAIGN = "default"` (fallback)
-- `MUSEUMS = "nationalmuseum,nordiska,shm"` (global fallback)
+- `MUSEUMS = "nationalmuseum,nordiska,shm,europeana"` (global fallback)
 
 Ingen extra Fly-app och ingen extra databas behövs för kampanjsubdomäner.
 
@@ -44,6 +46,7 @@ Ingen extra Fly-app och ingen extra databas behövs för kampanjsubdomäner.
 
 Peka alla kampanjsubdomäner till samma Fly-app, till exempel:
 
+- `europeana.norrava.com` → `kabinett.fly.dev`
 - `nm.norrava.com` → `kabinett.fly.dev`
 - `nationalmuseum.norrava.com` → `kabinett.fly.dev`
 - `nordiska.norrava.com` → `kabinett.fly.dev`

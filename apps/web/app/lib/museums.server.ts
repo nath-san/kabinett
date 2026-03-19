@@ -55,8 +55,19 @@ let collectionOptionsCache:
 export function getEnabledMuseums(): string[] {
   const now = Date.now();
   const allEnabledMuseums = getDbEnabledMuseums(now);
-  const contextMuseums = sanitizeMuseumList(getRequestContext()?.museums);
-  const requestedMuseums = contextMuseums ?? parseEnvMuseums();
+  const context = getRequestContext();
+
+  if (context) {
+    const contextMuseums = sanitizeMuseumList(context.museums);
+    if (!contextMuseums) {
+      return allEnabledMuseums;
+    }
+
+    const allowed = new Set(allEnabledMuseums);
+    return contextMuseums.filter((id) => allowed.has(id));
+  }
+
+  const requestedMuseums = parseEnvMuseums();
 
   if (!requestedMuseums) {
     return allEnabledMuseums;

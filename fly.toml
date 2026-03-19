@@ -9,7 +9,7 @@ primary_region = "arn"
   HOST = "0.0.0.0"
   # Fallback values if request Host does not match campaign hostname mapping.
   KABINETT_CAMPAIGN = "default"
-  MUSEUMS = "nationalmuseum,nordiska,shm"
+  MUSEUMS = "nationalmuseum,nordiska,shm,europeana"
 
 [http_service]
   internal_port = 3000
