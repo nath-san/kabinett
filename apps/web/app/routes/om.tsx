@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Route } from "./+types/om";
 import type { CampaignId } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
@@ -58,12 +59,25 @@ function formatRange(minYear: number | null, maxYear: number | null): string {
   return `${minYear}–${maxYear}`;
 }
 
+function formatMuseumSummary(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0] || "";
+  if (names.length <= 4) {
+    return `${names.slice(0, -1).join(", ")} och ${names[names.length - 1]}`;
+  }
+
+  const visibleNames = names.slice(0, 3).join(", ");
+  const remaining = names.length - 3;
+  return `${visibleNames} och ${remaining} andra samlingar`;
+}
+
 export default function About({ loaderData }: Route.ComponentProps) {
   const { stats, museums, museumName, campaignId } = loaderData;
-
-  const museumList = museums.length > 1
-    ? `${museums.map(m => m.name).slice(0, -1).join(", ")} och ${museums[museums.length - 1]?.name}`
-    : museums[0]?.name || "";
+  const [showAllCollections, setShowAllCollections] = useState(false);
+  const museumNames = museums.map((museum) => museum.name);
+  const museumSummary = formatMuseumSummary(museumNames);
+  const visibleMuseums = showAllCollections ? museums : museums.slice(0, 24);
+  const hiddenMuseumCount = Math.max(0, museums.length - visibleMuseums.length);
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
@@ -74,8 +88,8 @@ export default function About({ loaderData }: Route.ComponentProps) {
           </h1>
           <p className="mt-4 text-[1rem] lg:text-[1.05rem] text-dark-text-secondary leading-[1.7]">
             {museumName
-              ? `Utforska ${stats.totalWorks.toLocaleString("sv")} verk från ${museumList} — med semantisk sökning som förstår vad du letar efter.`
-              : `Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över ${stats.totalWorks.toLocaleString("sv")} verk från ${museumList} — med semantisk sökning som förstår vad du letar efter.`
+              ? `Utforska ${stats.totalWorks.toLocaleString("sv")} verk från ${museumSummary} — med semantisk sökning som förstår vad du letar efter.`
+              : `Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över ${stats.totalWorks.toLocaleString("sv")} verk från ${museumSummary} — med semantisk sökning som förstår vad du letar efter.`
             }
           </p>
         </div>
@@ -133,9 +147,25 @@ export default function About({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-10 pb-16">
-          <h2 className="font-serif text-[1.3rem] text-dark-text">Samlingar</h2>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-[1.3rem] text-dark-text m-0">Samlingar</h2>
+              <p className="mt-2 text-[0.92rem] text-dark-text-muted leading-[1.6]">
+                {museums.length.toLocaleString("sv")} samlingar i urvalet.
+              </p>
+            </div>
+            {museums.length > 24 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllCollections((value) => !value)}
+                className="shrink-0 text-[0.82rem] px-3.5 py-[0.45rem] rounded-full border border-[rgba(255,255,255,0.08)] bg-dark-raised text-dark-text hover:bg-dark-hover transition-colors focus-ring"
+              >
+                {showAllCollections ? "Visa färre" : `Visa alla ${museums.length.toLocaleString("sv")}`}
+              </button>
+            ) : null}
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {museums.map((m) => (
+            {visibleMuseums.map((m) => (
               <a
                 key={m.name}
                 href={`/samling/${encodeURIComponent(m.name)}`}
@@ -145,6 +175,11 @@ export default function About({ loaderData }: Route.ComponentProps) {
               </a>
             ))}
           </div>
+          {!showAllCollections && hiddenMuseumCount > 0 ? (
+            <p className="mt-4 text-[0.9rem] text-dark-text-muted leading-[1.6]">
+              och {hiddenMuseumCount.toLocaleString("sv")} till.
+            </p>
+          ) : null}
         </section>
 
       </div>
